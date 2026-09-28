@@ -35,7 +35,7 @@ export const MyTeam = ({ onNavigate }) => {
 
   // Form State for Create / Edit
   const [teamName, setTeamName] = useState('');
-  const [sport, setSport] = useState('Football');
+  const [sport, setSport] = useState('');
   const [customSport, setCustomSport] = useState('');
   const [members, setMembers] = useState([
     { member_name: '', member_user_id: '', player_search: '', position: 'Team Captain' }
@@ -219,7 +219,7 @@ export const MyTeam = ({ onNavigate }) => {
     }
     const selectedSport = sport === 'Other' ? customSport.trim() : sport;
     if (!selectedSport) {
-      setError('Please enter the sport name');
+      setError('Please select a sport for your team');
       return;
     }
 
@@ -344,7 +344,7 @@ export const MyTeam = ({ onNavigate }) => {
       setTeam(null);
       setIsEditing(false);
       setTeamName('');
-      setSport('Football');
+      setSport('');
       setCustomSport('');
       setMembers([
         { member_name: user?.name || '', member_user_id: user?.id || '', player_search: '', position: 'Team Captain' }
@@ -469,8 +469,8 @@ export const MyTeam = ({ onNavigate }) => {
             <form onSubmit={handleCreateTeam}>
               <div className="form-group full-width">
                 <label className="form-label" htmlFor="sport">Sport *</label>
-                <select id="sport" className="form-select no-icon" value={sport} onChange={(e) => setSport(e.target.value)}>
-                  <option>Badminton</option><option>Table Tennis</option><option>Cricket</option><option>Football</option><option>Other</option>
+                <select id="sport" className="form-select no-icon" value={sport} onChange={(e) => setSport(e.target.value)} required>
+                  <option value="" disabled>— Select a sport —</option><option>Badminton</option><option>Table Tennis</option><option>Cricket</option><option>Football</option><option>Other</option>
                 </select>
                 {sport === 'Other' && <input className="form-input no-icon" style={{ marginTop: '0.5rem' }} placeholder="Enter sport name" value={customSport} onChange={(e) => setCustomSport(e.target.value)} required />}
               </div>
