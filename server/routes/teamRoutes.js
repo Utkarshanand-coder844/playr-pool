@@ -1,5 +1,5 @@
 import express from 'express';
-import { createTeam, getMyTeam, updateTeam, getTournamentStatus, getTeamById, getRegisteredPlayers, getPlayerProfile, createTeamInvite, getMyInvites, respondToTeamInvite, getRegistrationStatus, setAvailability, getTeamAvailability, createTeamRequest, getTeamRequests, reviewTeamRequest, removeTeamMember, voteToRemoveAdmin, getAdminRemovalVoteSummary, discover, transferTeamOwnership } from '../controllers/teamController.js';
+import { createTeam, getMyTeam, updateTeam, deleteTeam, getTournamentStatus, getTeamById, getRegisteredPlayers, getPlayerProfile, createTeamInvite, getMyInvites, respondToTeamInvite, getRegistrationStatus, setAvailability, getTeamAvailability, createTeamRequest, getTeamRequests, reviewTeamRequest, removeTeamMember, voteToRemoveAdmin, getAdminRemovalVoteSummary, discover, transferTeamOwnership } from '../controllers/teamController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { actionRateLimit } from '../middleware/rateLimitMiddleware.js';
 
@@ -28,6 +28,7 @@ router.put('/:id/ownership', authenticateToken, actionRateLimit({ windowMs: 60 *
 router.get('/:id/admin-removal-votes', authenticateToken, getAdminRemovalVoteSummary);
 router.post('/:id/admin-removal-votes', authenticateToken, actionRateLimit({ windowMs: 24 * 60 * 60 * 1000, max: 3 }), voteToRemoveAdmin);
 router.put('/:id', authenticateToken, updateTeam);
+router.delete('/:id', authenticateToken, actionRateLimit({ windowMs: 60 * 60 * 1000, max: 10 }), deleteTeam);
 
 // Public route — view any team's profile page. Kept after the literal
 // routes above so Express matches /status and /mine before falling

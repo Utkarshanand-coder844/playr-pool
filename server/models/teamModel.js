@@ -154,20 +154,20 @@ export const TeamModel = {
   },
 
   /**
-   * Update team name and replace/update roster members
+   * Update team name, sport, and replace/update roster members
    * @param {string} id 
    * @param {object} param1 
    * @returns {Promise<object>}
    */
-  async updateTeam(id, { name, members = null, locked = undefined }) {
+  async updateTeam(id, { name, sport = null, members = null, locked = undefined }) {
     // 1. Update team basic info
     const updateText = `
       UPDATE teams 
-      SET name = COALESCE($1, name), locked = COALESCE($2, locked)
-      WHERE id = $3
-      RETURNING id, name, owner_user_id, locked, created_at;
+      SET name = COALESCE($1, name), sport = COALESCE($2, sport), locked = COALESCE($3, locked)
+      WHERE id = $4
+      RETURNING id, name, sport, owner_user_id, campus, locked, created_at;
     `;
-    const { rows: teamRows } = await query(updateText, [name ? name.trim() : null, locked, id]);
+    const { rows: teamRows } = await query(updateText, [name ? name.trim() : null, sport ? sport.trim() : null, locked, id]);
     const updatedTeam = teamRows[0];
 
     // 2. Update members if provided
@@ -206,5 +206,15 @@ export const TeamModel = {
       ...updatedTeam,
       members: existingMembers || []
     };
+  },
+
+  /**
+   * Delete team by id (foreign keys CASCADE cleanup for members, invites, requests, votes)
+   * @param {string} id
+   * @returns {Promise<object|null>}
+   */
+  async deleteTeam(id) {
+    const { rows } = await query('DELETE FROM teams WHERE id = $1 RETURNING *;', [id]);
+    return rows[0] || null;
   }
 };

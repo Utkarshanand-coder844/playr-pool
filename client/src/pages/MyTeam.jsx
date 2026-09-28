@@ -19,6 +19,7 @@ export const MyTeam = ({ onNavigate }) => {
   const [tournamentLocked, setTournamentLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   // Admin Removal Poll
@@ -54,7 +55,14 @@ export const MyTeam = ({ onNavigate }) => {
         setTeam(data.team);
         setTournamentLocked(Boolean(data.tournament_locked));
         if (data.team) {
-          setSport(data.team.sport || 'Football');
+          const standardSports = ['Badminton', 'Table Tennis', 'Cricket', 'Football'];
+          if (standardSports.includes(data.team.sport)) {
+            setSport(data.team.sport);
+            setCustomSport('');
+          } else {
+            setSport('Other');
+            setCustomSport(data.team.sport || '');
+          }
           setTeamName(data.team.name);
           setMembers(
             data.team.members && data.team.members.length > 0
@@ -260,6 +268,12 @@ export const MyTeam = ({ onNavigate }) => {
     setError('');
     setSuccess('');
 
+    const finalSport = sport === 'Other' ? customSport.trim() : sport;
+    if (!finalSport) {
+      setError('Please select or specify a sport');
+      return;
+    }
+
     if (!teamName.trim()) {
       setError('Team name cannot be empty');
       return;
@@ -283,6 +297,7 @@ export const MyTeam = ({ onNavigate }) => {
         headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           name: teamName.trim(),
+          sport: finalSport,
           members: filteredMembers
         })
       });
@@ -292,13 +307,52 @@ export const MyTeam = ({ onNavigate }) => {
         throw new Error(data.message || 'Failed to update team');
       }
 
-      setSuccess('✅ Team details and roster updated successfully!');
+      setSuccess('✅ Team details, sport, and roster updated successfully!');
       setTeam(data.team);
       setIsEditing(false);
+      fetchTeam();
     } catch (err) {
       setError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Handle Team Deletion (Disband)
+  const handleDeleteTeam = async () => {
+    if (!team || !token) return;
+    const confirmDisband = window.confirm(
+      `Are you sure you want to disband "${team.name}" (${team.sport})?\n\nThis will remove the squad, its roster, and all pending invites. This action cannot be undone.`
+    );
+    if (!confirmDisband) return;
+
+    setDeleting(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await fetch(`/api/teams/${team.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token)
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to disband team');
+      }
+
+      setSuccess(`✅ Squad "${team.name}" has been successfully disbanded.`);
+      setTeam(null);
+      setIsEditing(false);
+      setTeamName('');
+      setSport('Football');
+      setCustomSport('');
+      setMembers([
+        { member_name: user?.name || '', member_user_id: user?.id || '', player_search: '', position: 'Team Captain' }
+      ]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -600,25 +654,53 @@ export const MyTeam = ({ onNavigate }) => {
                   </span>
                 </div>
               </div>
-            ) : team.owner_user_id === user.id ? (
-              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
+            ) : team.owner_user_id === (user?.id || user?.userId) ? (
+              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 {!isEditing ? (
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    ✏️ Edit Squad & Roster
-                  </button>
+                  <>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      ✏️ Edit Team (Name, Sport, Roster)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      onClick={handleDeleteTeam}
+                      disabled={deleting}
+                    >
+                      {deleting ? 'Disbanding...' : '🗑️ Disband Team'}
+                    </button>
+                  </>
                 ) : (
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setTeamName(team.name);
-                    }}
-                  >
-                    Cancel Edit
-                  </button>
+                  <>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setTeamName(team.name);
+                        const standardSports = ['Badminton', 'Table Tennis', 'Cricket', 'Football'];
+                        if (standardSports.includes(team.sport)) {
+                          setSport(team.sport);
+                          setCustomSport('');
+                        } else {
+                          setSport('Other');
+                          setCustomSport(team.sport || '');
+                        }
+                      }}
+                    >
+                      Cancel Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      onClick={handleDeleteTeam}
+                      disabled={deleting}
+                    >
+                      {deleting ? 'Disbanding...' : '🗑️ Disband Team'}
+                    </button>
+                  </>
                 )}
               </div>
             ) : (
@@ -627,16 +709,16 @@ export const MyTeam = ({ onNavigate }) => {
               </p>
             )}
 
-            {!isLocked && team.owner_user_id === user.id && (
+            {!isLocked && team.owner_user_id === (user?.id || user?.userId) && (
               <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
                 <label className="form-label" style={{ marginBottom: '0.4rem' }}>Invite a registered player</label>
                 <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                  <select className="form-select no-icon" style={{ flex: 1, minWidth: '220px' }} value={invitePlayerId} onChange={(e) => setInvitePlayerId(e.target.value)}><option value="">Choose player to invite</option>{players.filter(player => player.id !== user.id && !team.members?.some(member => member.member_user_id === player.id)).map(player => <option key={player.id} value={player.id}>{player.name} — {player.college_id}</option>)}</select>
+                  <select className="form-select no-icon" style={{ flex: 1, minWidth: '220px' }} value={invitePlayerId} onChange={(e) => setInvitePlayerId(e.target.value)}><option value="">Choose player to invite</option>{players.filter(player => player.id !== (user?.id || user?.userId) && !team.members?.some(member => member.member_user_id === player.id)).map(player => <option key={player.id} value={player.id}>{player.name} — {player.college_id}</option>)}</select>
                   <button className="btn btn-primary btn-sm" style={{ width: 'auto' }} disabled={!invitePlayerId || inviteSending} onClick={sendInvite}>{inviteSending ? 'Sending...' : 'Send invite'}</button>
                 </div>
                 <label className="form-label" style={{ marginTop: '1rem', marginBottom: '0.4rem' }}>Transfer team ownership</label>
                 <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                  <select className="form-select no-icon" style={{ flex: 1, minWidth: '220px' }} value={newOwnerId} onChange={(e) => setNewOwnerId(e.target.value)}><option value="">Choose a current roster member</option>{team.members?.filter(member => member.member_user_id && member.member_user_id !== user.id).map(member => <option key={member.member_user_id} value={member.member_user_id}>{member.member_name}</option>)}</select>
+                  <select className="form-select no-icon" style={{ flex: 1, minWidth: '220px' }} value={newOwnerId} onChange={(e) => setNewOwnerId(e.target.value)}><option value="">Choose a current roster member</option>{team.members?.filter(member => member.member_user_id && member.member_user_id !== (user?.id || user?.userId)).map(member => <option key={member.member_user_id} value={member.member_user_id}>{member.member_name}</option>)}</select>
                   <button type="button" className="btn btn-danger btn-sm" style={{ width: 'auto' }} onClick={transferOwnership} disabled={!newOwnerId || transferringOwnership}>{transferringOwnership ? 'Transferring...' : 'Transfer ownership'}</button>
                 </div>
               </div>
@@ -647,11 +729,37 @@ export const MyTeam = ({ onNavigate }) => {
           {isEditing && !isLocked && (
             <div className="auth-card" style={{ maxWidth: '100%' }}>
               <div className="auth-header" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.4rem' }}>Edit Team Name & Roster</h2>
-                <p>Modify squad title or adjust team members before the tournament locks</p>
+                <h2 style={{ fontSize: '1.4rem' }}>Edit Team Name, Sport & Roster</h2>
+                <p>Modify squad title, sport category, or adjust team members before the tournament locks</p>
               </div>
 
               <form onSubmit={handleUpdateTeam}>
+                <div className="form-group full-width">
+                  <label className="form-label" htmlFor="edit_sport">Sport *</label>
+                  <select
+                    id="edit_sport"
+                    className="form-select no-icon"
+                    value={sport}
+                    onChange={(e) => setSport(e.target.value)}
+                  >
+                    <option>Badminton</option>
+                    <option>Table Tennis</option>
+                    <option>Cricket</option>
+                    <option>Football</option>
+                    <option>Other</option>
+                  </select>
+                  {sport === 'Other' && (
+                    <input
+                      className="form-input no-icon"
+                      style={{ marginTop: '0.5rem' }}
+                      placeholder="Enter sport name"
+                      value={customSport}
+                      onChange={(e) => setCustomSport(e.target.value)}
+                      required
+                    />
+                  )}
+                </div>
+
                 <div className="form-group full-width">
                   <label className="form-label" htmlFor="edit_team_name">Team Name *</label>
                   <input
@@ -696,7 +804,7 @@ export const MyTeam = ({ onNavigate }) => {
                         <select className="form-select no-icon" value={member.member_user_id || ''} onChange={(e) => handleMemberChange(index, 'member_user_id', e.target.value)} required>
                           <option value="" disabled>Choose a registered player</option>
                           {getMatchingPlayers(member).map(player => {
-                            const currentSport = team?.sport || sport;
+                            const currentSport = isEditing ? (sport === 'Other' ? customSport : sport) : (team?.sport || sport);
                             const prof = player.sport_profiles?.[currentSport];
                             const roleText = prof ? formatSportProfile(currentSport, prof).join(' • ') : '';
                             return (
@@ -707,7 +815,7 @@ export const MyTeam = ({ onNavigate }) => {
                           })}
                         </select>
                         {(() => {
-                          const currentSport = team?.sport || sport;
+                          const currentSport = isEditing ? (sport === 'Other' ? customSport : sport) : (team?.sport || sport);
                           const selPlayer = players.find(p => p.id === member.member_user_id);
                           const prof = selPlayer?.sport_profiles?.[currentSport];
                           const tags = prof ? formatSportProfile(currentSport, prof) : [];
@@ -760,7 +868,7 @@ export const MyTeam = ({ onNavigate }) => {
                     disabled={submitting}
                     style={{ flex: 1 }}
                   >
-                    {submitting ? 'Saving...' : 'Save Roster Changes'}
+                    {submitting ? 'Saving...' : 'Save Team Changes (Name, Sport, Roster)'}
                   </button>
                   <button
                     type="button"
@@ -948,12 +1056,37 @@ export const MyTeam = ({ onNavigate }) => {
               )}
 
               {/* Owner view — can see votes but cannot vote */}
-              {user && user.id === team.owner_user_id && (
+              {user && (user.id || user.userId) === team.owner_user_id && (
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>You are the admin — you cannot vote in this poll.</span>
                   <button className="btn btn-secondary btn-sm" onClick={() => fetchPollStatus(team.id)} disabled={pollLoading}>🔄 Refresh</button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* DANGER ZONE: DISBAND TEAM */}
+          {!isLocked && team.owner_user_id === (user?.id || user?.userId) && (
+            <div className="auth-card" style={{ maxWidth: '100%', border: '1px solid rgba(239, 68, 68, 0.35)', background: 'rgba(239, 68, 68, 0.03)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ margin: 0, color: '#ef4444', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    ⚠️ Disband Team
+                  </h3>
+                  <p style={{ margin: '0.25rem 0 0', color: 'var(--text-muted)', fontSize: '0.86rem' }}>
+                    Permanently delete this team, remove all athletes from the roster, and cancel all pending invitations.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={handleDeleteTeam}
+                  disabled={deleting}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {deleting ? 'Disbanding...' : '🗑️ Disband Team'}
+                </button>
+              </div>
             </div>
           )}
         </div>

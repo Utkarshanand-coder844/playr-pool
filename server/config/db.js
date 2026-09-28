@@ -13,6 +13,8 @@ const memoryStore = {
   teams: [],
   team_members: [],
   team_invites: [],
+  team_requests: [],
+  team_admin_removal_votes: [],
   player_stats: [],
   matches: [],
   scores: [],
@@ -861,6 +863,22 @@ export const query = async (text, params = []) => {
     return { rows: leaderboard };
   }
 
+  // --- DELETE TEAMS ---
+  if (normalizedText.includes('delete from teams')) {
+    const id = params[0];
+    const index = memoryStore.teams.findIndex(t => t.id === id);
+    if (index >= 0) {
+      const [deleted] = memoryStore.teams.splice(index, 1);
+      // CASCADE cleanup in memory store
+      memoryStore.team_members = (memoryStore.team_members || []).filter(m => m.team_id !== id);
+      memoryStore.team_invites = (memoryStore.team_invites || []).filter(i => i.team_id !== id);
+      memoryStore.team_requests = (memoryStore.team_requests || []).filter(r => r.team_id !== id);
+      memoryStore.team_admin_removal_votes = (memoryStore.team_admin_removal_votes || []).filter(v => v.team_id !== id);
+      return { rows: [{ ...deleted }] };
+    }
+    return { rows: [] };
+  }
+
   // --- TEAMS ---
   if (normalizedText.includes('from teams') && !normalizedText.includes('from matches')) {
     if (normalizedText.includes('member_user_id = $1')) {
@@ -915,7 +933,7 @@ export const query = async (text, params = []) => {
 
   if (normalizedText.includes('update teams')) {
     // Handle: UPDATE teams SET locked = $1 WHERE id = $2  (lock toggle)
-    // Handle: UPDATE teams SET name = $1, locked = $2 WHERE id = $3 (update)
+    // Handle: UPDATE teams SET name = $1, sport = $2, locked = $3 WHERE id = $4 (update)
     // Handle: UPDATE teams SET owner_user_id = $1 WHERE id = $2 AND owner_user_id = $3 (transfer)
     if (normalizedText.includes('owner_user_id =') && params.length === 3) {
       const [newOwnerId, teamId, currentOwnerId] = params;
@@ -932,6 +950,17 @@ export const query = async (text, params = []) => {
       const team = memoryStore.teams.find(t => t.id === id);
       if (team) {
         team.locked = Boolean(locked);
+        return { rows: [{ ...team }] };
+      }
+      return { rows: [] };
+    }
+    if (params.length === 4) {
+      const [name, sport, locked, id] = params;
+      const team = memoryStore.teams.find(t => t.id === id);
+      if (team) {
+        if (name !== undefined && name !== null) team.name = name;
+        if (sport !== undefined && sport !== null) team.sport = sport;
+        if (locked !== undefined && locked !== null) team.locked = Boolean(locked);
         return { rows: [{ ...team }] };
       }
       return { rows: [] };

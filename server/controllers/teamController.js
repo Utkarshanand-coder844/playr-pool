@@ -259,13 +259,13 @@ export const getMyTeam = async (req, res) => {
 
 /**
  * PUT /api/teams/:id
- * Edit team name and roster members. Only allowed if not locked and belongs to req.user
+ * Edit team name, sport, and roster members. Only allowed if not locked and belongs to req.user
  */
 export const updateTeam = async (req, res) => {
   try {
     const userId = req.user.id || req.user.userId;
     const teamId = req.params.id;
-    const { name, members } = req.body;
+    const { name, sport, members } = req.body;
 
     // 1. Check if tournament is globally locked
     const isTournamentLocked = await TeamModel.isTournamentLocked();
@@ -301,13 +301,36 @@ export const updateTeam = async (req, res) => {
       });
     }
 
-    // 5. Update team
+    // 5. Validate sport change if requested
+    let normalizedSport = undefined;
+    if (sport !== undefined) {
+      normalizedSport = typeof sport === 'string' ? sport.trim() : '';
+      if (!normalizedSport || normalizedSport.length > 60) {
+        return res.status(400).json({ success: false, message: 'Choose a valid sport (up to 60 characters)' });
+      }
+      if (normalizedSport !== team.sport) {
+        if (!(await RegistrationModel.isRegistrationOpen(normalizedSport))) {
+          return res.status(403).json({ success: false, message: `Registration for ${normalizedSport} is currently closed` });
+        }
+        const existingTeam = await TeamModel.findByOwnerId(userId, normalizedSport);
+        if (existingTeam && existingTeam.id !== teamId) {
+          return res.status(409).json({
+            success: false,
+            message: `You already own another team for ${normalizedSport}.`
+          });
+        }
+      }
+    }
+
+    // 6. Validate roster members if provided
     if (members !== undefined) {
       const membersError = await validateRegisteredMembers(members);
       if (membersError) return res.status(400).json({ success: false, message: membersError });
     }
+
     const updated = await TeamModel.updateTeam(teamId, {
       name: name !== undefined ? name : team.name,
+      sport: normalizedSport !== undefined ? normalizedSport : team.sport,
       members: members !== undefined ? members : undefined
     });
 
@@ -318,9 +341,76 @@ export const updateTeam = async (req, res) => {
     });
   } catch (error) {
     console.error('Update team error:', error);
+    if (error.code === '23505') {
+      return res.status(409).json({
+        success: false,
+        message: 'You already own a team for this sport.'
+      });
+    }
     return res.status(500).json({
       success: false,
       message: 'Internal server error while updating team'
+    });
+  }
+};
+
+/**
+ * DELETE /api/teams/:id
+ * Disband/Delete team. Only allowed if not locked and belongs to req.user
+ */
+export const deleteTeam = async (req, res) => {
+  try {
+    const userId = req.user.id || req.user.userId;
+    const teamId = req.params.id;
+
+    // 1. Lookup target team
+    const team = await TeamModel.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        message: 'Team not found'
+      });
+    }
+
+    // 2. Verify ownership: must belong to req.user
+    if (team.owner_user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized: Only the team owner can disband or delete this team'
+      });
+    }
+
+    // 3. Check if tournament is globally locked or team is marked locked
+    const isTournamentLocked = await TeamModel.isTournamentLocked();
+    if (isTournamentLocked || team.locked) {
+      return res.status(403).json({
+        success: false,
+        message: 'Tournament in progress — team cannot be disbanded while locked'
+      });
+    }
+
+    // 4. Notify roster members before deletion
+    if (Array.isArray(team.members)) {
+      const otherMembers = team.members.filter(m => m.member_user_id && m.member_user_id !== userId);
+      await Promise.all(
+        otherMembers.map(m =>
+          notify(m.member_user_id, 'Team Disbanded', `The squad "${team.name}" (${team.sport}) has been disbanded by its owner.`).catch(() => {})
+        )
+      );
+    }
+
+    // 5. Delete team (cascades to team_members, team_invites, team_requests, votes, scores)
+    await TeamModel.deleteTeam(teamId);
+
+    return res.json({
+      success: true,
+      message: `Team "${team.name}" has been successfully disbanded.`
+    });
+  } catch (error) {
+    console.error('Delete team error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while disbanding team'
     });
   }
 };
