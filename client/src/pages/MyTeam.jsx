@@ -395,6 +395,7 @@ export const MyTeam = ({ onNavigate }) => {
   };
 
   const isLocked = Boolean(tournamentLocked || (team && team.locked));
+  const isCaptain = Boolean(team && team.owner_user_id === (user?.id || user?.userId));
 
   if (loading) {
     return (
@@ -449,20 +450,22 @@ export const MyTeam = ({ onNavigate }) => {
         <select className="form-select no-icon" value={playerYear} onChange={(e) => setPlayerYear(e.target.value)}><option>All</option>{[...new Set(players.map((player) => player.year).filter(Boolean))].sort().map((year) => <option key={year}>{year}</option>)}</select>
       </div>
 
-      {/* TEAM TABS — when user has multiple teams */}
-      {teams.length > 0 && (
-        <div style={{
-          display: 'flex',
-          gap: '0.5rem',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          marginBottom: '1rem'
-        }}>
-          {teams.map((t, idx) => (
+      {/* TEAM TABS — when user has one or more teams */}
+      <div style={{
+        display: 'flex',
+        gap: '0.5rem',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        marginBottom: '1rem'
+      }}>
+        {teams.map((t, idx) => {
+          const isCaptain = t.owner_user_id === (user?.id || user?.userId);
+          const sportIcon = t.sport === 'Cricket' ? '🏏' : t.sport === 'Badminton' ? '🏸' : t.sport === 'Table Tennis' ? '🏓' : t.sport === 'Football' ? '⚽' : '🏅';
+          return (
             <button
               key={t.id}
               className={`btn btn-sm ${!showCreateForm && selectedTeamIdx === idx ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ width: 'auto', fontSize: '0.85rem' }}
+              style={{ width: 'auto', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
               onClick={() => {
                 setShowCreateForm(false);
                 setSelectedTeamIdx(idx);
@@ -485,29 +488,38 @@ export const MyTeam = ({ onNavigate }) => {
                 );
               }}
             >
-              {t.sport === 'Cricket' ? '🏏' : t.sport === 'Badminton' ? '🏸' : t.sport === 'Table Tennis' ? '🏓' : '⚽'} {t.name}
+              {sportIcon} {t.name}
+              <span style={{
+                fontSize: '0.65rem', padding: '1px 6px', borderRadius: 100,
+                background: isCaptain ? 'rgba(56,189,248,0.2)' : 'rgba(168,85,247,0.2)',
+                color: isCaptain ? 'var(--accent-cyan)' : '#c084fc',
+                border: `1px solid ${isCaptain ? 'rgba(56,189,248,0.35)' : 'rgba(168,85,247,0.35)'}`,
+                fontWeight: 700, letterSpacing: '0.04em'
+              }}>
+                {isCaptain ? 'CAPTAIN' : 'MEMBER'}
+              </span>
             </button>
-          ))}
-          {!tournamentLocked && (
-            <button
-              className={`btn btn-sm ${showCreateForm ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ width: 'auto', fontSize: '0.85rem' }}
-              onClick={() => {
-                setShowCreateForm(true);
-                setIsEditing(false);
-                setError('');
-                setSuccess('');
-                setTeamName('');
-                setSport('');
-                setCustomSport('');
-                setMembers([{ member_name: '', member_user_id: '', player_search: '', position: 'Team Captain' }]);
-              }}
-            >
-              ➕ Create Another Team
-            </button>
-          )}
-        </div>
-      )}
+          );
+        })}
+        {!tournamentLocked && (
+          <button
+            className={`btn btn-sm ${showCreateForm ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ width: 'auto', fontSize: '0.85rem' }}
+            onClick={() => {
+              setShowCreateForm(true);
+              setIsEditing(false);
+              setError('');
+              setSuccess('');
+              setTeamName('');
+              setSport('');
+              setCustomSport('');
+              setMembers([{ member_name: user?.name || '', member_user_id: user?.id || user?.userId || '', player_search: user?.name || '', position: 'Team Captain' }]);
+            }}
+          >
+            ➕ {teams.length === 0 ? 'Create a Team' : 'Create Another Team'}
+          </button>
+        )}
+      </div>
 
       {invites.filter(invite => invite.status === 'pending').length > 0 && (
         <div className="auth-card" style={{ maxWidth: '100%' }}>
@@ -521,8 +533,8 @@ export const MyTeam = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* CASE 1: USER HAS NO TEAM OR CREATING A NEW ONE */}
-      {(!team && (teams.length === 0 || showCreateForm)) && (
+      {/* CASE 1: CREATE FORM — shown when user explicitly requests it OR has no teams at all */}
+      {(showCreateForm || teams.length === 0) && (
         <div className="auth-card" style={{ maxWidth: '780px', margin: '0 auto' }}>
           <div className="auth-header">
             <h1>Create Your Tournament Squad</h1>
@@ -665,14 +677,29 @@ export const MyTeam = ({ onNavigate }) => {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={submitting}
-                style={{ marginTop: '1.25rem' }}
-              >
-                {submitting ? 'Registering Squad...' : 'Complete Team Registration'}
-              </button>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submitting}
+                  style={{ flex: 1, minWidth: '200px' }}
+                >
+                  {submitting ? 'Registering Squad...' : 'Complete Team Registration'}
+                </button>
+                {teams.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setIsEditing(false);
+                      setError('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </form>
           )}
         </div>
@@ -691,8 +718,12 @@ export const MyTeam = ({ onNavigate }) => {
                 <span>OFFICIAL TOURNAMENT SQUAD</span>
               </div>
 
-              <span className={`role-pill ${isLocked ? 'admin' : 'player'}`}>
-                {isLocked ? '🔒 SQUAD LOCKED' : '🟢 ACTIVE ROSTER'}
+              <span className={`role-pill ${isLocked ? 'admin' : isCaptain ? 'admin' : 'player'}`} style={{
+                background: isLocked ? undefined : isCaptain ? 'rgba(56,189,248,0.2)' : 'rgba(168,85,247,0.2)',
+                color: isLocked ? undefined : isCaptain ? 'var(--accent-cyan)' : '#c084fc',
+                borderColor: isLocked ? undefined : isCaptain ? 'rgba(56,189,248,0.4)' : 'rgba(168,85,247,0.4)'
+              }}>
+                {isLocked ? '🔒 SQUAD LOCKED' : isCaptain ? '👑 SQUAD CAPTAIN' : '🤝 SQUAD MEMBER'}
               </span>
             </div>
 
@@ -705,7 +736,7 @@ export const MyTeam = ({ onNavigate }) => {
                 <div className="profile-sub">
                   <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>{team.sport || 'Football'}</span>
                   <span>•</span>
-                  <span>Owner: <strong>{user.name}</strong> ({user.college_id})</span>
+                  <span>Captain: <strong>{isCaptain ? `${user?.name} (You)` : (team.owner_name || 'Team Captain')}</strong> {isCaptain ? `(${user?.college_id})` : team.owner_college_id ? `(${team.owner_college_id})` : ''}</span>
                   <span>•</span>
                   <span>{team.members ? team.members.length : 0} Roster Athletes</span>
                 </div>
@@ -1001,7 +1032,7 @@ export const MyTeam = ({ onNavigate }) => {
 
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff' }}>
-                        {member.member_name}
+                        {member.member_name} {member.member_user_id === (user?.id || user?.userId) ? <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 600, marginLeft: '4px' }}>(You)</span> : null}
                       </div>
                       <div style={{
                         display: 'inline-block',

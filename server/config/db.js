@@ -928,7 +928,18 @@ export const query = async (text, params = []) => {
 
   // --- TEAMS ---
   if (normalizedText.includes('from teams') && !normalizedText.includes('from matches')) {
-    if (normalizedText.includes('member_user_id = $1')) {
+    const enrichTeam = (team) => {
+      if (!team) return team;
+      const owner = memoryStore.users.find(u => u.id === team.owner_user_id);
+      return {
+        ...team,
+        owner_name: owner?.name || null,
+        owner_college_id: owner?.college_id || null,
+        owner_campus: owner?.campus || 'Main Campus'
+      };
+    };
+
+    if (normalizedText.includes('member_user_id = $1') || normalizedText.includes('member_user_id =$1')) {
       const userId = params[0];
       const teams = memoryStore.teams
         .filter(team => team.owner_user_id === userId || memoryStore.team_members.some(member => member.team_id === team.id && member.member_user_id === userId))
@@ -936,22 +947,22 @@ export const query = async (text, params = []) => {
           const aIsOwner = a.owner_user_id === userId;
           const bIsOwner = b.owner_user_id === userId;
           if (aIsOwner !== bIsOwner) return aIsOwner ? -1 : 1;
-          return a.sport.localeCompare(b.sport) || a.created_at.localeCompare(b.created_at);
+          return (a.sport || '').localeCompare(b.sport || '') || (a.created_at || '').localeCompare(b.created_at || '');
         });
-      return { rows: teams.map(team => ({ ...team })) };
+      return { rows: teams.map(enrichTeam) };
     }
     if (normalizedText.includes('owner_user_id =')) {
       const ownerId = params[0];
       const sport = params[1];
       const teams = memoryStore.teams.filter(t => t.owner_user_id === ownerId && (!sport || t.sport === sport));
-      return { rows: teams.map(team => ({ ...team })) };
+      return { rows: teams.map(enrichTeam) };
     }
     if (normalizedText.includes('where id =') || normalizedText.includes('where id=')) {
       const id = params[0];
       const team = memoryStore.teams.find(t => t.id === id);
-      return { rows: team ? [{ ...team }] : [] };
+      return { rows: team ? [enrichTeam(team)] : [] };
     }
-    return { rows: [...memoryStore.teams] };
+    return { rows: memoryStore.teams.map(enrichTeam) };
   }
 
   if (normalizedText.includes('insert into teams')) {
@@ -1041,12 +1052,22 @@ export const query = async (text, params = []) => {
 
   // --- TEAM MEMBERS ---
   if (normalizedText.includes('from team_members')) {
+    const enrichMember = (m) => {
+      const u = memoryStore.users.find(user => user.id === m.member_user_id);
+      return {
+        ...m,
+        college_id: u?.college_id || null,
+        department: u?.department || null,
+        year: u?.year || null,
+        campus: u?.campus || null
+      };
+    };
     if (normalizedText.includes('where team_id =') || normalizedText.includes('where team_id=')) {
       const teamId = params[0];
       const members = memoryStore.team_members.filter(m => m.team_id === teamId);
-      return { rows: members.map(m => ({ ...m })) };
+      return { rows: members.map(enrichMember) };
     }
-    return { rows: [...memoryStore.team_members] };
+    return { rows: memoryStore.team_members.map(enrichMember) };
   }
 
   // --- TEAM INVITES ---

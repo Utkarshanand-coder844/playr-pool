@@ -45,8 +45,12 @@ export const TeamModel = {
    */
   async findByOwnerId(ownerUserId, sport = null) {
     const teamText = sport
-      ? 'SELECT * FROM teams WHERE owner_user_id = $1 AND sport = $2 LIMIT 1;'
-      : 'SELECT * FROM teams WHERE owner_user_id = $1 ORDER BY created_at ASC LIMIT 1;';
+      ? `SELECT t.*, u.name as owner_name, u.college_id as owner_college_id, u.campus as owner_campus
+         FROM teams t LEFT JOIN users u ON t.owner_user_id = u.id
+         WHERE t.owner_user_id = $1 AND t.sport = $2 LIMIT 1;`
+      : `SELECT t.*, u.name as owner_name, u.college_id as owner_college_id, u.campus as owner_campus
+         FROM teams t LEFT JOIN users u ON t.owner_user_id = u.id
+         WHERE t.owner_user_id = $1 ORDER BY t.created_at ASC LIMIT 1;`;
     const { rows: teamRows } = await query(teamText, sport ? [ownerUserId, sport] : [ownerUserId]);
     const team = teamRows[0];
     if (!team) return null;
@@ -63,7 +67,12 @@ export const TeamModel = {
   },
 
   async findAllByOwnerId(ownerUserId) {
-    const { rows } = await query('SELECT * FROM teams WHERE owner_user_id = $1 ORDER BY sport ASC, created_at ASC;', [ownerUserId]);
+    const { rows } = await query(`
+      SELECT t.*, u.name as owner_name, u.college_id as owner_college_id, u.campus as owner_campus
+      FROM teams t LEFT JOIN users u ON t.owner_user_id = u.id
+      WHERE t.owner_user_id = $1
+      ORDER BY t.sport ASC, t.created_at ASC;
+    `, [ownerUserId]);
     return Promise.all(rows.map(async (team) => {
       const { rows: members } = await query(`SELECT tm.*, u.college_id, u.department, u.year, u.campus FROM team_members tm LEFT JOIN users u ON tm.member_user_id = u.id WHERE tm.team_id = $1 ORDER BY tm.created_at ASC;`, [team.id]);
       return { ...team, members };
@@ -77,8 +86,9 @@ export const TeamModel = {
    */
   async findAllForUserId(userId) {
     const { rows } = await query(`
-      SELECT t.*
+      SELECT t.*, u.name as owner_name, u.college_id as owner_college_id, u.campus as owner_campus
       FROM teams t
+      LEFT JOIN users u ON t.owner_user_id = u.id
       WHERE t.owner_user_id = $1
         OR EXISTS (
           SELECT 1 FROM team_members tm
@@ -99,7 +109,11 @@ export const TeamModel = {
    * @returns {Promise<object|null>}
    */
   async findById(id) {
-    const teamText = 'SELECT * FROM teams WHERE id = $1 LIMIT 1;';
+    const teamText = `
+      SELECT t.*, u.name as owner_name, u.college_id as owner_college_id, u.campus as owner_campus
+      FROM teams t LEFT JOIN users u ON t.owner_user_id = u.id
+      WHERE t.id = $1 LIMIT 1;
+    `;
     const { rows: teamRows } = await query(teamText, [id]);
     const team = teamRows[0];
     if (!team) return null;
