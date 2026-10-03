@@ -895,7 +895,9 @@ export function LiveScoring({ onNavigate }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
               {filtered.map(m => {
                 const ls = m.liveState;
-                const isCricketMatch = m.sport?.toLowerCase().includes('cricket');
+                const sport = (m.sport || '').toLowerCase();
+                const isCricketMatch = sport.includes('cricket');
+                const isRacketMatch = sport.includes('badminton') || sport.includes('volleyball') || sport.includes('table tennis') || sport.includes('tt') || sport.includes('tennis');
                 let scoreA = m.team_a_score ?? 0;
                 let scoreB = m.team_b_score ?? 0;
                 let subInfo = null;
@@ -909,6 +911,15 @@ export function LiveScoring({ onNavigate }) {
                     scoreB = inn1?.teamId === m.team_b_id ? inn1.totalRuns : (inn2?.totalRuns ?? 0);
                     subInfo = `${active.oversFormatted} ov · ${active.teamName} batting`;
                   }
+                } else if (isRacketMatch && ls) {
+                  // Badminton/Volleyball/Tennis: show current set points (live) + sets won
+                  const ptsA = ls.teamA?.currentPoints ?? 0;
+                  const ptsB = ls.teamB?.currentPoints ?? 0;
+                  const setsA = ls.teamA?.setsWon ?? 0;
+                  const setsB = ls.teamB?.setsWon ?? 0;
+                  scoreA = ptsA;
+                  scoreB = ptsB;
+                  if (setsA > 0 || setsB > 0) subInfo = `Sets: ${setsA}–${setsB}`;
                 } else if (ls) {
                   scoreA = ls.teamA?.score ?? scoreA;
                   scoreB = ls.teamB?.score ?? scoreB;
