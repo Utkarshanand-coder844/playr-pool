@@ -13,6 +13,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import sportsAdminRoutes from './routes/sportsAdminRoutes.js';
 import playerSportRoutes from './routes/playerSportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import liveScoringRoutes from './routes/liveScoringRoutes.js';
 import { initDb } from './config/db.js';
 import { initSocket } from './config/socket.js';
 import { corsOptions } from './config/cors.js';
@@ -45,8 +46,8 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
-// A profile image is resized in the browser and capped by validation below.
-app.use(express.json({ limit: '300kb' }));
+// JSON body parser with limit to support device photo uploads & profile pictures
+app.use(express.json({ limit: '5mb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -60,6 +61,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/sports-admins', sportsAdminRoutes);
 app.use('/api/player-sports', playerSportRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/live-scoring', liveScoringRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

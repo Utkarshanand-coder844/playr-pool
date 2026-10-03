@@ -53,12 +53,151 @@ export const AdminDashboard = ({ onNavigate }) => {
   const [editingAnnouncementId, setEditingAnnouncementId] = useState(null);
   const [postingAnnouncement, setPostingAnnouncement] = useState(false);
   const [adminSport, setAdminSport] = useState('');
+  const [photoUploading, setPhotoUploading] = useState(false);
 
-  // Score update form
+  const handleDevicePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+    setPhotoUploading(true);
+    setErrorMessage('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDimension = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        let quality = 0.85;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > 900000 && quality > 0.4) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        const labelName = file.name.replace(/\.[^/.]+$/, '').slice(0, 40) || 'Event Photo';
+        setAnnouncementAttachments(prev => [
+          ...prev,
+          {
+            label: labelName,
+            url: dataUrl,
+            type: 'poster'
+          }
+        ]);
+        setPhotoUploading(false);
+        showToast('Photo uploaded from device and attached!');
+      };
+      img.onerror = () => {
+        setErrorMessage('Failed to process device image.');
+        setPhotoUploading(false);
+      };
+      img.src = reader.result;
+    };
+    reader.onerror = () => {
+      setErrorMessage('Failed to read file from device.');
+      setPhotoUploading(false);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Score update form (legacy simple upsert — kept for backwards compat)
   const [selectedMatchId, setSelectedMatchId] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [scorePoints, setScorePoints] = useState(0);
   const [submittingScore, setSubmittingScore] = useState(false);
+
+  // ── Live Scoring Engine state (sport-aware) ──
+  const [lsMatchId, setLsMatchId] = useState('');
+  const [lsLiveState, setLsLiveState] = useState(null);
+  const [lsLoading, setLsLoading] = useState(false);
+  const [lsUndoing, setLsUndoing] = useState(false);
+  // Cricket sub-states
+  const [lsStrikerName, setLsStrikerName] = useState('');
+  const [lsNonStrikerName, setLsNonStrikerName] = useState('');
+  const [lsBowlerName, setLsBowlerName] = useState('');
+  const [lsWide, setLsWide] = useState(0);
+  const [lsNb, setLsNb] = useState(0);
+  const [lsWicketType, setLsWicketType] = useState('');
+  const [lsNextBatsman, setLsNextBatsman] = useState('');
+  const [lsShowLineup, setLsShowLineup] = useState(false);
+  const [lsShowInnings2, setLsShowInnings2] = useState(false);
+  const [lsInn2Striker, setLsInn2Striker] = useState('');
+  const [lsInn2NonStriker, setLsInn2NonStriker] = useState('');
+  const [lsInn2Bowler, setLsInn2Bowler] = useState('');
+  // Football sub-states
+  const [lsGoalScorer, setLsGoalScorer] = useState('');
+  const [lsGoalMinute, setLsGoalMinute] = useState('');
+  const [lsGoalAssist, setLsGoalAssist] = useState('');
+
+  // Derived: currently selected match object
+  const lsMatch = matches.find(m => String(m.id) === String(lsMatchId)) || null;
+  const lsSport = (lsMatch?.sport || '').toLowerCase();
+  const lsIsCricket = lsSport.includes('cricket');
+  const lsIsFootball = lsSport.includes('football') || lsSport.includes('futsal') || lsSport.includes('soccer');
+  const lsIsBasketball = lsSport.includes('basketball');
+  const lsIsRacket = lsSport.includes('badminton') || lsSport.includes('volleyball') || lsSport.includes('table tennis') || lsSport.includes('tennis');
+  const lsIsKabaddi = lsSport.includes('kabaddi');
+
+  // Load live state for selected match
+  const lsLoadState = async (mid) => {
+    if (!mid) return;
+    setLsLoading(true);
+    setLsLiveState(null);
+    try {
+      const res = await fetch(`/api/live-scoring/${mid}`);
+      const data = await res.json();
+      if (data.success) setLsLiveState(data.liveState);
+    } catch { /* ignore */ }
+    setLsLoading(false);
+  };
+
+  // Send a scoring event
+  const lsSendEvent = async (eventType, payload = {}) => {
+    if (!lsMatchId || !token) return;
+    try {
+      const res = await fetch(`/api/live-scoring/${lsMatchId}/event`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ eventType, payload })
+      });
+      const data = await res.json();
+      if (data.success) { setLsLiveState(data.liveState); showToast(`✅ ${eventType} recorded`); }
+      else setErrorMessage(data.message || 'Event failed');
+    } catch (err) { setErrorMessage(err.message); }
+  };
+
+  // Undo last event
+  const lsUndo = async () => {
+    if (!lsMatchId || !token) return;
+    setLsUndoing(true);
+    try {
+      const res = await fetch(`/api/live-scoring/${lsMatchId}/undo`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, { 'Content-Type': 'application/json' })
+      });
+      const data = await res.json();
+      if (data.success) { setLsLiveState(data.liveState); showToast('↩ Undo successful'); }
+      else setErrorMessage(data.message || 'Nothing to undo');
+    } catch (err) { setErrorMessage(err.message); }
+    setLsUndoing(false);
+  };
 
   // Toast / Notification
   const [toastMessage, setToastMessage] = useState('');
@@ -513,9 +652,50 @@ export const AdminDashboard = ({ onNavigate }) => {
           <div className="form-group"><label className="form-label">Title</label><input maxLength="120" className="form-input no-icon" placeholder="e.g. Football semi-final schedule" value={announcementTitle} onChange={(e) => setAnnouncementTitle(e.target.value)} required /></div>
           <div className="form-group"><label className="form-label">Message</label><textarea maxLength="2000" className="form-input no-icon" style={{ minHeight: '110px', resize: 'vertical' }} placeholder="Include teams, venue, reporting time, or other important information." value={announcementMessage} onChange={(e) => setAnnouncementMessage(e.target.value)} required /></div>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}><input type="checkbox" checked={announcementPinned} onChange={(e) => setAnnouncementPinned(e.target.checked)} /> Pin this update at the top of Events</label>
-          <div className="form-grid"><div className="form-group"><label className="form-label">Attachment label</label><input className="form-input no-icon" value={attachmentLabel} onChange={(e) => setAttachmentLabel(e.target.value)} placeholder="Tournament rules PDF" /></div><div className="form-group"><label className="form-label">Attachment URL</label><input className="form-input no-icon" value={attachmentUrl} onChange={(e) => setAttachmentUrl(e.target.value)} placeholder="https://…" /></div></div>
-          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '1rem' }}><select className="form-select no-icon" style={{ maxWidth: '160px' }} value={attachmentType} onChange={(e) => setAttachmentType(e.target.value)}><option value="poster">Poster</option><option value="rules">Rules PDF</option><option value="venue_map">Venue map</option><option value="schedule">Schedule</option><option value="other">Link / Other</option></select><button type="button" className="btn btn-secondary btn-sm" onClick={() => { if (attachmentUrl.trim()) { let url = attachmentUrl.trim(); if (!/^https?:\/\//i.test(url)) url = `https://${url}`; const label = attachmentLabel.trim() || 'Event Link'; setAnnouncementAttachments(items => [...items, { label, url, type: attachmentType || 'other' }]); setAttachmentLabel(''); setAttachmentUrl(''); } }}>Add attachment</button></div>
-          {announcementAttachments.map((attachment, index) => <div key={`${attachment.url}-${index}`} style={{ marginBottom: '0.4rem', color: 'var(--text-secondary)' }}>📎 {attachment.label} <button type="button" className="btn btn-danger btn-sm" onClick={() => setAnnouncementAttachments(items => items.filter((_, i) => i !== index))}>Remove</button></div>)}
+
+          {/* DEVICE PHOTO UPLOAD SECTION */}
+          <div style={{ margin: '1rem 0', padding: '1rem', border: '1px dashed var(--border-color)', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.02)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-primary)' }}>📷 Upload Photo from Device</strong>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Attach match posters, pictures, or event banners directly from your phone or computer</span>
+              </div>
+              <label className="btn btn-secondary btn-sm" style={{ cursor: photoUploading ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                <span>{photoUploading ? '⏳ Compressing...' : '📁 Select Picture'}</span>
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp, image/jpg"
+                  style={{ display: 'none' }}
+                  onChange={handleDevicePhotoUpload}
+                  disabled={photoUploading}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="form-grid"><div className="form-group"><label className="form-label">Or Attachment label</label><input className="form-input no-icon" value={attachmentLabel} onChange={(e) => setAttachmentLabel(e.target.value)} placeholder="Tournament rules PDF" /></div><div className="form-group"><label className="form-label">Attachment URL (Optional)</label><input className="form-input no-icon" value={attachmentUrl} onChange={(e) => setAttachmentUrl(e.target.value)} placeholder="https://…" /></div></div>
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '1rem' }}><select className="form-select no-icon" style={{ maxWidth: '160px' }} value={attachmentType} onChange={(e) => setAttachmentType(e.target.value)}><option value="poster">Poster / Image</option><option value="rules">Rules PDF</option><option value="venue_map">Venue map</option><option value="schedule">Schedule</option><option value="other">Link / Other</option></select><button type="button" className="btn btn-secondary btn-sm" onClick={() => { if (attachmentUrl.trim()) { let url = attachmentUrl.trim(); if (!/^https?:\/\//i.test(url) && !url.startsWith('data:image/')) url = `https://${url}`; const label = attachmentLabel.trim() || 'Event Link'; setAnnouncementAttachments(items => [...items, { label, url, type: attachmentType || 'other' }]); setAttachmentLabel(''); setAttachmentUrl(''); } }}>Add URL link</button></div>
+
+          {announcementAttachments.length > 0 && (
+            <div style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>ATTACHED MEDIA & LINKS ({announcementAttachments.length}/8):</div>
+              {announcementAttachments.map((attachment, index) => (
+                <div key={`${attachment.url.slice(0, 30)}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  {attachment.url.startsWith('data:image/') || attachment.type === 'poster' ? (
+                    <img src={attachment.url} alt={attachment.label} style={{ width: '44px', height: '44px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                  ) : (
+                    <span style={{ fontSize: '1.25rem' }}>📎</span>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{attachment.label}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{attachment.type === 'poster' ? 'Photo / Poster' : attachment.type}</div>
+                  </div>
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => setAnnouncementAttachments(items => items.filter((_, i) => i !== index))}>Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <button className="btn btn-primary" style={{ width: 'auto' }} disabled={postingAnnouncement}>{postingAnnouncement ? 'Saving…' : editingAnnouncementId ? 'Save changes' : 'Post to Events'}</button>{editingAnnouncementId && <button type="button" className="btn btn-secondary" style={{ width: 'auto', marginLeft: '0.6rem' }} onClick={cancelEditingAnnouncement}>Cancel</button>}
         </form>
         {announcements.map((item) => <div key={item.id} className="admin-announcement"><span><strong>{item.is_pinned ? '📌 ' : ''}{item.title}</strong> · {item.category}{item.event_at ? ` · ${new Date(item.event_at).toLocaleString()}` : ''}</span><span style={{ display: 'flex', gap: '0.5rem' }}><button className="btn btn-secondary btn-sm" onClick={() => startEditingAnnouncement(item)}>Edit</button><button className="btn btn-danger btn-sm" onClick={() => handleDeleteAnnouncement(item.id)}>Remove</button></span></div>)}
@@ -657,103 +837,340 @@ export const AdminDashboard = ({ onNavigate }) => {
           </form>
         </div>
 
-        {/* FORM 2: LIVE SCORE UPDATER */}
-        <div className="auth-card" style={{ maxWidth: '100%' }}>
-          <div className="auth-header" style={{ textAlign: 'left', marginBottom: '1.25rem' }}>
-            <h2 style={{ fontSize: '1.35rem' }}>Update Live Score</h2>
-            <p>Select match & team, update points (auto-upserted)</p>
+        {/* FORM 2: SPORT-AWARE LIVE SCORE ENGINE */}
+        <div className="auth-card" style={{ maxWidth: '100%', padding: '1.5rem' }}>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h2 style={{ fontSize: '1.35rem', fontFamily: 'var(--font-serif)', marginBottom: '0.25rem' }}>⚙️ Live Score Control Panel</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Sport-specific scoring — event-sourced, real-time, with undo support</p>
           </div>
 
-          <form onSubmit={handleSaveScore}>
-            <div className="form-group full-width">
-              <label className="form-label">Select Match *</label>
-              <select
-                className="form-select no-icon"
-                value={selectedMatchId}
-                onChange={(e) => setSelectedMatchId(e.target.value)}
-                required
-              >
-                <option value="" disabled>-- Choose Match --</option>
-                {matches.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.team_a_name && m.team_b_name ? `${m.team_a_name} vs ${m.team_b_name}` : m.name} ({(m.status || 'upcoming').toUpperCase()})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group full-width">
-              <label className="form-label">Select Team *</label>
-              <select
-                className="form-select no-icon"
-                value={selectedTeamId}
-                onChange={(e) => setSelectedTeamId(e.target.value)}
-                required
-              >
-                <option value="" disabled>-- Choose Team --</option>
-                {teams.filter(t => {
-                  const match = matches.find(m => m.id === selectedMatchId);
-                  return !match || (t.sport === match.sport && (!match.team_a_id || [match.team_a_id, match.team_b_id].includes(t.id)));
-                }).map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group full-width">
-              <label className="form-label">Points / Goals Tally</label>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-input no-icon"
-                  style={{ fontSize: '1.25rem', fontWeight: 800, textAlign: 'center' }}
-                  value={scorePoints}
-                  onChange={(e) => setScorePoints(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                  required
-                />
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setScorePoints(prev => Math.max(0, prev - 1))}
-                >
-                  -1
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setScorePoints(prev => prev + 1)}
-                >
-                  +1
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setScorePoints(prev => prev + 2)}
-                >
-                  +2
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setScorePoints(prev => prev + 3)}
-                >
-                  +3
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={submittingScore || matches.length === 0 || teams.length === 0}
-              style={{ marginTop: '0.75rem', background: 'linear-gradient(135deg, #10b981, #059669)' }}
+          {/* Match Picker */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>SELECT MATCH TO SCORE</label>
+            <select
+              className="form-select no-icon"
+              value={lsMatchId}
+              onChange={(e) => { setLsMatchId(e.target.value); setLsLiveState(null); setLsShowLineup(false); setLsShowInnings2(false); lsLoadState(e.target.value); }}
             >
-              {submittingScore ? 'Saving Score...' : '💾 Save & Broadcast Score'}
-            </button>
-          </form>
+              <option value="">-- Choose a match --</option>
+              {matches.map(m => (
+                <option key={m.id} value={m.id}>
+                  [{m.sport}] {m.team_a_name || 'TBA'} vs {m.team_b_name || 'TBA'} · {(m.status || 'upcoming').toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {lsMatchId && (
+            <>
+              {/* Sport Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1rem', padding: '0.65rem 1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>SPORT</span>
+                <span style={{ fontWeight: 700, color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontSize: '0.9rem' }}>{lsMatch?.sport?.toUpperCase()}</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: lsLiveState?.isCompleted ? 'var(--accent-emerald)' : (lsMatch?.status === 'live' ? '#f43f5e' : 'var(--text-muted)') }}>
+                  {lsLiveState?.isCompleted ? '✅ COMPLETED' : (lsMatch?.status === 'live' ? '🔴 LIVE' : (lsMatch?.status || 'UPCOMING').toUpperCase())}
+                </span>
+                <button onClick={() => lsLoadState(lsMatchId)} style={{ padding: '4px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', fontSize: '0.72rem', cursor: 'pointer' }}>🔄 Refresh</button>
+              </div>
+
+              {lsLoading ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>Loading match state…</div>
+              ) : (
+                <>
+                  {/* ── CRICKET ── */}
+                  {lsIsCricket && (() => {
+                    const inn = lsLiveState?.inningsNumber === 1 ? lsLiveState?.innings1 : lsLiveState?.innings2;
+                    const needsLineup = lsLiveState && !lsLiveState.striker && !lsLiveState.isCompleted;
+                    const needsBowler = lsLiveState && !lsLiveState.currentBowler && !lsLiveState.isCompleted;
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {/* Mini scoreboard */}
+                        {lsLiveState && (
+                          <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{inn?.teamName || lsMatch?.team_a_name} — INN {lsLiveState.inningsNumber}</div>
+                            <div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{inn?.totalRuns ?? 0}<span style={{ opacity: 0.45, fontSize: '1.5rem' }}>/{inn?.wickets ?? 0}</span></div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{inn?.oversFormatted ?? '0.0'} ov · RR: {lsLiveState.currentRunRate ?? '0.00'}</div>
+                            {lsLiveState.inningsNumber === 2 && lsLiveState.target && (
+                              <div style={{ marginTop: 6, color: '#f59e0b', fontWeight: 700, fontSize: '0.85rem' }}>Target: {lsLiveState.target} · Need {lsLiveState.target - (inn?.totalRuns ?? 0)}</div>
+                            )}
+                            {/* This over balls */}
+                            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+                              {(inn?.currentOverBalls || []).map((b, i) => {
+                                const isW = b === 'W'; const is4 = b === '4'; const is6 = b === '6'; const isWide = b?.includes?.('Wd'); const isNb = b?.includes?.('NB');
+                                return (
+                                  <span key={i} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 700, fontFamily: 'var(--font-mono)', background: isW ? 'rgba(244,63,94,0.2)' : is4 ? 'rgba(56,189,248,0.2)' : is6 ? 'rgba(168,85,247,0.2)' : isWide ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.06)', color: isW ? '#f43f5e' : is4 ? '#38bdf8' : is6 ? '#a855f7' : isWide ? '#f59e0b' : '#a1a1aa', border: `1.5px solid ${isW ? '#f43f5e44' : is4 ? '#38bdf844' : is6 ? '#a855f744' : 'rgba(255,255,255,0.1)'}` }}>{b}</span>
+                                );
+                              })}
+                            </div>
+                            {lsLiveState.striker && (
+                              <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                ⚡ {lsLiveState.striker.name} · 🏏 {lsLiveState.currentBowler?.name || '—'}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Lineup setup */}
+                        {(needsLineup || lsShowLineup) && (
+                          <div style={{ padding: '1rem', background: 'rgba(56,189,248,0.07)', borderRadius: 12, border: '1px solid rgba(56,189,248,0.2)' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 10 }}>SET BATTING LINEUP</div>
+                            {[['Striker (on strike)', lsStrikerName, setLsStrikerName], ['Non-Striker', lsNonStrikerName, setLsNonStrikerName], ['Opening Bowler', lsBowlerName, setLsBowlerName]].map(([label, val, setter]) => (
+                              <input key={label} placeholder={label} value={val} onChange={e => setter(e.target.value)}
+                                className="form-input no-icon" style={{ marginBottom: 8, fontFamily: 'var(--font-mono)' }} />
+                            ))}
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button onClick={() => { lsSendEvent('SET_LINEUP', { striker: { name: lsStrikerName, id: `p_${lsStrikerName.toLowerCase().replace(/\s/g,'_')}` }, nonStriker: { name: lsNonStrikerName, id: `p_${lsNonStrikerName.toLowerCase().replace(/\s/g,'_')}` }, bowler: { name: lsBowlerName, id: `b_${lsBowlerName.toLowerCase().replace(/\s/g,'_')}` } }); setLsShowLineup(false); }} className="btn btn-primary" style={{ flex: 1, fontSize: '0.82rem' }}>✓ Set Lineup</button>
+                              {!needsLineup && <button onClick={() => setLsShowLineup(false)} className="btn btn-secondary" style={{ fontSize: '0.82rem' }}>Cancel</button>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* New bowler needed */}
+                        {needsBowler && !needsLineup && !lsShowLineup && (
+                          <div style={{ padding: '1rem', background: 'rgba(245,158,11,0.07)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.25)' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#f59e0b', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 8 }}>🔄 OVER COMPLETE — SET NEXT BOWLER</div>
+                            <input placeholder="Bowler name" value={lsBowlerName} onChange={e => setLsBowlerName(e.target.value)} className="form-input no-icon" style={{ marginBottom: 8, fontFamily: 'var(--font-mono)' }} />
+                            <button onClick={() => { lsSendEvent('CHANGE_BOWLER', { bowler: { name: lsBowlerName, id: `b_${lsBowlerName.toLowerCase().replace(/\s/g,'_')}` } }); setLsBowlerName(''); }} className="btn btn-primary" style={{ fontSize: '0.82rem', background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}>Confirm Bowler</button>
+                          </div>
+                        )}
+
+                        {/* Innings 2 prompt */}
+                        {lsLiveState?.inningsNumber === 1 && lsLiveState?.target != null && (
+                          <div style={{ padding: '0.75rem 1rem', background: 'rgba(16,185,129,0.07)', borderRadius: 10, border: '1px solid rgba(16,185,129,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--accent-emerald)', fontWeight: 700, fontSize: '0.85rem' }}>🏏 1st Innings done — Target: {lsLiveState.target}</span>
+                            <button onClick={() => setLsShowInnings2(true)} className="btn btn-secondary" style={{ fontSize: '0.8rem' }}>Start Innings 2</button>
+                          </div>
+                        )}
+                        {lsShowInnings2 && (
+                          <div style={{ padding: '1rem', background: 'rgba(16,185,129,0.07)', borderRadius: 12, border: '1px solid rgba(16,185,129,0.2)' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--accent-emerald)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 10 }}>INNINGS 2 LINEUP</div>
+                            {[['Opener 1 (Striker)', lsInn2Striker, setLsInn2Striker], ['Opener 2 (Non-Striker)', lsInn2NonStriker, setLsInn2NonStriker], ['Opening Bowler', lsInn2Bowler, setLsInn2Bowler]].map(([label, val, setter]) => (
+                              <input key={label} placeholder={label} value={val} onChange={e => setter(e.target.value)} className="form-input no-icon" style={{ marginBottom: 8, fontFamily: 'var(--font-mono)' }} />
+                            ))}
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button onClick={() => { lsSendEvent('START_INNINGS_2', { striker: { name: lsInn2Striker, id: `p_${lsInn2Striker.toLowerCase().replace(/\s/g,'_')}` }, nonStriker: { name: lsInn2NonStriker, id: `p_${lsInn2NonStriker.toLowerCase().replace(/\s/g,'_')}` }, bowler: { name: lsInn2Bowler, id: `b_${lsInn2Bowler.toLowerCase().replace(/\s/g,'_')}` } }); setLsShowInnings2(false); }} className="btn btn-primary" style={{ flex: 1, fontSize: '0.82rem', background: 'linear-gradient(135deg,#10b981,#059669)' }}>Start Innings 2</button>
+                              <button onClick={() => setLsShowInnings2(false)} className="btn btn-secondary" style={{ fontSize: '0.82rem' }}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Ball entry — main */}
+                        {!needsBowler && !lsLiveState?.isCompleted && lsLiveState?.striker && (
+                          <>
+                            {/* Run buttons */}
+                            <div>
+                              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 8, letterSpacing: '0.1em' }}>BALL-BY-BALL ENTRY</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                                {[['•', 0, '#71717a'], ['1', 1, '#f4f4f5'], ['2', 2, '#f4f4f5'], ['3', 3, '#f4f4f5'], ['4 🔵', 4, '#38bdf8'], ['6 🟣', 6, '#a855f7'], ['5', 5, '#a1a1aa']].map(([label, runs, color]) => (
+                                  <button key={label} onClick={() => lsSendEvent('RECORD_DELIVERY', { runs, deliveryType: 'LEGAL', striker: lsLiveState.striker, bowler: lsLiveState.currentBowler })}
+                                    style={{ padding: '0.75rem 0.5rem', borderRadius: 10, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.95rem', fontWeight: 800, fontFamily: 'var(--font-mono)', cursor: 'pointer' }}>{label}</button>
+                                ))}
+                                <button onClick={() => lsSendEvent('SWAP_STRIKE', {})} style={{ padding: '0.75rem 0.5rem', borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>⇄ Swap</button>
+                              </div>
+                            </div>
+                            {/* Byes / Leg byes */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                              {[[1, 'BYE'], [2, 'BYE'], [1, 'LEG_BYE'], [2, 'LEG_BYE']].map(([r, t]) => (
+                                <button key={`${r}${t}`} onClick={() => lsSendEvent('RECORD_DELIVERY', { runs: r, deliveryType: t, striker: lsLiveState.striker, bowler: lsLiveState.currentBowler })}
+                                  style={{ padding: '0.6rem', borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: '#a1a1aa', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'var(--font-mono)', cursor: 'pointer' }}>{r} {t.replace('_', ' ')}</button>
+                              ))}
+                            </div>
+                            {/* Wide */}
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <button onClick={() => { lsSendEvent('RECORD_DELIVERY', { runs: 0, deliveryType: 'WIDE', extraRuns: lsWide, striker: lsLiveState.striker, bowler: lsLiveState.currentBowler }); setLsWide(0); }}
+                                style={{ flex: 1, padding: '0.75rem', borderRadius: 10, border: '1.5px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.08)', color: '#f59e0b', fontWeight: 800, fontFamily: 'var(--font-mono)', cursor: 'pointer' }}>WIDE</button>
+                              <input type="number" min="0" max="6" value={lsWide} onChange={e => setLsWide(Number(e.target.value))} placeholder="Extra"
+                                style={{ width: 70, padding: '0.65rem', borderRadius: 10, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', textAlign: 'center' }} />
+                            </div>
+                            {/* No Ball */}
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <button onClick={() => { lsSendEvent('RECORD_DELIVERY', { runs: lsNb, deliveryType: 'NO_BALL', extraRuns: 0, striker: lsLiveState.striker, bowler: lsLiveState.currentBowler }); setLsNb(0); }}
+                                style={{ flex: 1, padding: '0.75rem', borderRadius: 10, border: '1.5px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.08)', color: '#f97316', fontWeight: 800, fontFamily: 'var(--font-mono)', cursor: 'pointer' }}>NO BALL{lsLiveState.isFreeHit ? ' 🎯' : ''}</button>
+                              <input type="number" min="0" max="6" value={lsNb} onChange={e => setLsNb(Number(e.target.value))} placeholder="Bat runs"
+                                style={{ width: 70, padding: '0.65rem', borderRadius: 10, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', textAlign: 'center' }} />
+                            </div>
+                            {/* Wicket */}
+                            <div style={{ padding: '1rem', background: 'rgba(244,63,94,0.05)', borderRadius: 12, border: '1px solid rgba(244,63,94,0.18)' }}>
+                              <div style={{ fontSize: '0.68rem', color: '#f43f5e', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 8 }}>WICKET 🏏</div>
+                              <select value={lsWicketType} onChange={e => setLsWicketType(e.target.value)} style={{ width: '100%', padding: '0.55rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', marginBottom: 8, fontSize: '0.88rem' }}>
+                                <option value="">Select dismissal…</option>
+                                {['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket', 'Handled Ball', 'Retired'].map(t => <option key={t} value={t.toLowerCase()}>{t}</option>)}
+                              </select>
+                              <input placeholder="Next batsman (optional)" value={lsNextBatsman} onChange={e => setLsNextBatsman(e.target.value)}
+                                style={{ width: '100%', padding: '0.5rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', marginBottom: 8 }} />
+                              <button disabled={!lsWicketType} onClick={() => { lsSendEvent('RECORD_DELIVERY', { runs: 0, deliveryType: 'LEGAL', wicket: { dismissalType: lsWicketType, playerOut: lsLiveState.striker, nextBatsman: lsNextBatsman.trim() ? { name: lsNextBatsman.trim(), id: `p_${Date.now()}` } : null }, striker: lsLiveState.striker, bowler: lsLiveState.currentBowler }); setLsWicketType(''); setLsNextBatsman(''); }}
+                                style={{ width: '100%', padding: '0.65rem', borderRadius: 10, border: '1.5px solid rgba(244,63,94,0.3)', background: lsWicketType ? 'rgba(244,63,94,0.15)' : 'rgba(255,255,255,0.03)', color: lsWicketType ? '#f43f5e' : '#52525b', fontWeight: 800, cursor: lsWicketType ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-mono)' }}>W WICKET!</button>
+                            </div>
+                            {/* Lineup/Undo row */}
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button onClick={() => setLsShowLineup(true)} style={{ flex: 1, padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>Change Batsman</button>
+                              <button onClick={lsUndo} disabled={lsUndoing} style={{ flex: 1, padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.3)', background: 'rgba(244,63,94,0.08)', color: '#f43f5e', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo</button>
+                            </div>
+                          </>
+                        )}
+                        {lsLiveState?.isCompleted && <div style={{ padding: '1rem', textAlign: 'center', background: 'rgba(16,185,129,0.08)', borderRadius: 12, border: '1px solid rgba(16,185,129,0.25)', color: 'var(--accent-emerald)', fontWeight: 700 }}>✅ Match Completed — {lsLiveState.resultText}</div>}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── FOOTBALL / FUTSAL ── */}
+                  {lsIsFootball && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {lsLiveState && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center', alignItems: 'center' }}>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_a_name}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamA?.score ?? 0}</div></div>
+                          <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{lsLiveState.period || 'VS'}</div>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_b_name}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamB?.score ?? 0}</div></div>
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        {[[lsMatch?.team_a_id, lsMatch?.team_a_name, '#38bdf8'], [lsMatch?.team_b_id, lsMatch?.team_b_name, '#a855f7']].map(([id, name, color]) => (
+                          <button key={id} onClick={() => lsSendEvent('GOAL', { teamId: id, scorer: lsGoalScorer, assist: lsGoalAssist, minute: parseInt(lsGoalMinute) || (lsLiveState?.currentMinute ?? 0) })}
+                            style={{ padding: '1.1rem', borderRadius: 12, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer', lineHeight: 1.4 }}>⚽ GOAL<br /><span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{name}</span></button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input placeholder="Goal scorer" value={lsGoalScorer} onChange={e => setLsGoalScorer(e.target.value)} style={{ flex: 2, padding: '0.55rem 0.75rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '0.88rem' }} />
+                        <input placeholder="Minute" value={lsGoalMinute} onChange={e => setLsGoalMinute(e.target.value)} style={{ flex: 1, padding: '0.55rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '0.88rem' }} />
+                        <input placeholder="Assist" value={lsGoalAssist} onChange={e => setLsGoalAssist(e.target.value)} style={{ flex: 1.5, padding: '0.55rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '0.88rem' }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                        {[['🟨 Yellow', () => { const t = window.prompt(`Which team? ${lsMatch?.team_a_name} or ${lsMatch?.team_b_name}`) === lsMatch?.team_a_name ? lsMatch?.team_a_id : lsMatch?.team_b_id; lsSendEvent('CARD', { teamId: t, cardType: 'YELLOW', player: window.prompt('Player name?') || '' }); }, '#f59e0b'],
+                          ['🟥 Red', () => { const t = window.prompt(`Which team? ${lsMatch?.team_a_name} or ${lsMatch?.team_b_name}`) === lsMatch?.team_a_name ? lsMatch?.team_a_id : lsMatch?.team_b_id; lsSendEvent('CARD', { teamId: t, cardType: 'RED', player: window.prompt('Player name?') || '' }); }, '#f43f5e'],
+                          ['🔄 Substitution', () => { const t = window.prompt(`Which team? ${lsMatch?.team_a_name} or ${lsMatch?.team_b_name}`) === lsMatch?.team_a_name ? lsMatch?.team_a_id : lsMatch?.team_b_id; lsSendEvent('SUBSTITUTION', { teamId: t, playerIn: window.prompt('Player IN?') || '', playerOut: window.prompt('Player OUT?') || '' }); }, '#71717a']
+                        ].map(([label, fn, c]) => (
+                          <button key={label} onClick={fn} style={{ padding: '0.65rem', borderRadius: 10, border: `1px solid ${c}33`, background: `${c}11`, color: c, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>{label}</button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                        {['1st Half', 'Half Time', '2nd Half', 'Full Time', 'Extra Time', 'Ended'].map(p => (
+                          <button key={p} onClick={() => lsSendEvent('SET_PERIOD', { period: p })} style={{ padding: '0.55rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}>{p}</button>
+                        ))}
+                      </div>
+                      {lsLiveState?.isCompleted && <div style={{ padding: '0.75rem', textAlign: 'center', background: 'rgba(16,185,129,0.08)', borderRadius: 10, color: 'var(--accent-emerald)', fontWeight: 700 }}>✅ {lsLiveState.resultText}</div>}
+                      <button onClick={lsUndo} disabled={lsUndoing} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.07)', color: '#f43f5e', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo Last Action</button>
+                    </div>
+                  )}
+
+                  {/* ── BASKETBALL ── */}
+                  {lsIsBasketball && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {lsLiveState && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center', alignItems: 'center' }}>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_a_name}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamA?.score ?? 0}</div><div style={{ fontSize: '0.72rem', color: '#f43f5e' }}>Fouls: {lsLiveState.teamA?.fouls ?? 0}</div></div>
+                          <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{lsLiveState.quarter || 'VS'}<br /><span style={{ fontSize: '0.72rem' }}>{lsLiveState.gameClock || ''}</span></div>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_b_name}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamB?.score ?? 0}</div><div style={{ fontSize: '0.72rem', color: '#f43f5e' }}>Fouls: {lsLiveState.teamB?.fouls ?? 0}</div></div>
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        {[[lsMatch?.team_a_id, lsMatch?.team_a_name, '#38bdf8'], [lsMatch?.team_b_id, lsMatch?.team_b_name, '#a855f7']].map(([id, name, color]) => (
+                          <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>{name?.toUpperCase()}</div>
+                            {[['+1', 1], ['+2', 2], ['+3', 3]].map(([label, pts]) => (
+                              <button key={pts} onClick={() => lsSendEvent('SCORE_POINTS', { teamId: id, points: pts })} style={{ padding: '0.75rem', borderRadius: 10, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.9rem', fontWeight: 800, cursor: 'pointer' }}>{label}</button>
+                            ))}
+                            <button onClick={() => lsSendEvent('FOUL', { teamId: id })} style={{ padding: '0.55rem', borderRadius: 8, border: '1px solid rgba(244,63,94,0.3)', background: 'rgba(244,63,94,0.08)', color: '#f43f5e', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>🚨 Foul</button>
+                            <button onClick={() => lsSendEvent('TIMEOUT', { teamId: id })} style={{ padding: '0.5rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>⏸ Timeout</button>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                        {['Q1', 'Q2', 'Q3', 'Q4', 'OT', 'End'].map(q => (
+                          <button key={q} onClick={() => lsSendEvent(q === 'End' ? 'END_GAME' : 'SET_QUARTER', q === 'End' ? {} : { quarter: q })} style={{ padding: '0.55rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>{q}</button>
+                        ))}
+                      </div>
+                      <button onClick={lsUndo} disabled={lsUndoing} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.07)', color: '#f43f5e', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo</button>
+                    </div>
+                  )}
+
+                  {/* ── BADMINTON / VOLLEYBALL / TABLE TENNIS / TENNIS ── */}
+                  {lsIsRacket && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {lsLiveState && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center', alignItems: 'center' }}>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_a_name} {lsLiveState.servingTeamId === lsMatch?.team_a_id ? '● SERVE' : ''}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamA?.currentPoints ?? 0}</div><div style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>Sets: {lsLiveState.teamA?.setsWon ?? 0}</div></div>
+                          <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>Set {lsLiveState.currentSet || 1}</div>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_b_name} {lsLiveState.servingTeamId === lsMatch?.team_b_id ? '● SERVE' : ''}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamB?.currentPoints ?? 0}</div><div style={{ fontSize: '0.8rem', color: '#a855f7' }}>Sets: {lsLiveState.teamB?.setsWon ?? 0}</div></div>
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        {[[lsMatch?.team_a_id, lsMatch?.team_a_name, '#38bdf8'], [lsMatch?.team_b_id, lsMatch?.team_b_name, '#a855f7']].map(([id, name, color]) => (
+                          <button key={id} onClick={() => lsSendEvent('POINT', { teamId: id })} style={{ padding: '1.25rem', borderRadius: 12, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer', lineHeight: 1.4 }}>⊕ POINT<br /><span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{name}</span></button>
+                        ))}
+                      </div>
+                      <button onClick={() => lsSendEvent('TOGGLE_SERVICE', {})} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>⇄ Toggle Service</button>
+                      {lsLiveState?.isCompleted && <div style={{ padding: '0.75rem', textAlign: 'center', background: 'rgba(16,185,129,0.08)', borderRadius: 10, color: 'var(--accent-emerald)', fontWeight: 700 }}>✅ {lsLiveState.resultText}</div>}
+                      <button onClick={lsUndo} disabled={lsUndoing} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.07)', color: '#f43f5e', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo</button>
+                    </div>
+                  )}
+
+                  {/* ── KABADDI ── */}
+                  {lsIsKabaddi && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {lsLiveState && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center', alignItems: 'center' }}>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_a_name}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamA?.score ?? 0}</div></div>
+                          <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{lsLiveState.half || 'VS'}</div>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_b_name}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamB?.score ?? 0}</div></div>
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {[[lsMatch?.team_a_id, lsMatch?.team_a_name, '#38bdf8'], [lsMatch?.team_b_id, lsMatch?.team_b_name, '#a855f7']].map(([id, name, color]) => (
+                          <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>{name?.toUpperCase()}</div>
+                            {[['🏃 Raid +1', 'RAID', 1], ['🔥 Super Raid +3', 'SUPER_RAID', 3], ['🛡 Tackle +1', 'TACKLE', 1], ['⚡ Super Tackle +2', 'SUPER_TACKLE', 2], ['💥 All Out +2', 'ALL_OUT', 2]].map(([label, action, pts]) => (
+                              <button key={action} onClick={() => lsSendEvent('SCORE_ACTION', { teamId: id, actionType: action, points: pts })} style={{ padding: '0.65rem', borderRadius: 10, border: `1px solid ${color}33`, background: `${color}09`, color, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>{label}</button>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                        {['1st Half', 'Half Time', '2nd Half', 'Ended'].map(h => (
+                          <button key={h} onClick={() => lsSendEvent('SET_HALF', { half: h })} style={{ padding: '0.55rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>{h}</button>
+                        ))}
+                      </div>
+                      <button onClick={lsUndo} disabled={lsUndoing} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.07)', color: '#f43f5e', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo</button>
+                    </div>
+                  )}
+
+                  {/* ── GENERIC / OTHER ── */}
+                  {!lsIsCricket && !lsIsFootball && !lsIsBasketball && !lsIsRacket && !lsIsKabaddi && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {lsLiveState && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center', alignItems: 'center' }}>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_a_name}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamA?.score ?? 0}</div></div>
+                          <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>VS</div>
+                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_b_name}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamB?.score ?? 0}</div></div>
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        {[[lsMatch?.team_a_id, lsMatch?.team_a_name, '#38bdf8'], [lsMatch?.team_b_id, lsMatch?.team_b_name, '#a855f7']].map(([id, name, color]) => (
+                          <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>{name?.toUpperCase()}</div>
+                            {[['+1', 1], ['+2', 2], ['+3', 3], ['-1', -1]].map(([label, delta]) => (
+                              <button key={label} onClick={() => lsSendEvent('ADD_POINTS', { teamId: id, delta })} style={{ padding: '0.75rem', borderRadius: 10, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.9rem', fontWeight: 800, cursor: 'pointer' }}>{label}</button>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                        <button onClick={() => lsSendEvent('SET_RESULT', { outcome: 'WIN', winnerTeamId: lsMatch?.team_a_id })} style={{ padding: '0.6rem', borderRadius: 8, border: '1px solid rgba(56,189,248,0.3)', background: 'rgba(56,189,248,0.08)', color: '#38bdf8', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>{lsMatch?.team_a_name} Wins</button>
+                        <button onClick={() => lsSendEvent('SET_RESULT', { outcome: 'DRAW' })} style={{ padding: '0.6rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>Draw</button>
+                        <button onClick={() => lsSendEvent('SET_RESULT', { outcome: 'WIN', winnerTeamId: lsMatch?.team_b_id })} style={{ padding: '0.6rem', borderRadius: 8, border: '1px solid rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.08)', color: '#a855f7', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>{lsMatch?.team_b_name} Wins</button>
+                      </div>
+                      <button onClick={lsUndo} disabled={lsUndoing} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.07)', color: '#f43f5e', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo</button>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {!lsMatchId && (
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.88rem', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)' }}>
+              Select a match above to load sport-specific scoring controls
+            </div>
+          )}
         </div>
       </div>
 

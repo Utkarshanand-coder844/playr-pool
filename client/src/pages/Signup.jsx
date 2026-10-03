@@ -29,6 +29,7 @@ export const Signup = ({ onNavigate }) => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState('');
+  const [showAdminCode, setShowAdminCode] = useState(false);
 
   const handlePhotoChange = (event) => {
     const file = event.target.files?.[0];
@@ -114,7 +115,7 @@ export const Signup = ({ onNavigate }) => {
           email: formData.email,
           phone: formData.phone,
           role: formData.role,
-          admin_code: formData.admin_code,
+          admin_code: (formData.admin_code || '').trim(),
           password: formData.password,
           profile_photo: formData.profile_photo || null,
           sports: formData.sports,
@@ -218,10 +219,10 @@ export const Signup = ({ onNavigate }) => {
             </div>
           </div>
 
-          {/* Sports Selection with Role Fields */}
-          {formData.role === 'player' && (
+          {/* Sports Selection with Role Fields — available to both players and admins */}
+          {(
             <div className="form-group full-width">
-              <label className="form-label">Sports you want to register for *</label>
+              <label className="form-label">Sports you want to register for {formData.role === 'player' ? '*' : '(optional)'}</label>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', marginTop: '-0.1rem' }}>
                 Select each sport and fill in your playing role/position below it.
               </p>
@@ -279,8 +280,29 @@ export const Signup = ({ onNavigate }) => {
 
           {formData.role === 'admin' && (
             <div className="form-group full-width">
-              <label className="form-label" htmlFor="reg_admin_code">Admin Access Code *</label>
-              <input id="reg_admin_code" type="password" name="admin_code" className="form-input no-icon" placeholder="Provided by tournament organizers" value={formData.admin_code} onChange={handleChange} required />
+              <label className="form-label" htmlFor="reg_admin_code">
+                <span>Admin Access Code *</span>
+                <button
+                  type="button"
+                  onClick={() => setShowAdminCode(!showAdminCode)}
+                  style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', fontSize: '0.75rem', textTransform: 'none' }}
+                >
+                  {showAdminCode ? 'Hide' : 'Show code'}
+                </button>
+              </label>
+              <input
+                id="reg_admin_code"
+                type={showAdminCode ? 'text' : 'password'}
+                name="admin_code"
+                className="form-input no-icon"
+                placeholder="Default tournament code: 1234"
+                value={formData.admin_code}
+                onChange={handleChange}
+                required
+              />
+              <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.2rem' }}>
+                Organizer access code (Default: <strong style={{ color: 'var(--text-primary)' }}>1234</strong>)
+              </small>
             </div>
           )}
 

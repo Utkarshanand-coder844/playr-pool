@@ -54,8 +54,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS campus VARCHAR(100) NOT NULL DEFAULT 'Main Campus';
 ALTER TABLE teams ADD COLUMN IF NOT EXISTS sport VARCHAR(60) NOT NULL DEFAULT 'Football';
+-- Allow a player to own multiple teams (even for the same sport)
 ALTER TABLE teams DROP CONSTRAINT IF EXISTS teams_owner_user_id_key;
-CREATE UNIQUE INDEX IF NOT EXISTS teams_owner_sport_unique ON teams(owner_user_id, sport);
+DROP INDEX IF EXISTS teams_owner_sport_unique;
 
 -- Team Members Table
 CREATE TABLE IF NOT EXISTS team_members (

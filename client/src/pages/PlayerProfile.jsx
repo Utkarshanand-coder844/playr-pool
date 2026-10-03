@@ -68,9 +68,9 @@ export const PlayerProfile = ({ playerId, onNavigate }) => {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            <span>REGISTERED ATHLETE</span>
+            <span>{player.role === 'admin' ? 'TOURNAMENT ADMIN' : 'REGISTERED ATHLETE'}</span>
           </div>
-          <span className="role-pill player">{player.campus || 'Main Campus'}</span>
+          <span className={`role-pill ${player.role === 'admin' ? 'admin' : 'player'}`}>{player.campus || 'Main Campus'}</span>
         </div>
 
         <div className="profile-avatar-wrap">
@@ -121,8 +121,8 @@ export const PlayerProfile = ({ playerId, onNavigate }) => {
       <div className="auth-card" style={{ maxWidth: '100%', marginTop: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <h3 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>🏅</span>
-            <span>Registered Sports & Playing Roles</span>
+            <span>{player.role === 'admin' ? '🛡️' : '🏅'}</span>
+            <span>{player.role === 'admin' ? 'Administered & Registered Sports' : 'Registered Sports & Playing Roles'}</span>
           </h3>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             {sportsWithRoles.length} {sportsWithRoles.length === 1 ? 'Sport' : 'Sports'} Configured
@@ -131,7 +131,7 @@ export const PlayerProfile = ({ playerId, onNavigate }) => {
 
         {sportsWithRoles.length === 0 ? (
           <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-            <p>No sport role attributes have been set for this player yet.</p>
+            <p>{player.role === 'admin' ? 'No sports assigned to this administrator yet.' : 'No sport role attributes have been set for this player yet.'}</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
@@ -192,8 +192,8 @@ export const PlayerProfile = ({ playerId, onNavigate }) => {
                       ))}
                     </div>
                   ) : (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: '0.5rem' }}>
-                      Enrolled (no specific role chosen)
+                    <p style={{ fontSize: '0.8rem', color: player.role === 'admin' ? 'var(--accent-cyan)' : 'var(--text-muted)', fontStyle: 'italic', marginBottom: '0.5rem' }}>
+                      {player.role === 'admin' ? '🛡️ Tournament Administrator' : 'Enrolled (no specific role chosen)'}
                     </p>
                   )}
 

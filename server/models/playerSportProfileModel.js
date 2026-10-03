@@ -70,8 +70,8 @@ export const PlayerSportProfileModel = {
    */
   async getAllPlayersWithProfiles() {
     const usersRes = await query(`
-      SELECT u.id, u.name, u.college_id, u.department, u.year, u.campus
-      FROM users u WHERE u.role = 'player' ORDER BY u.name ASC;
+      SELECT u.id, u.name, u.college_id, u.department, u.year, u.campus, u.role
+      FROM users u ORDER BY u.name ASC;
     `);
     const users = usersRes.rows;
     if (!users.length) return [];
@@ -84,6 +84,23 @@ export const PlayerSportProfileModel = {
       if (!profilesByUser[p.user_id]) profilesByUser[p.user_id] = {};
       profilesByUser[p.user_id][p.sport] = p;
     }
+
+    try {
+      const playerSportsRes = await query(`SELECT user_id, sport FROM player_sports;`);
+      for (const ps of (playerSportsRes.rows || [])) {
+        if (!profilesByUser[ps.user_id]) profilesByUser[ps.user_id] = {};
+        if (!profilesByUser[ps.user_id][ps.sport]) profilesByUser[ps.user_id][ps.sport] = { sport: ps.sport };
+      }
+    } catch { /* optional table fallback */ }
+
+    try {
+      const sportAdminsRes = await query(`SELECT admin_user_id, sport FROM sport_admins;`);
+      for (const sa of (sportAdminsRes.rows || [])) {
+        if (!profilesByUser[sa.admin_user_id]) profilesByUser[sa.admin_user_id] = {};
+        if (!profilesByUser[sa.admin_user_id][sa.sport]) profilesByUser[sa.admin_user_id][sa.sport] = { sport: sa.sport };
+      }
+    } catch { /* optional table fallback */ }
+
     return users.map(u => ({ ...u, sport_profiles: profilesByUser[u.id] || {} }));
   },
 

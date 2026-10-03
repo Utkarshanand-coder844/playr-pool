@@ -123,16 +123,7 @@ export const MySports = () => {
     }
   };
 
-  if (user && user.role !== 'player') {
-    return (
-      <div className="auth-card" style={{ maxWidth: '640px', margin: '2rem auto', textAlign: 'center' }}>
-        <h3>Athletic Profile Notice</h3>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-          Sport and role registration is available exclusively for student player accounts.
-        </p>
-      </div>
-    );
-  }
+  /* Sports management is available for all account types (players and admins) */
 
   if (loading) {
     return (

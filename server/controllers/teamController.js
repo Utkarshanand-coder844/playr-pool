@@ -7,6 +7,8 @@ import { RegistrationModel } from '../models/registrationModel.js';
 import { CommunityModel } from '../models/communityModel.js';
 import { NotificationModel } from '../models/notificationModel.js';
 import { PlayerSportProfileModel } from '../models/playerSportProfileModel.js';
+import { PlayerSportModel } from '../models/playerSportModel.js';
+import { SportsAdminModel } from '../models/sportsAdminModel.js';
 import { getIO } from '../config/socket.js';
 
 const notify = async (userId, title, message) => {
@@ -59,14 +61,7 @@ export const createTeam = async (req, res) => {
     const membersError = await validateRegisteredMembers(members);
     if (membersError) return res.status(400).json({ success: false, message: membersError });
 
-    // 3. Check if user already owns a team (one team per player)
-    const existingTeam = await TeamModel.findByOwnerId(userId, normalizedSport);
-    if (existingTeam) {
-      return res.status(409).json({
-        success: false,
-        message: `You already have a ${normalizedSport} team.`
-      });
-    }
+    // Players can create multiple teams (even for the same sport)
 
     // 4. Create team and roster members
     const owner = await UserModel.findById(userId);
@@ -312,13 +307,6 @@ export const updateTeam = async (req, res) => {
         if (!(await RegistrationModel.isRegistrationOpen(normalizedSport))) {
           return res.status(403).json({ success: false, message: `Registration for ${normalizedSport} is currently closed` });
         }
-        const existingTeam = await TeamModel.findByOwnerId(userId, normalizedSport);
-        if (existingTeam && existingTeam.id !== teamId) {
-          return res.status(409).json({
-            success: false,
-            message: `You already own another team for ${normalizedSport}.`
-          });
-        }
       }
     }
 
@@ -494,9 +482,21 @@ export const getPlayerProfile = async (req, res) => {
     const stats = await PlayerStatModel.getForPlayer(player.id);
     // Include all sport profiles so the profile page can display roles
     const profileRows = await PlayerSportProfileModel.getForUser(player.id);
+    const registeredSports = await PlayerSportModel.getForUser(player.id);
+    let adminSports = [];
+    if (player.role === 'admin') {
+      const allAdmins = await SportsAdminModel.getAll();
+      adminSports = allAdmins.filter(a => a.admin_id === player.id).map(a => a.sport);
+    }
+    const allUserSports = Array.from(new Set([...registeredSports, ...adminSports]));
     const sport_profiles = {};
-    for (const p of profileRows) sport_profiles[p.sport] = p;
-    return res.json({ success: true, player: { ...player, sport_profiles }, stats });
+    for (const sport of allUserSports) {
+      sport_profiles[sport] = { sport };
+    }
+    for (const p of profileRows) {
+      sport_profiles[p.sport] = { ...(sport_profiles[p.sport] || {}), ...p };
+    }
+    return res.json({ success: true, player: { ...player, sport_profiles, sports: allUserSports, registered_sports: allUserSports, admin_sports: adminSports }, stats });
   } catch (error) {
     console.error('Get player profile error:', error);
     return res.status(500).json({ success: false, message: 'Unable to load player profile' });

@@ -18,6 +18,7 @@ const memoryStore = {
   player_stats: [],
   matches: [],
   scores: [],
+  match_events: [],
   registration_deadlines: [],
   admin_audit_log: [],
   knockout_brackets: [],
@@ -344,6 +345,16 @@ export const initDb = async () => {
       CREATE INDEX IF NOT EXISTS idx_player_sport_profiles_sport ON player_sport_profiles(sport);
       CREATE INDEX IF NOT EXISTS idx_player_sport_profiles_primary_role ON player_sport_profiles(sport, primary_role);
       CREATE INDEX IF NOT EXISTS idx_player_sport_profiles_position ON player_sport_profiles(sport, position);
+
+      CREATE TABLE IF NOT EXISTS match_events (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+          event_type VARCHAR(60) NOT NULL,
+          payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+          admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_match_events_match ON match_events(match_id, created_at ASC);
     `);
     client.release();
     console.log('✅ PostgreSQL all tournament tables verified/ready.');
@@ -439,6 +450,42 @@ export const query = async (text, params = []) => {
     const key = params[1] || 'tournament_started';
     memoryStore.settings[key] = Boolean(val);
     return { rows: [{ key, value: memoryStore.settings[key] }] };
+  }
+
+  // --- MATCH EVENTS ---
+  if (normalizedText.includes('insert into match_events')) {
+    const [match_id, event_type, payload, admin_id] = params;
+    const entry = {
+      id: crypto.randomUUID(),
+      match_id,
+      event_type,
+      payload: typeof payload === 'string' ? JSON.parse(payload) : (payload || {}),
+      admin_id,
+      created_at: new Date().toISOString()
+    };
+    memoryStore.match_events.push(entry);
+    return { rows: [{ ...entry }] };
+  }
+  if (normalizedText.includes('from match_events') && normalizedText.includes('where match_id = $1')) {
+    const matchId = params[0];
+    const rows = (memoryStore.match_events || [])
+      .filter(e => e.match_id === matchId)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    return { rows: rows.map(r => ({ ...r })) };
+  }
+  if (normalizedText.includes('delete from match_events where id = $1')) {
+    const id = params[0];
+    const idx = (memoryStore.match_events || []).findIndex(e => e.id === id);
+    if (idx !== -1) {
+      const removed = memoryStore.match_events.splice(idx, 1);
+      return { rows: removed };
+    }
+    return { rows: [] };
+  }
+  if (normalizedText.includes('delete from match_events where match_id = $1')) {
+    const matchId = params[0];
+    memoryStore.match_events = (memoryStore.match_events || []).filter(e => e.match_id !== matchId);
+    return { rows: [] };
   }
 
   // --- SPORTS ADMINS ---
@@ -911,12 +958,7 @@ export const query = async (text, params = []) => {
     // params from teamModel.createTeam: [name, owner_user_id, sport, campus]
     // locked is always FALSE (literal) in the SQL, not a param
     const [name, owner_user_id, sport, campus] = params;
-    const existing = memoryStore.teams.find(t => t.owner_user_id === owner_user_id && t.sport === sport);
-    if (existing) {
-      const error = new Error('You already own a team for this sport.');
-      error.code = '23505';
-      throw error;
-    }
+    // Allow users to create multiple teams, even for the same sport
 
     const newTeam = {
       id: crypto.randomUUID(),

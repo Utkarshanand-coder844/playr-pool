@@ -11,6 +11,12 @@ export const Dashboard = ({ onNavigate }) => {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  React.useEffect(() => {
+    if (user && !user.sports) {
+      fetchProfile();
+    }
+  }, [user, fetchProfile]);
+
   if (!user) {
     return (
       <div className="auth-card" style={{ textAlign: 'center' }}>
@@ -121,6 +127,22 @@ export const Dashboard = ({ onNavigate }) => {
             </div>
           </div>
         </div>
+
+        {/* Registered / Administered Sports */}
+        {user.sports && user.sports.length > 0 && (
+          <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <div className="detail-label" style={{ marginBottom: '0.6rem' }}>
+              {user.role === 'admin' ? '🛡️ Administered Sports' : '🏅 Registered Sports'}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {user.sports.map((sp) => (
+                <span key={sp} className={`role-pill ${user.role === 'admin' ? 'admin' : 'player'}`} style={{ fontSize: '0.85rem' }}>
+                  {sp}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button 

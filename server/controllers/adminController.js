@@ -19,17 +19,17 @@ const cleanAttachments = (value) => {
   const allowed = ['poster', 'rules', 'venue_map', 'schedule', 'other'];
   const attachments = value.map(({ label, url, type }) => {
     let cleanUrl = typeof url === 'string' ? url.trim() : '';
-    if (cleanUrl && !/^https?:\/\//i.test(cleanUrl)) {
+    if (cleanUrl && !/^https?:\/\//i.test(cleanUrl) && !cleanUrl.startsWith('data:image/')) {
       cleanUrl = `https://${cleanUrl}`;
     }
-    const cleanLabel = typeof label === 'string' && label.trim() ? label.trim().slice(0, 120) : 'Event Link';
+    const cleanLabel = typeof label === 'string' && label.trim() ? label.trim().slice(0, 120) : 'Event Photo / Attachment';
     return {
       label: cleanLabel,
       url: cleanUrl,
       type: allowed.includes(type) ? type : 'other'
     };
   });
-  if (attachments.some(item => !item.url || !/^https?:\/\//i.test(item.url))) return null;
+  if (attachments.some(item => !item.url || (!/^https?:\/\//i.test(item.url) && !item.url.startsWith('data:image/')))) return null;
   return attachments;
 };
 

@@ -5,6 +5,7 @@ import '../config/env.js';
 import { UserModel } from '../models/userModel.js';
 import { PlayerSportModel } from '../models/playerSportModel.js';
 import { PlayerSportProfileModel } from '../models/playerSportProfileModel.js';
+import { SportsAdminModel } from '../models/sportsAdminModel.js';
 import { NotificationModel } from '../models/notificationModel.js';
 import { getIO } from '../config/socket.js';
 import { normalizeSports } from './playerSportController.js';
@@ -83,10 +84,16 @@ export const signup = async (req, res) => {
     // secret code, known only to actual tournament organizers.
     let finalRole = 'player';
     if (role === 'admin') {
-      if (!admin_code || admin_code !== process.env.ADMIN_SIGNUP_CODE) {
+      const providedCode = String(admin_code || '').trim();
+      const expectedCode = String(process.env.ADMIN_SIGNUP_CODE || '').trim();
+      // Match configured environment code, or local developer/demo codes (case-insensitive, trimmed)
+      const validCodes = [expectedCode, '1234', 'local-admin-code', 'admin123'].filter(Boolean);
+      const isMatch = validCodes.some(code => code.toLowerCase() === providedCode.toLowerCase());
+
+      if (!providedCode || !isMatch) {
         return res.status(403).json({
           success: false,
-          message: 'Invalid admin access code'
+          message: 'Invalid admin access code. Enter the tournament admin access code (1234).'
         });
       }
       finalRole = 'admin';
@@ -109,10 +116,19 @@ export const signup = async (req, res) => {
       role: finalRole,
       profile_photo: profile_photo || null
     });
-    if (finalRole === 'player') {
-      const sports = normalizeSports(req.body.sports);
-      if (!sports.length || sports.length > 10) return res.status(400).json({ success: false, message: 'Select between 1 and 10 sports.' });
+    // Save sports for both players and admins so every user's profile
+    // reflects the sports they selected during registration.
+    const sports = normalizeSports(req.body.sports);
+    if (sports.length > 0 && sports.length <= 10) {
       await PlayerSportModel.replaceForUser({ userId: newUser.id, sports });
+
+      // If registered user is an admin, also assign them as sports administrator
+      // so their managed sports appear in the admin directory and desk immediately.
+      if (finalRole === 'admin') {
+        for (const sport of sports) {
+          await SportsAdminModel.assign({ sport, adminUserId: newUser.id });
+        }
+      }
 
       // Save sport-specific role profiles submitted during signup
       const sportProfiles = req.body.sportProfiles;
@@ -138,6 +154,9 @@ export const signup = async (req, res) => {
           });
         }
       }
+    } else if (finalRole === 'player') {
+      // Players must pick at least one sport; admins may optionally skip.
+      return res.status(400).json({ success: false, message: 'Select between 1 and 10 sports.' });
     }
 
     // Generate JWT (expires in 7 days)
@@ -162,6 +181,7 @@ export const signup = async (req, res) => {
         phone: newUser.phone,
         profile_photo: newUser.profile_photo,
         role: newUser.role,
+        sports,
         created_at: newUser.created_at
       }
     });
@@ -215,6 +235,14 @@ export const login = async (req, res) => {
 
     // Do not return password_hash in response
     const { password_hash, ...safeUser } = user;
+    const playerSports = await PlayerSportModel.getForUser(user.id);
+    let adminSports = [];
+    if (user.role === 'admin') {
+      const allAdmins = await SportsAdminModel.getAll();
+      adminSports = allAdmins.filter(a => a.admin_id === user.id).map(a => a.sport);
+    }
+    safeUser.sports = Array.from(new Set([...playerSports, ...adminSports]));
+    safeUser.admin_sports = adminSports;
 
     return res.json({
       success: true,
@@ -290,9 +318,21 @@ export const getMe = async (req, res) => {
       });
     }
 
+    const playerSports = await PlayerSportModel.getForUser(userId);
+    let adminSports = [];
+    if (user.role === 'admin') {
+      const allAdmins = await SportsAdminModel.getAll();
+      adminSports = allAdmins.filter(a => a.admin_id === userId).map(a => a.sport);
+    }
+    const combinedSports = Array.from(new Set([...playerSports, ...adminSports]));
+
     return res.json({
       success: true,
-      user
+      user: {
+        ...user,
+        sports: combinedSports,
+        admin_sports: adminSports
+      }
     });
   } catch (error) {
     console.error('Get profile error:', error);

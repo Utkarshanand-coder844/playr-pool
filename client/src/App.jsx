@@ -18,6 +18,7 @@ import { SportsAdmins } from './pages/SportsAdmins';
 import { MySports } from './pages/MySports';
 import { Chat } from './pages/Chat';
 import { Discover } from './pages/Discover';
+import { LiveScoring } from './pages/LiveScoring';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import { ScoreToast } from './components/ScoreToast';
 import { CampusClashLoader } from './components/CampusClashLoader';
@@ -60,6 +61,7 @@ function MainLayout() {
           {currentView === 'schedule' && <Schedule onNavigate={navigate} focusMatchId={initialMatchId} />}
           {currentView === 'scorehub' && <ScoreHub />}
           {currentView === 'events' && <Events />}
+          {currentView === 'live-scoring' && <LiveScoring onNavigate={navigate} />}
           {currentView === 'notifications' && <ProtectedRoute onNavigate={navigate}><Notifications onNavigate={navigate} /></ProtectedRoute>}
           {currentView === 'sports-admins' && <ProtectedRoute onNavigate={navigate}><SportsAdmins onNavigate={navigate} /></ProtectedRoute>}
           {currentView === 'my-sports' && <ProtectedRoute onNavigate={navigate}><MySports /></ProtectedRoute>}

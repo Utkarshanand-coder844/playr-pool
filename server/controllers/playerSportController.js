@@ -22,7 +22,7 @@ export const getMySports = async (req, res) => {
 /** PUT /api/player-sports/mine — update own sport registrations */
 export const updateMySports = async (req, res) => {
   try {
-    if (req.user.role !== 'player') return res.status(403).json({ success: false, message: 'Only player accounts can manage registered sports.' });
+    // Both players and admins can manage their registered sports
     const sports = normalizeSports(req.body.sports);
     if (!sports.length) return res.status(400).json({ success: false, message: 'Select at least one sport.' });
     if (sports.length > 10) return res.status(400).json({ success: false, message: 'Select up to 10 sports.' });
@@ -64,9 +64,8 @@ export const getProfilesForUser = async (req, res) => {
 /** PUT /api/player-sports/profiles — update own sport profile for one sport */
 export const updateMyProfile = async (req, res) => {
   try {
-    if (req.user.role !== 'player') {
-      return res.status(403).json({ success: false, message: 'Only player accounts can update sport profiles.' });
-    }
+    // Both players and admins can update sport profiles
+
 
     const sport = typeof req.body.sport === 'string' ? req.body.sport.trim() : '';
     if (!sport || sport.length > 60) {
@@ -103,9 +102,8 @@ export const updateMyProfile = async (req, res) => {
 /** PUT /api/player-sports/profiles/batch — save multiple sport profiles at once (used during signup) */
 export const updateMyProfilesBatch = async (req, res) => {
   try {
-    if (req.user.role !== 'player') {
-      return res.status(403).json({ success: false, message: 'Only player accounts can update sport profiles.' });
-    }
+    // Both players and admins can update sport profiles
+
 
     const { profiles } = req.body; // { Cricket: {...}, Football: {...} }
     if (!profiles || typeof profiles !== 'object') {

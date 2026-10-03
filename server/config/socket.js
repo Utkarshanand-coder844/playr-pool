@@ -50,6 +50,20 @@ export const initSocket = (httpServer) => {
       }
     });
 
+    // Match live scoring subscription room
+    socket.on('join:match', (matchId) => {
+      if (matchId) {
+        socket.join(`match:${matchId}`);
+        console.log(`🔌 Socket ${socket.id} subscribed to live scoring for match:${matchId}`);
+      }
+    });
+
+    socket.on('leave:match', (matchId) => {
+      if (matchId) {
+        socket.leave(`match:${matchId}`);
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('🔌 Client disconnected:', socket.id);
     });

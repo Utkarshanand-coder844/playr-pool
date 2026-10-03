@@ -49,7 +49,32 @@ export const Events = () => {
             ) : part
           )}
         </p>
-        {item.attachments?.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.85rem' }}>{item.attachments.map((attachment) => <a className="btn btn-secondary btn-sm" key={attachment.id || attachment.url} href={attachment.url} target="_blank" rel="noreferrer">{({ poster: '🖼 Poster', rules: '📄 Rules', venue_map: '🗺 Venue map', schedule: '📅 Schedule' }[attachment.type] || '📎 Attachment')} · {attachment.label}</a>)}</div>}
+        {item.attachments?.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+            {item.attachments.some(a => a.type === 'poster' || a.url?.startsWith('data:image/')) && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+                {item.attachments.filter(a => a.type === 'poster' || a.url?.startsWith('data:image/')).map((attachment, i) => (
+                  <div key={attachment.id || `${attachment.url.slice(0, 30)}-${i}`} style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.3)' }}>
+                    <a href={attachment.url} target="_blank" rel="noreferrer">
+                      <img src={attachment.url} alt={attachment.label} style={{ width: '100%', maxHeight: '360px', objectFit: 'cover', display: 'block', transition: 'transform 0.2s' }} />
+                    </a>
+                    <div style={{ padding: '0.4rem 0.65rem', fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>🖼️ {attachment.label}</span>
+                      <a href={attachment.url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)', fontSize: '0.72rem' }}>Full view ↗</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {item.attachments.filter(a => a.type !== 'poster' && !a.url?.startsWith('data:image/')).map((attachment) => (
+                <a className="btn btn-secondary btn-sm" key={attachment.id || attachment.url} href={attachment.url} target="_blank" rel="noreferrer">
+                  {({ rules: '📄 Rules', venue_map: '🗺 Venue map', schedule: '📅 Schedule' }[attachment.type] || '📎 Attachment')} · {attachment.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
         <small>Posted {new Date(item.created_at).toLocaleString()}{item.posted_by ? ` by ${item.posted_by}` : ''}{item.campus && item.campus !== 'all' ? ` · ${item.campus}` : ''}</small>
       </article>)}</div>}
   </div>;

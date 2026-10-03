@@ -7,7 +7,10 @@ import { getAuthHeaders } from '../utils/authFetch';
 export const MyTeam = ({ onNavigate }) => {
   const { user, token } = useAuth();
 
-  const [team, setTeam] = useState(null);
+  const [teams, setTeams] = useState([]);
+  const [selectedTeamIdx, setSelectedTeamIdx] = useState(0);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const team = showCreateForm ? null : (teams[selectedTeamIdx] || null);
   const [players, setPlayers] = useState([]);
   const [invites, setInvites] = useState([]);
   const [invitePlayerId, setInvitePlayerId] = useState('');
@@ -52,21 +55,29 @@ export const MyTeam = ({ onNavigate }) => {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setTeam(data.team);
+        const allTeams = data.teams || [];
+        setTeams(allTeams);
         setTournamentLocked(Boolean(data.tournament_locked));
-        if (data.team) {
+        // If we were creating a new team and it succeeded, select the last team
+        if (showCreateForm && allTeams.length > 0) {
+          setSelectedTeamIdx(allTeams.length - 1);
+          setShowCreateForm(false);
+        }
+        // Populate form fields for the currently selected team
+        const currentTeam = allTeams[selectedTeamIdx] || allTeams[0];
+        if (currentTeam) {
           const standardSports = ['Badminton', 'Table Tennis', 'Cricket', 'Football'];
-          if (standardSports.includes(data.team.sport)) {
-            setSport(data.team.sport);
+          if (standardSports.includes(currentTeam.sport)) {
+            setSport(currentTeam.sport);
             setCustomSport('');
           } else {
             setSport('Other');
-            setCustomSport(data.team.sport || '');
+            setCustomSport(currentTeam.sport || '');
           }
-          setTeamName(data.team.name);
+          setTeamName(currentTeam.name);
           setMembers(
-            data.team.members && data.team.members.length > 0
-              ? data.team.members.map(m => ({ member_name: m.member_name, member_user_id: m.member_user_id || '', player_search: m.member_name || '', position: m.position }))
+            currentTeam.members && currentTeam.members.length > 0
+              ? currentTeam.members.map(m => ({ member_name: m.member_name, member_user_id: m.member_user_id || '', player_search: m.member_name || '', position: m.position }))
               : [{ member_name: '', member_user_id: '', player_search: '', position: 'Team Captain' }]
           );
         }
@@ -252,7 +263,7 @@ export const MyTeam = ({ onNavigate }) => {
       }
 
       setSuccess('🎉 Team registered successfully for the tournament!');
-      setTeam(data.team);
+      setShowCreateForm(false);
       setIsEditing(false);
       fetchTeam();
     } catch (err) {
@@ -308,7 +319,6 @@ export const MyTeam = ({ onNavigate }) => {
       }
 
       setSuccess('✅ Team details, sport, and roster updated successfully!');
-      setTeam(data.team);
       setIsEditing(false);
       fetchTeam();
     } catch (err) {
@@ -341,7 +351,11 @@ export const MyTeam = ({ onNavigate }) => {
       }
 
       setSuccess(`✅ Squad "${team.name}" has been successfully disbanded.`);
-      setTeam(null);
+      // Remove the team from the list and select the first remaining team
+      const remaining = teams.filter((_, i) => i !== selectedTeamIdx);
+      setTeams(remaining);
+      setSelectedTeamIdx(0);
+      setShowCreateForm(remaining.length === 0);
       setIsEditing(false);
       setTeamName('');
       setSport('');
@@ -435,6 +449,66 @@ export const MyTeam = ({ onNavigate }) => {
         <select className="form-select no-icon" value={playerYear} onChange={(e) => setPlayerYear(e.target.value)}><option>All</option>{[...new Set(players.map((player) => player.year).filter(Boolean))].sort().map((year) => <option key={year}>{year}</option>)}</select>
       </div>
 
+      {/* TEAM TABS — when user has multiple teams */}
+      {teams.length > 0 && (
+        <div style={{
+          display: 'flex',
+          gap: '0.5rem',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          marginBottom: '1rem'
+        }}>
+          {teams.map((t, idx) => (
+            <button
+              key={t.id}
+              className={`btn btn-sm ${!showCreateForm && selectedTeamIdx === idx ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ width: 'auto', fontSize: '0.85rem' }}
+              onClick={() => {
+                setShowCreateForm(false);
+                setSelectedTeamIdx(idx);
+                setIsEditing(false);
+                setError('');
+                setSuccess('');
+                const standardSports = ['Badminton', 'Table Tennis', 'Cricket', 'Football'];
+                if (standardSports.includes(t.sport)) {
+                  setSport(t.sport);
+                  setCustomSport('');
+                } else {
+                  setSport('Other');
+                  setCustomSport(t.sport || '');
+                }
+                setTeamName(t.name);
+                setMembers(
+                  t.members && t.members.length > 0
+                    ? t.members.map(m => ({ member_name: m.member_name, member_user_id: m.member_user_id || '', player_search: m.member_name || '', position: m.position }))
+                    : [{ member_name: '', member_user_id: '', player_search: '', position: 'Team Captain' }]
+                );
+              }}
+            >
+              {t.sport === 'Cricket' ? '🏏' : t.sport === 'Badminton' ? '🏸' : t.sport === 'Table Tennis' ? '🏓' : '⚽'} {t.name}
+            </button>
+          ))}
+          {!tournamentLocked && (
+            <button
+              className={`btn btn-sm ${showCreateForm ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ width: 'auto', fontSize: '0.85rem' }}
+              onClick={() => {
+                setShowCreateForm(true);
+                setIsEditing(false);
+                setError('');
+                setSuccess('');
+                setTeamName('');
+                setSport('');
+                setCustomSport('');
+                setMembers([{ member_name: '', member_user_id: '', player_search: '', position: 'Team Captain' }]);
+              }}
+            >
+              ➕ Create Another Team
+            </button>
+          )}
+        </div>
+      )}
+
       {invites.filter(invite => invite.status === 'pending').length > 0 && (
         <div className="auth-card" style={{ maxWidth: '100%' }}>
           <h3 style={{ marginBottom: '0.75rem' }}>📨 Team invitations</h3>
@@ -447,8 +521,8 @@ export const MyTeam = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* CASE 1: USER HAS NO TEAM */}
-      {!team && (
+      {/* CASE 1: USER HAS NO TEAM OR CREATING A NEW ONE */}
+      {(!team && (teams.length === 0 || showCreateForm)) && (
         <div className="auth-card" style={{ maxWidth: '780px', margin: '0 auto' }}>
           <div className="auth-header">
             <h1>Create Your Tournament Squad</h1>
