@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: process.env.VITE_BACKEND_URL || 'https://campusclash.onrender.com',
         changeOrigin: true,
         secure: false
       }
