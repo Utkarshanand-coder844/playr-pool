@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { Alert } from '../components/Alert';
 import { SPORT_LIST, SPORT_ROLES, formatSportProfile } from '../utils/sportRoles';
@@ -155,6 +156,11 @@ export const AdminDashboard = ({ onNavigate }) => {
   const lsIsRacket = lsSport.includes('badminton') || lsSport.includes('volleyball') || lsSport.includes('table tennis') || lsSport.includes('tennis');
   const lsIsKabaddi = lsSport.includes('kabaddi');
 
+  const lsMatchIdRef = useRef(lsMatchId);
+  useEffect(() => {
+    lsMatchIdRef.current = lsMatchId;
+  }, [lsMatchId]);
+
   // Load live state for selected match
   const lsLoadState = async (mid) => {
     if (!mid) return;
@@ -168,9 +174,37 @@ export const AdminDashboard = ({ onNavigate }) => {
     setLsLoading(false);
   };
 
+  // Real-time socket updates for Admin Desk
+  useEffect(() => {
+    const socket = io(window.location.origin);
+    socket.on('match:live_update', (payload) => {
+      if (String(payload?.matchId) === String(lsMatchIdRef.current)) {
+        setLsLiveState(payload.liveState);
+      }
+      setMatches(prev => prev.map(m => {
+        if (String(m.id) !== String(payload?.matchId)) return m;
+        return {
+          ...m,
+          liveState: payload.liveState,
+          status: payload.status || m.status,
+          team_a_score: payload.scoreA,
+          team_b_score: payload.scoreB
+        };
+      }));
+    });
+    return () => socket.disconnect();
+  }, []);
+
   // Send a scoring event
   const lsSendEvent = async (eventType, payload = {}) => {
-    if (!lsMatchId || !token) return;
+    if (!lsMatchId) {
+      showToast('⚠️ Please select a match to score', true);
+      return;
+    }
+    if (!token) {
+      showToast('⚠️ Admin session expired or missing. Please log in again.', true);
+      return;
+    }
     try {
       const res = await fetch(`/api/live-scoring/${lsMatchId}/event`, {
         method: 'POST',
@@ -178,14 +212,37 @@ export const AdminDashboard = ({ onNavigate }) => {
         body: JSON.stringify({ eventType, payload })
       });
       const data = await res.json();
-      if (data.success) { setLsLiveState(data.liveState); showToast(`✅ ${eventType} recorded`); }
-      else setErrorMessage(data.message || 'Event failed');
-    } catch (err) { setErrorMessage(err.message); }
+      if (res.ok && data.success) {
+        setLsLiveState(data.liveState);
+        setMatches(prev => prev.map(m => {
+          if (String(m.id) !== String(lsMatchId)) return m;
+          return {
+            ...m,
+            status: data.status || m.status,
+            team_a_score: data.scoreA,
+            team_b_score: data.scoreB,
+            liveState: data.liveState
+          };
+        }));
+        showToast(`✅ ${eventType} recorded!`);
+      } else {
+        showToast(`❌ ${data.message || 'Event failed'}`, true);
+      }
+    } catch (err) {
+      showToast(`❌ Connection error: ${err.message}`, true);
+    }
   };
 
   // Undo last event
   const lsUndo = async () => {
-    if (!lsMatchId || !token) return;
+    if (!lsMatchId) {
+      showToast('⚠️ Please select a match fixture', true);
+      return;
+    }
+    if (!token) {
+      showToast('⚠️ Admin session expired. Please log in again.', true);
+      return;
+    }
     setLsUndoing(true);
     try {
       const res = await fetch(`/api/live-scoring/${lsMatchId}/undo`, {
@@ -193,21 +250,37 @@ export const AdminDashboard = ({ onNavigate }) => {
         headers: getAuthHeaders(token, { 'Content-Type': 'application/json' })
       });
       const data = await res.json();
-      if (data.success) { setLsLiveState(data.liveState); showToast('↩ Undo successful'); }
-      else setErrorMessage(data.message || 'Nothing to undo');
-    } catch (err) { setErrorMessage(err.message); }
-    setLsUndoing(false);
+      if (res.ok && data.success) {
+        setLsLiveState(data.liveState);
+        setMatches(prev => prev.map(m => {
+          if (String(m.id) !== String(lsMatchId)) return m;
+          return {
+            ...m,
+            team_a_score: data.scoreA,
+            team_b_score: data.scoreB,
+            liveState: data.liveState
+          };
+        }));
+        showToast('↩ Undo successful');
+      } else {
+        showToast(`❌ ${data.message || 'Nothing to undo'}`, true);
+      }
+    } catch (err) {
+      showToast(`❌ Connection error: ${err.message}`, true);
+    } finally {
+      setLsUndoing(false);
+    }
   };
 
   // Toast / Notification
-  const [toastMessage, setToastMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Trigger temporary success toast
-  const showToast = (msg) => {
-    setToastMessage(msg);
+  // Trigger temporary toast (supports string or object { text, isError })
+  const showToast = (msg, isError = false) => {
+    setToastMessage({ text: typeof msg === 'string' ? msg : msg?.text, isError });
     setTimeout(() => {
-      setToastMessage('');
+      setToastMessage(null);
     }, 4000);
   };
 
@@ -596,22 +669,26 @@ export const AdminDashboard = ({ onNavigate }) => {
           top: '80px',
           right: '25px',
           zIndex: 9999,
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95))',
+          background: toastMessage.isError
+            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.96), rgba(185, 28, 28, 0.96))'
+            : 'linear-gradient(135deg, rgba(16, 185, 129, 0.96), rgba(5, 150, 105, 0.96))',
           color: '#fff',
           padding: '1rem 1.5rem',
           borderRadius: 'var(--radius-md)',
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.4)',
+          boxShadow: toastMessage.isError
+            ? '0 10px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(239, 68, 68, 0.4)'
+            : '0 10px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.4)',
           fontWeight: 700,
           display: 'flex',
           alignItems: 'center',
           gap: '0.75rem',
           animation: 'slideDown 0.3s ease-out'
         }}>
-          <span>✨</span>
-          <span>{toastMessage}</span>
+          <span>{toastMessage.isError ? '⚠️' : '✨'}</span>
+          <span>{toastMessage.text}</span>
           <button 
-            onClick={() => setToastMessage('')}
-            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: '0.5rem' }}
+            onClick={() => setToastMessage(null)}
+            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: '0.5rem', fontSize: '1rem' }}
           >
             ✕
           </button>
@@ -1094,13 +1171,13 @@ export const AdminDashboard = ({ onNavigate }) => {
                         </div>
                       )}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        {[[lsMatch?.team_a_id, lsMatch?.team_a_name, '#38bdf8'], [lsMatch?.team_b_id, lsMatch?.team_b_name, '#a855f7']].map(([id, name, color]) => (
-                          <button key={id} onClick={() => lsSendEvent('POINT', { teamId: id })} style={{ padding: '1.25rem', borderRadius: 12, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer', lineHeight: 1.4 }}>⊕ POINT<br /><span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{name}</span></button>
+                        {[[lsLiveState?.teamA?.id || lsMatch?.team_a_id || 'team_a', lsLiveState?.teamA?.name || lsMatch?.team_a_name || 'Team A', '#38bdf8'], [lsLiveState?.teamB?.id || lsMatch?.team_b_id || 'team_b', lsLiveState?.teamB?.name || lsMatch?.team_b_name || 'Team B', '#a855f7']].map(([id, name, color]) => (
+                          <button key={id} type="button" onClick={() => lsSendEvent('POINT', { teamId: id })} style={{ padding: '1.25rem', borderRadius: 12, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer', lineHeight: 1.4 }}>⊕ POINT<br /><span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{name}</span></button>
                         ))}
                       </div>
-                      <button onClick={() => lsSendEvent('TOGGLE_SERVICE', {})} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>⇄ Toggle Service</button>
+                      <button type="button" onClick={() => lsSendEvent('TOGGLE_SERVICE', {})} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>⇄ Toggle Service</button>
                       {lsLiveState?.isCompleted && <div style={{ padding: '0.75rem', textAlign: 'center', background: 'rgba(16,185,129,0.08)', borderRadius: 10, color: 'var(--accent-emerald)', fontWeight: 700 }}>✅ {lsLiveState.resultText}</div>}
-                      <button onClick={lsUndo} disabled={lsUndoing} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.07)', color: '#f43f5e', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo</button>
+                      <button type="button" onClick={lsUndo} disabled={lsUndoing} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.07)', color: '#f43f5e', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo</button>
                     </div>
                   )}
 

@@ -634,6 +634,11 @@ export function LiveScoring({ onNavigate }) {
   const [undoing, setUndoing] = useState(false);
   const [toast, setToast] = useState('');
   const socketRef = useRef(null);
+  const selectedMatchRef = useRef(selectedMatch?.id);
+
+  useEffect(() => {
+    selectedMatchRef.current = selectedMatch?.id;
+  }, [selectedMatch?.id]);
 
   const showToast = useCallback((msg, isError = false) => {
     setToast({ msg, isError });
@@ -678,8 +683,8 @@ export function LiveScoring({ onNavigate }) {
     socketRef.current = socket;
 
     socket.on('match:live_update', (payload) => {
-      if (payload?.matchId === selectedMatch?.id) {
-        setLiveDetail(prev => prev ? { ...prev, liveState: payload.liveState, events: prev.events } : prev);
+      if (payload?.matchId === selectedMatchRef.current) {
+        setLiveDetail(prev => prev ? { ...prev, liveState: payload.liveState } : prev);
       }
       // Also update mini-card in list
       setMatches(prev => prev.map(m => {
@@ -707,7 +712,14 @@ export function LiveScoring({ onNavigate }) {
 
   // Admin: record event
   const handleEvent = async ({ eventType, payload }) => {
-    if (!selectedMatch?.id || !token) return;
+    if (!selectedMatch?.id) {
+      showToast('⚠️ Please select a match fixture to score', true);
+      return;
+    }
+    if (!token) {
+      showToast('⚠️ Admin session expired or not signed in. Please sign in as admin.', true);
+      return;
+    }
     try {
       const res = await fetch(`/api/live-scoring/${selectedMatch.id}/event`, {
         method: 'POST',
@@ -715,20 +727,31 @@ export function LiveScoring({ onNavigate }) {
         body: JSON.stringify({ eventType, payload })
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setLiveDetail(prev => prev ? { ...prev, liveState: data.liveState } : prev);
+        setMatches(prev => prev.map(m => {
+          if (m.id !== selectedMatch.id) return m;
+          return { ...m, liveState: data.liveState, status: data.status || m.status, team_a_score: data.scoreA, team_b_score: data.scoreB };
+        }));
         showToast(`✓ ${eventType} recorded`);
       } else {
-        showToast(data.message || 'Failed to record event', true);
+        showToast(`❌ ${data.message || 'Failed to record event'}`, true);
       }
     } catch (e) {
-      showToast('Error: ' + e.message, true);
+      showToast('❌ Connection error: ' + e.message, true);
     }
   };
 
   // Admin: undo
   const handleUndo = async () => {
-    if (!selectedMatch?.id || !token) return;
+    if (!selectedMatch?.id) {
+      showToast('⚠️ Please select a match fixture', true);
+      return;
+    }
+    if (!token) {
+      showToast('⚠️ Admin session expired. Please sign in as admin.', true);
+      return;
+    }
     setUndoing(true);
     try {
       const res = await fetch(`/api/live-scoring/${selectedMatch.id}/undo`, {
@@ -736,14 +759,18 @@ export function LiveScoring({ onNavigate }) {
         headers: getAuthHeaders(token, { 'Content-Type': 'application/json' })
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setLiveDetail(prev => prev ? { ...prev, liveState: data.liveState } : prev);
+        setMatches(prev => prev.map(m => {
+          if (m.id !== selectedMatch.id) return m;
+          return { ...m, liveState: data.liveState, team_a_score: data.scoreA, team_b_score: data.scoreB };
+        }));
         showToast('↩ Last action undone');
       } else {
-        showToast(data.message || 'Nothing to undo', true);
+        showToast(`❌ ${data.message || 'Nothing to undo'}`, true);
       }
     } catch (e) {
-      showToast('Error: ' + e.message, true);
+      showToast('❌ Connection error: ' + e.message, true);
     } finally {
       setUndoing(false);
     }

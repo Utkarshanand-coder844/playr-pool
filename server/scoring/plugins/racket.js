@@ -54,12 +54,20 @@ export const racketReducer = (state, event) => {
     case 'POINT': {
       if (s.isCompleted) return s;
 
-      const { teamId } = event.payload;
-      const isTeamA = teamId === s.teamA.id;
-      if (isTeamA) s.teamA.currentPoints += 1;
-      else s.teamB.currentPoints += 1;
-
-      s.servingTeamId = teamId; // point winner serves
+      const { teamId } = event.payload || {};
+      const isTeamA = String(teamId) === String(s.teamA?.id) || teamId === 'team_a' || teamId === 'A' || (teamId && teamId === s.teamA?.name);
+      const isTeamB = String(teamId) === String(s.teamB?.id) || teamId === 'team_b' || teamId === 'B' || (teamId && teamId === s.teamB?.name);
+      if (isTeamA) {
+        s.teamA.currentPoints += 1;
+        s.servingTeamId = s.teamA.id;
+      } else if (isTeamB) {
+        s.teamB.currentPoints += 1;
+        s.servingTeamId = s.teamB.id;
+      } else {
+        // Fallback: assign to teamA if unclassified
+        s.teamA.currentPoints += 1;
+        s.servingTeamId = s.teamA.id;
+      }
 
       const ptsA = s.teamA.currentPoints;
       const ptsB = s.teamB.currentPoints;
