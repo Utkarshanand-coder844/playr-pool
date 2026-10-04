@@ -1162,25 +1162,100 @@ export const AdminDashboard = ({ onNavigate }) => {
                   )}
 
                   {/* ── BADMINTON / VOLLEYBALL / TABLE TENNIS / TENNIS ── */}
-                  {lsIsRacket && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {lsLiveState && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center', alignItems: 'center' }}>
-                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_a_name} {lsLiveState.servingTeamId === lsMatch?.team_a_id ? '● SERVE' : ''}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamA?.currentPoints ?? 0}</div><div style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>Sets: {lsLiveState.teamA?.setsWon ?? 0}</div></div>
-                          <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>Set {lsLiveState.currentSet || 1}</div>
-                          <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_b_name} {lsLiveState.servingTeamId === lsMatch?.team_b_id ? '● SERVE' : ''}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamB?.currentPoints ?? 0}</div><div style={{ fontSize: '0.8rem', color: '#a855f7' }}>Sets: {lsLiveState.teamB?.setsWon ?? 0}</div></div>
+                  {lsIsRacket && (() => {
+                    const sport = (lsMatch?.sport || '').toLowerCase();
+                    const isVB = sport.includes('volleyball');
+                    const isTT = sport.includes('table tennis') || sport.includes('tt');
+                    const isTennis = sport.includes('tennis') && !sport.includes('table');
+                    const currentSetNumber = lsLiveState?.currentSetNumber || lsLiveState?.currentSet || 1;
+                    const currentTarget = lsLiveState?.config?.setTargets?.[currentSetNumber] ||
+                      (Array.isArray(lsLiveState?.config?.pointsPerSet) ? lsLiveState.config.pointsPerSet[currentSetNumber - 1] : lsLiveState?.config?.pointsPerSet) ||
+                      (isVB ? 25 : isTT ? 11 : isTennis ? 6 : 21);
+
+                    let sportPresets = [];
+                    if (isVB) {
+                      sportPresets = [
+                        { label: '25 pts', payload: { pointsPerSet: 25 }, color: '#38bdf8' },
+                        { label: '15 pts', payload: { pointsPerSet: 15 }, color: '#a855f7' },
+                        { label: '🏐 25-25-15', payload: { setTargets: { 1: 25, 2: 25, 3: 15, 4: 25, 5: 15 } }, color: '#10b981' },
+                      ];
+                    } else if (isTT) {
+                      sportPresets = [
+                        { label: '11 pts', payload: { pointsPerSet: 11 }, color: '#38bdf8' },
+                        { label: '21 pts', payload: { pointsPerSet: 21 }, color: '#a855f7' },
+                        { label: '🏓 11-11-11', payload: { setTargets: { 1: 11, 2: 11, 3: 11, 4: 11, 5: 11 } }, color: '#10b981' },
+                      ];
+                    } else if (isTennis) {
+                      sportPresets = [
+                        { label: '6 games', payload: { pointsPerSet: 6 }, color: '#38bdf8' },
+                        { label: '10 pt TB', payload: { pointsPerSet: 10 }, color: '#a855f7' },
+                        { label: '🎾 6-6-10', payload: { setTargets: { 1: 6, 2: 6, 3: 10 } }, color: '#10b981' },
+                      ];
+                    } else {
+                      sportPresets = [
+                        { label: '15 pts', payload: { pointsPerSet: 15 }, color: '#38bdf8' },
+                        { label: '21 pts', payload: { pointsPerSet: 21 }, color: '#a855f7' },
+                        { label: '🏸 15-15-21', payload: { setTargets: { 1: 15, 2: 15, 3: 21 } }, color: '#10b981' },
+                      ];
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {/* Scoreboard */}
+                        {lsLiveState && (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center', alignItems: 'center' }}>
+                            <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_a_name} {lsLiveState.servingTeamId === lsMatch?.team_a_id ? '● SERVE' : ''}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamA?.currentPoints ?? 0}</div><div style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>Sets: {lsLiveState.teamA?.setsWon ?? 0}</div></div>
+                            <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>Set {currentSetNumber}</div>
+                            <div><div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{lsMatch?.team_b_name} {lsLiveState.servingTeamId === lsMatch?.team_b_id ? '● SERVE' : ''}</div><div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{lsLiveState.teamB?.currentPoints ?? 0}</div><div style={{ fontSize: '0.8rem', color: '#a855f7' }}>Sets: {lsLiveState.teamB?.setsWon ?? 0}</div></div>
+                          </div>
+                        )}
+
+                        {/* POINT buttons */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                          {[[lsLiveState?.teamA?.id || lsMatch?.team_a_id, lsLiveState?.teamA?.name || lsMatch?.team_a_name || 'Team A', '#38bdf8'], [lsLiveState?.teamB?.id || lsMatch?.team_b_id, lsLiveState?.teamB?.name || lsMatch?.team_b_name || 'Team B', '#a855f7']].map(([id, name, color]) => (
+                            <button key={id} type="button" onClick={() => lsSendEvent('POINT', { teamId: id })} style={{ padding: '1.25rem', borderRadius: 12, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer', lineHeight: 1.4 }}>⊕ POINT<br /><span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{name}</span></button>
+                          ))}
                         </div>
-                      )}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        {[[lsLiveState?.teamA?.id || lsMatch?.team_a_id || 'team_a', lsLiveState?.teamA?.name || lsMatch?.team_a_name || 'Team A', '#38bdf8'], [lsLiveState?.teamB?.id || lsMatch?.team_b_id || 'team_b', lsLiveState?.teamB?.name || lsMatch?.team_b_name || 'Team B', '#a855f7']].map(([id, name, color]) => (
-                          <button key={id} type="button" onClick={() => lsSendEvent('POINT', { teamId: id })} style={{ padding: '1.25rem', borderRadius: 12, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer', lineHeight: 1.4 }}>⊕ POINT<br /><span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{name}</span></button>
-                        ))}
+
+                        {/* Toggle Service + Complete Set */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <button type="button" onClick={() => lsSendEvent('TOGGLE_SERVICE', {})} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>⇄ Toggle Service</button>
+                          <button type="button" onClick={() => { if (window.confirm(`Conclude Set ${currentSetNumber} now?`)) lsSendEvent('COMPLETE_SET', {}); }} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.07)', color: '#f59e0b', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}>✓ Complete Set</button>
+                        </div>
+
+                        {/* Undo */}
+                        <button type="button" onClick={lsUndo} disabled={lsUndoing} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.07)', color: '#f43f5e', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo Last Point</button>
+
+                        {/* Format / Set Target */}
+                        <div style={{ padding: '0.75rem 0.85rem', background: 'rgba(16,185,129,0.05)', borderRadius: 10, border: '1px solid rgba(16,185,129,0.2)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--accent-emerald)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>🎯 SET FORMAT</span>
+                            <span style={{ fontSize: '0.68rem', color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>Set {currentSetNumber} · Target: {currentTarget} {isTennis ? 'games' : 'pts'}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                            {sportPresets.map((p, idx) => (
+                              <button key={idx} type="button" onClick={() => lsSendEvent('SET_TARGET_POINTS', p.payload)}
+                                style={{ flex: idx === 2 ? 2 : 1, padding: '0.4rem 0.6rem', borderRadius: 8, border: `1.5px solid ${p.color}33`, background: `${p.color}11`, color: p.color, fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer' }}>
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Custom pts:</span>
+                            <input type="number" min="1" max="99" placeholder="e.g. 15" id="dash-set-target-input"
+                              style={{ flex: 1, padding: '0.3rem 0.5rem', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { const val = parseInt(e.currentTarget.value, 10); if (val > 0) { lsSendEvent('SET_TARGET_POINTS', { pointsPerSet: val }); e.currentTarget.value = ''; } } }}
+                            />
+                            <button type="button" onClick={() => { const el = document.getElementById('dash-set-target-input'); const val = parseInt(el?.value, 10); if (val > 0) { lsSendEvent('SET_TARGET_POINTS', { pointsPerSet: val }); el.value = ''; } }}
+                              style={{ padding: '0.3rem 0.75rem', borderRadius: 6, border: '1.5px solid #38bdf833', background: '#38bdf811', color: '#38bdf8', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Apply</button>
+                          </div>
+                        </div>
+
+                        {lsLiveState?.isCompleted && <div style={{ padding: '0.75rem', textAlign: 'center', background: 'rgba(16,185,129,0.08)', borderRadius: 10, color: 'var(--accent-emerald)', fontWeight: 700 }}>✅ {lsLiveState.resultText}</div>}
                       </div>
-                      <button type="button" onClick={() => lsSendEvent('TOGGLE_SERVICE', {})} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>⇄ Toggle Service</button>
-                      {lsLiveState?.isCompleted && <div style={{ padding: '0.75rem', textAlign: 'center', background: 'rgba(16,185,129,0.08)', borderRadius: 10, color: 'var(--accent-emerald)', fontWeight: 700 }}>✅ {lsLiveState.resultText}</div>}
-                      <button type="button" onClick={lsUndo} disabled={lsUndoing} style={{ padding: '0.65rem', borderRadius: 10, border: '1px solid rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.07)', color: '#f43f5e', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', opacity: lsUndoing ? 0.5 : 1 }}>↩ Undo</button>
-                    </div>
-                  )}
+                    );
+                  })()}
+
 
                   {/* ── KABADDI ── */}
                   {lsIsKabaddi && (
