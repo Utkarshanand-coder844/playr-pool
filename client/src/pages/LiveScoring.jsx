@@ -1044,7 +1044,6 @@ export function LiveScoring({ onNavigate }) {
           padding: 1.25rem;
           box-sizing: border-box;
           width: 100%;
-          overflow: hidden;
         }
 
         .mobile-admin-tab-bar {
