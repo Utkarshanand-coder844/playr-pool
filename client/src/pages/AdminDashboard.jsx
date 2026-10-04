@@ -146,6 +146,9 @@ export const AdminDashboard = ({ onNavigate }) => {
   const [lsGoalScorer, setLsGoalScorer] = useState('');
   const [lsGoalMinute, setLsGoalMinute] = useState('');
   const [lsGoalAssist, setLsGoalAssist] = useState('');
+  // Racket sports: per-rally scorer attribution
+  const [lsRacketScorerA, setLsRacketScorerA] = useState('');
+  const [lsRacketScorerB, setLsRacketScorerB] = useState('');
 
   // Derived: currently selected match object
   const lsMatch = matches.find(m => String(m.id) === String(lsMatchId)) || null;
@@ -1210,10 +1213,34 @@ export const AdminDashboard = ({ onNavigate }) => {
                           </div>
                         )}
 
-                        {/* POINT buttons */}
+                        {/* SCORER INPUTS + POINT BUTTONS */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                          {[[lsLiveState?.teamA?.id || lsMatch?.team_a_id, lsLiveState?.teamA?.name || lsMatch?.team_a_name || 'Team A', '#38bdf8'], [lsLiveState?.teamB?.id || lsMatch?.team_b_id, lsLiveState?.teamB?.name || lsMatch?.team_b_name || 'Team B', '#a855f7']].map(([id, name, color]) => (
-                            <button key={id} type="button" onClick={() => lsSendEvent('POINT', { teamId: id })} style={{ padding: '1.25rem', borderRadius: 12, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer', lineHeight: 1.4 }}>⊕ POINT<br /><span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{name}</span></button>
+                          {[
+                            [lsLiveState?.teamA?.id || lsMatch?.team_a_id, lsLiveState?.teamA?.name || lsMatch?.team_a_name || 'Team A', '#38bdf8', lsRacketScorerA, setLsRacketScorerA],
+                            [lsLiveState?.teamB?.id || lsMatch?.team_b_id, lsLiveState?.teamB?.name || lsMatch?.team_b_name || 'Team B', '#a855f7', lsRacketScorerB, setLsRacketScorerB]
+                          ].map(([id, name, color, scorer, setScorer]) => (
+                            <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <input
+                                type="text"
+                                placeholder="Who scored? (optional)"
+                                value={scorer}
+                                onChange={e => setScorer(e.target.value)}
+                                style={{
+                                  padding: '0.4rem 0.6rem', borderRadius: 8,
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: `1px solid ${color}44`,
+                                  color: '#f4f4f5', fontSize: '0.78rem',
+                                  fontFamily: 'var(--font-mono)', width: '100%', boxSizing: 'border-box'
+                                }}
+                              />
+                              <button
+                                key={id} type="button"
+                                onClick={() => { lsSendEvent('POINT', { teamId: id, playerName: scorer.trim() || undefined }); setScorer(''); }}
+                                style={{ padding: '1.25rem', borderRadius: 12, border: `1.5px solid ${color}33`, background: `${color}11`, color, fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer', lineHeight: 1.4 }}
+                              >
+                                ⊕ POINT<br /><span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{name}</span>
+                              </button>
+                            </div>
                           ))}
                         </div>
 

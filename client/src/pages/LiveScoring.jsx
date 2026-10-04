@@ -527,6 +527,9 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
   const [goal, setGoal] = useState({ scorer: '', minute: '', assist: '', isOwnGoal: false });
   const [kickTeam, setKickTeam] = useState('A');
   const [kickScored, setKickScored] = useState(true);
+  // Racket sports: who scored this rally?
+  const [scorerA, setScorerA] = useState('');
+  const [scorerB, setScorerB] = useState('');
 
   const send = (type, payload = {}) => onEvent({ eventType: type, payload });
   const teamAId = liveState?.teamA?.id || match?.team_a_id;
@@ -584,26 +587,43 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', boxSizing: 'border-box' }}>
 
-        {/* ── POINT BUTTONS — always visible at the top ── */}
+        {/* ── SCORER INPUTS + POINT BUTTONS ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
-          {[[teamAId, teamAName, 'var(--accent-cyan)'], [teamBId, teamBName, '#a855f7']].map(([id, name, color]) => (
-            <button
-              key={id}
-              onClick={() => send('POINT', { teamId: id })}
-              style={{
-                ...btnStyle(color, '0.92rem'),
-                padding: '1.1rem 0.5rem',
-                minHeight: '68px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4
-              }}
-            >
-              <span style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '0.04em' }}>⊕ POINT</span>
-              <span style={{ fontSize: '0.74rem', fontWeight: 600, opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', padding: '0 4px' }}>{name}</span>
-            </button>
+          {[
+            [teamAId, teamAName, 'var(--accent-cyan)', scorerA, setScorerA],
+            [teamBId, teamBName, '#a855f7', scorerB, setScorerB]
+          ].map(([id, name, color, scorer, setScorer]) => (
+            <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <input
+                type="text"
+                placeholder="Who scored? (optional)"
+                value={scorer}
+                onChange={e => setScorer(e.target.value)}
+                style={{
+                  padding: '0.4rem 0.6rem', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${color}44`,
+                  color: '#f4f4f5', fontSize: '0.78rem',
+                  fontFamily: 'var(--font-mono)', width: '100%', boxSizing: 'border-box'
+                }}
+              />
+              <button
+                onClick={() => {
+                  send('POINT', { teamId: id, playerName: scorer.trim() || undefined });
+                  setScorer('');
+                }}
+                style={{
+                  ...btnStyle(color, '0.92rem'),
+                  padding: '0.9rem 0.5rem',
+                  minHeight: '60px',
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 4
+                }}
+              >
+                <span style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '0.04em' }}>⊕ POINT</span>
+                <span style={{ fontSize: '0.74rem', fontWeight: 600, opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', padding: '0 4px' }}>{name}</span>
+              </button>
+            </div>
           ))}
         </div>
 
