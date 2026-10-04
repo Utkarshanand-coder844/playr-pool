@@ -677,10 +677,9 @@ export const Navbar = ({ currentView, onViewChange }) => {
                   </ul>
                 </div>
                 <div>
-                  <h3>Platform Team</h3>
+                  <h3>Developer &amp; Owner</h3>
                   <p><strong>Utkarsh Anand</strong><br />B.Tech, Computer Science &amp; Engineering<br />FET, GKV, Haridwar</p>
                   <p><a href="tel:+918809853489">+91 8809853489</a><br /><a href="mailto:utkarshiit098@gmail.com">utkarshiit098@gmail.com</a></p>
-                  <p style={{ marginTop: '0.4rem', fontSize: '0.85rem' }}>Made with the Playr-Pool Team: Rishav Raj, Utkarsh Kumar Singh, Priyanshu Raj, Anal Roy, and Shivam.</p>
                 </div>
               </div>
 
