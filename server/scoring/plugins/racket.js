@@ -48,6 +48,19 @@ export const initialRacketState = (match, config = {}) => {
   };
 };
 
+/**
+ * Determine target points for the current set (supports 15-15-21 custom formats)
+ */
+export const getCurrentSetTarget = (s) => {
+  if (s.config?.setTargets && s.config.setTargets[s.currentSetNumber]) {
+    return Number(s.config.setTargets[s.currentSetNumber]);
+  }
+  if (Array.isArray(s.config?.pointsPerSet)) {
+    return Number(s.config.pointsPerSet[s.currentSetNumber - 1] || s.config.pointsPerSet[0] || 21);
+  }
+  return Number(s.config?.pointsPerSet || 21);
+};
+
 export const racketReducer = (state, event) => {
   const s = JSON.parse(JSON.stringify(state));
 
@@ -80,14 +93,14 @@ export const racketReducer = (state, event) => {
 
       const ptsA = s.teamA.currentPoints;
       const ptsB = s.teamB.currentPoints;
-      const target = s.config.pointsPerSet;
+      const target = getCurrentSetTarget(s);
       const cap = s.config.maxCapPoints;
       const winByTwo = s.config.winByTwo;
 
       s.timeline.unshift({
         type: 'POINT',
         set: s.currentSetNumber,
-        text: `Point for ${isTeamA ? s.teamA.name : s.teamB.name} [${ptsA} - ${ptsB}] (Set ${s.currentSetNumber})`
+        text: `Point for ${isTeamA ? s.teamA.name : s.teamB.name} [${ptsA} - ${ptsB}] (Set ${s.currentSetNumber}, Target: ${target})`
       });
 
       // Check if set is won
@@ -118,6 +131,7 @@ export const racketReducer = (state, event) => {
           setNumber: s.currentSetNumber,
           scoreA: ptsA,
           scoreB: ptsB,
+          target,
           winnerTeamId: setWonBy,
           winnerName: isSetWonByA ? s.teamA.name : s.teamB.name
         });
@@ -139,6 +153,58 @@ export const racketReducer = (state, event) => {
           s.teamA.currentPoints = 0;
           s.teamB.currentPoints = 0;
         }
+      }
+      break;
+    }
+
+    case 'SET_TARGET_POINTS': {
+      const { pointsPerSet, setTargets, maxCapPoints } = event.payload || {};
+      if (pointsPerSet) s.config.pointsPerSet = pointsPerSet;
+      if (setTargets) s.config.setTargets = { ...(s.config.setTargets || {}), ...setTargets };
+      if (maxCapPoints) s.config.maxCapPoints = Number(maxCapPoints);
+      s.timeline.unshift({
+        type: 'CONFIG_CHANGE',
+        text: `⚙️ Set Target updated to ${getCurrentSetTarget(s)} pts for Set ${s.currentSetNumber}`
+      });
+      break;
+    }
+
+    case 'COMPLETE_SET': {
+      if (s.isCompleted) return s;
+      const { winnerTeamId } = event.payload || {};
+      const ptsA = s.teamA.currentPoints;
+      const ptsB = s.teamB.currentPoints;
+      const setWonBy = winnerTeamId || (ptsA >= ptsB ? s.teamA.id : s.teamB.id);
+      const isSetWonByA = setWonBy === s.teamA.id;
+
+      if (isSetWonByA) s.teamA.setsWon += 1;
+      else s.teamB.setsWon += 1;
+
+      s.setHistory.push({
+        setNumber: s.currentSetNumber,
+        scoreA: ptsA,
+        scoreB: ptsB,
+        target: getCurrentSetTarget(s),
+        winnerTeamId: setWonBy,
+        winnerName: isSetWonByA ? s.teamA.name : s.teamB.name
+      });
+
+      s.timeline.unshift({
+        type: 'SET_COMPLETE',
+        set: s.currentSetNumber,
+        text: `🏆 Set ${s.currentSetNumber} completed (${isSetWonByA ? s.teamA.name : s.teamB.name} won ${ptsA} - ${ptsB})`
+      });
+
+      if (s.teamA.setsWon >= s.config.setsToWin) {
+        s.isCompleted = true;
+        s.resultText = `${s.teamA.name} won ${s.teamA.setsWon} - ${s.teamB.setsWon} sets`;
+      } else if (s.teamB.setsWon >= s.config.setsToWin) {
+        s.isCompleted = true;
+        s.resultText = `${s.teamB.name} won ${s.teamB.setsWon} - ${s.teamA.setsWon} sets`;
+      } else {
+        s.currentSetNumber += 1;
+        s.teamA.currentPoints = 0;
+        s.teamB.currentPoints = 0;
       }
       break;
     }

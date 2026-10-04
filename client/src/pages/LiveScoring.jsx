@@ -546,8 +546,47 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
 
   // Badminton / Racket
   if (sport.includes('badminton') || sport.includes('volleyball') || sport.includes('table tennis') || sport.includes('tt') || sport.includes('tennis')) {
+    const currentTarget = liveState.config?.setTargets?.[liveState.currentSetNumber] ||
+      (Array.isArray(liveState.config?.pointsPerSet) ? liveState.config.pointsPerSet[liveState.currentSetNumber - 1] : liveState.config?.pointsPerSet) || 21;
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', boxSizing: 'border-box' }}>
+        {/* Set Target Points Controls (supports 15, 15, 21 college tournament formats) */}
+        <div style={{ padding: '0.65rem 0.85rem', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+              SET {liveState.currentSetNumber} TARGET: {currentTarget} PTS
+            </span>
+            <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', fontFamily: 'var(--font-mono)' }}>
+              Set {liveState.currentSetNumber} of {liveState.config?.bestOfSets || 3}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => send('SET_TARGET_POINTS', { pointsPerSet: 15 })}
+              style={{ ...btnStyle('#38bdf8', '0.74rem'), padding: '0.35rem 0.75rem', minHeight: 'auto', flex: 1 }}
+            >
+              15 pts
+            </button>
+            <button
+              type="button"
+              onClick={() => send('SET_TARGET_POINTS', { pointsPerSet: 21 })}
+              style={{ ...btnStyle('#a855f7', '0.74rem'), padding: '0.35rem 0.75rem', minHeight: 'auto', flex: 1 }}
+            >
+              21 pts
+            </button>
+            <button
+              type="button"
+              onClick={() => send('SET_TARGET_POINTS', { setTargets: { 1: 15, 2: 15, 3: 21 } })}
+              style={{ ...btnStyle('#10b981', '0.74rem'), padding: '0.35rem 0.75rem', minHeight: 'auto', flex: 2 }}
+              title="Sets Set 1 & 2 to 15 pts, Set 3 (decider) to 21 pts"
+            >
+              🏸 15-15-21 Format
+            </button>
+          </div>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
           {[[teamAId, teamAName, 'var(--accent-cyan)'], [teamBId, teamBName, '#a855f7']].map(([id, name, color]) => (
             <button
@@ -569,7 +608,20 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
             </button>
           ))}
         </div>
-        <button onClick={() => send('TOGGLE_SERVICE', {})} style={{ ...btnStyle('#71717a', '0.84rem'), padding: '0.75rem' }}>⇄ Toggle Service</button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <button onClick={() => send('TOGGLE_SERVICE', {})} style={{ ...btnStyle('#71717a', '0.8rem'), padding: '0.65rem' }}>⇄ Toggle Service</button>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Conclude Set ${liveState.currentSetNumber} now?`)) {
+                send('COMPLETE_SET', {});
+              }
+            }}
+            style={{ ...btnStyle('var(--accent-amber)', '0.8rem'), padding: '0.65rem' }}
+          >
+            ✓ Complete Set
+          </button>
+        </div>
         <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.84rem'), padding: '0.75rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo Last Point</button>
       </div>
     );
