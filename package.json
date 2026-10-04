@@ -2,6 +2,7 @@
   "name": "college-sports-tournament-platform",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "server": "npm --prefix server run dev",
     "client": "npm --prefix client run dev",

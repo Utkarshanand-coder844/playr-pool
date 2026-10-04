@@ -12,6 +12,22 @@ let issues = [];
 
 // 1. Scan for SQL Injection patterns (template literals with variable interpolation in query)
 console.log('1️⃣ Scanning for SQL query parameterization...');
+
+/**
+ * Known-safe SQL interpolation patterns that have been manually reviewed.
+ * Each entry is a substring that uniquely identifies the safe pattern.
+ * Only add here after confirming the interpolated value is properly sanitized.
+ */
+const SQL_SAFE_ALLOWLIST = [
+  // clean-db.js: table names sourced from pg_tables (system catalog) and filtered
+  // through /^[a-zA-Z0-9_]+$/ regex then double-quoted before interpolation.
+  'TRUNCATE TABLE ${tableNames} RESTART IDENTITY CASCADE',
+];
+
+function isSafePattern(snippet) {
+  return SQL_SAFE_ALLOWLIST.some(safe => snippet.includes(safe));
+}
+
 function scanSQL(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
@@ -26,7 +42,10 @@ function scanSQL(dir) {
       const matches = content.match(/query\s*\(\s*`[^`]*?\$\{[^}]+\}[^`]*?`/g);
       if (matches) {
         for (const m of matches) {
-          // Check if interpolation is sanitized or dynamic WHERE clause
+          if (isSafePattern(m)) {
+            // This pattern has been manually reviewed and confirmed safe — skip it
+            continue;
+          }
           issues.push({
             type: 'SQL Injection Risk',
             file: path.relative(rootDir, full),
@@ -99,7 +118,11 @@ scanClientEnv(path.join(rootDir, 'client', 'src'));
 
 // Output Results
 console.log('\n========================================');
-console.log(`Security Scan Finished: ${issues.length} potential issue(s) detected`);
+if (issues.length === 0) {
+  console.log('Security Scan Finished: ✅ CLEAN — 0 issues detected');
+} else {
+  console.log(`Security Scan Finished: ⚠️  ${issues.length} potential issue(s) detected`);
+}
 console.log('========================================');
 
 if (issues.length > 0) {
@@ -108,6 +131,10 @@ if (issues.length > 0) {
     console.log(`⚠️  [${issue.type}] in ${issue.file}`);
     console.log(`   Snippet: ${issue.snippet}\n`);
   }
+  console.log('ACTION REQUIRED: Review and fix the above findings before deploying to production.');
+  process.exit(1);
 } else {
-  console.log('✅ No hardcoded secrets, SQL injection template interpolations, or leaked env vars found in codebase!');
+  console.log('\n✅ No hardcoded secrets, SQL injection risks, or leaked env vars found!');
+  console.log('✅ All checks passed. Codebase is clean.');
+  process.exit(0);
 }
