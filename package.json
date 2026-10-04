@@ -9,6 +9,7 @@
     "test:auth": "node test-auth.js",
     "test:teams": "node test-teams.js",
     "test:scores": "node test-scores.js",
-    "test:features": "node test-features-verification.js"
+    "test:features": "node test-features-verification.js",
+    "audit:security": "node scripts/security-audit.js"
   }
 }

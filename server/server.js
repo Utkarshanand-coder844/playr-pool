@@ -19,6 +19,7 @@ import { initDb } from './config/db.js';
 import { initSocket } from './config/socket.js';
 import { corsOptions } from './config/cors.js';
 import { globalRateLimit } from './middleware/rateLimitMiddleware.js';
+import { sanitizeRequest } from './middleware/sanitizeMiddleware.js';
 
 if (process.env.NODE_ENV === 'production') {
   const missing = ['DATABASE_URL', 'JWT_SECRET', 'ADMIN_SIGNUP_CODE', 'FRONTEND_ORIGIN', 'FRONTEND_URL', 'RESEND_API_KEY', 'PASSWORD_RESET_EMAIL_FROM']
@@ -46,28 +47,33 @@ app.use(cors(corsOptions));
 // Remove X-Powered-By to avoid fingerprinting the stack
 app.disable('x-powered-by');
 
-// Security headers (Helmet-equivalent, no extra dependency needed)
+// Security headers (Helmet-equivalent, strict OWASP recommendations)
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
-  // Strict CSP: only allow our own origin + no inline scripts on the API
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+  // Strict CSP: API does not serve html/scripts
   res.setHeader(
     'Content-Security-Policy',
     "default-src 'none'; frame-ancestors 'none';"
   );
-  // Prevent clients from caching sensitive API responses
+  // Prevent clients and proxies from caching sensitive API responses
   if (req.path.startsWith('/api/auth') || req.path.startsWith('/api/admin') || req.path.startsWith('/api/payments')) {
-    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
   }
   next();
 });
 
 // Global rate limit — must come early, after CORS (so OPTIONS passes) but before routes
 app.use(globalRateLimit);
+
 // JSON body parser with rawBody preservation for cryptographic webhook signature verification
 app.use(express.json({
   limit: '5mb',
@@ -75,6 +81,9 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
+
+// Global input sanitization & anti-XSS protection
+app.use(sanitizeRequest);
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -109,25 +109,28 @@ export const PlayerSportProfileModel = {
    * Used by admin "Filter by Role" feature.
    */
   async searchByRole({ sport, role, position, bowlingStyle, bathand }) {
-    const conditions = ['psp.sport = $1'];
-    const params = [sport];
-    let idx = 2;
-
-    if (role) { conditions.push(`psp.primary_role ILIKE $${idx}`); params.push(`%${role}%`); idx++; }
-    if (position) { conditions.push(`psp.position ILIKE $${idx}`); params.push(`%${position}%`); idx++; }
-    if (bowlingStyle) { conditions.push(`psp.bowling_style ILIKE $${idx}`); params.push(`%${bowlingStyle}%`); idx++; }
-    if (bathand) { conditions.push(`psp.batting_hand ILIKE $${idx}`); params.push(`%${bathand}%`); idx++; }
-
-    const { rows } = await query(`
+    const text = `
       SELECT
         u.id, u.name, u.college_id, u.department, u.year, u.campus, u.email, u.phone,
         psp.sport, psp.primary_role, psp.batting_hand, psp.bowling_style,
         psp.position, psp.playing_style, psp.handedness, psp.preferred_foot, psp.event_category
       FROM player_sport_profiles psp
       JOIN users u ON u.id = psp.user_id
-      WHERE ${conditions.join(' AND ')}
+      WHERE psp.sport = $1
+        AND ($2::text IS NULL OR psp.primary_role ILIKE $2)
+        AND ($3::text IS NULL OR psp.position ILIKE $3)
+        AND ($4::text IS NULL OR psp.bowling_style ILIKE $4)
+        AND ($5::text IS NULL OR psp.batting_hand ILIKE $5)
       ORDER BY u.name ASC;
-    `, params);
+    `;
+    const params = [
+      sport,
+      role ? `%${role}%` : null,
+      position ? `%${position}%` : null,
+      bowlingStyle ? `%${bowlingStyle}%` : null,
+      bathand ? `%${bathand}%` : null
+    ];
+    const { rows } = await query(text, params);
     return rows;
   },
 

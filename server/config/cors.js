@@ -1,23 +1,33 @@
 import './env.js';
 
-const rawOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000,http://localhost:5173')
+const defaultOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://playr-pool-two.vercel.app',
+  'https://campusclash.onrender.com'
+];
+
+const envOrigins = (process.env.FRONTEND_ORIGIN || '')
   .split(',')
+  .concat((process.env.FRONTEND_URL || '').split(','))
   .map(origin => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
+const allowedOriginsSet = new Set([...defaultOrigins, ...envOrigins]);
+
 export const isOriginAllowed = (origin) => {
-  if (!origin) return true;
+  if (!origin) return true; // allow non-browser requests (server-to-server, curl, mobile apps)
   const clean = origin.trim().replace(/\/$/, '');
-  if (rawOrigins.includes(clean)) return true;
+  if (allowedOriginsSet.has(clean)) return true;
 
   try {
     const url = new URL(clean);
-    // Allow any Vercel domain (production and preview branches)
-    if (url.hostname.endsWith('.vercel.app')) return true;
-    // Allow local development
+    // Allow local development on localhost or loopback
     if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return true;
+    // Only allow verified preview deployments belonging to playr-pool
+    if (/^playr-pool[a-z0-9-]*\.vercel\.app$/i.test(url.hostname)) return true;
   } catch {
-    // ignore parse errors
+    // ignore invalid URL formats
   }
   return false;
 };

@@ -20,9 +20,6 @@ export const authenticateToken = (req, res, next) => {
     }
   }
 
-  if (!token && req.query && typeof req.query.token === 'string') {
-    token = req.query.token.trim();
-  }
 
   if (!token) {
     return res.status(401).json({
@@ -78,9 +75,6 @@ export const optionalAuth = (req, res, next) => {
 
   if (authHeader && typeof authHeader === 'string') {
     token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
-  }
-  if (!token && req.query && typeof req.query.token === 'string') {
-    token = req.query.token.trim();
   }
 
   if (!token) return next(); // Guest — proceed without blocking

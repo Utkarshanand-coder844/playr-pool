@@ -32,7 +32,16 @@ async function cleanDatabase() {
       return;
     }
 
-    const tableNames = tablesRes.rows.map(r => `"${r.tablename}"`).join(', ');
+    const validTableNames = tablesRes.rows
+      .map(r => r.tablename)
+      .filter(t => /^[a-zA-Z0-9_]+$/.test(t));
+
+    if (validTableNames.length === 0) {
+      console.log('ℹ️ No valid tables to wipe.');
+      return;
+    }
+
+    const tableNames = validTableNames.map(t => `"${t}"`).join(', ');
     console.log(`Found ${tablesRes.rows.length} table(s): ${tableNames}`);
     
     await client.query(`TRUNCATE TABLE ${tableNames} RESTART IDENTITY CASCADE;`);

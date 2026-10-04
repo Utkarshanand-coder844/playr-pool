@@ -96,8 +96,14 @@ export const signup = async (req, res) => {
     if (role === 'admin') {
       const providedCode = String(admin_code || '').trim();
       const expectedCode = String(process.env.ADMIN_SIGNUP_CODE || '').trim();
-      // Only accept the env-configured code. Never hardcode fallbacks in production.
-      const isMatch = expectedCode && providedCode === expectedCode;
+      let isMatch = false;
+      if (providedCode && expectedCode) {
+        const bufA = Buffer.from(providedCode, 'utf8');
+        const bufB = Buffer.from(expectedCode, 'utf8');
+        if (bufA.length === bufB.length) {
+          isMatch = crypto.timingSafeEqual(bufA, bufB);
+        }
+      }
 
       if (!providedCode || !isMatch) {
         return res.status(403).json({
