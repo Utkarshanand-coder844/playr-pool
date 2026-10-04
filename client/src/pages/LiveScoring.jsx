@@ -583,59 +583,8 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', boxSizing: 'border-box' }}>
-        {/* Set Target Points Controls (supports Volleyball 25-25-15, Badminton 15-15-21, TT 11-11-11, etc.) */}
-        <div style={{ padding: '0.65rem 0.85rem', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              SET {liveState.currentSetNumber} TARGET: {currentTarget} {isTennis ? 'GAMES/PTS' : 'PTS'}
-            </span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', fontFamily: 'var(--font-mono)' }}>
-              Set {liveState.currentSetNumber} of {liveState.config?.bestOfSets || 3}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {sportPresets.map((p, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => send('SET_TARGET_POINTS', p.payload)}
-                style={{ ...btnStyle(p.color, '0.74rem'), padding: '0.35rem 0.75rem', minHeight: 'auto', flex: idx === 2 ? 2 : 1 }}
-                title={p.title || ''}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Custom Target:</span>
-            <input
-              type="number"
-              min="1"
-              max="99"
-              placeholder="e.g. 15"
-              id="custom-set-target-input"
-              style={{ width: '68px', padding: '0.25rem 0.5rem', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const val = parseInt(e.currentTarget.value, 10);
-                  if (val > 0) { send('SET_TARGET_POINTS', { pointsPerSet: val }); e.currentTarget.value = ''; }
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById('custom-set-target-input');
-                const val = parseInt(el?.value, 10);
-                if (val > 0) { send('SET_TARGET_POINTS', { pointsPerSet: val }); el.value = ''; }
-              }}
-              style={{ ...btnStyle('#38bdf8', '0.72rem'), padding: '0.25rem 0.65rem', minHeight: 'auto', width: 'auto' }}
-            >
-              Set
-            </button>
-          </div>
-        </div>
 
+        {/* ── POINT BUTTONS — always visible at the top ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
           {[[teamAId, teamAName, 'var(--accent-cyan)'], [teamBId, teamBName, '#a855f7']].map(([id, name, color]) => (
             <button
@@ -657,6 +606,8 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
             </button>
           ))}
         </div>
+
+        {/* ── SERVICE + COMPLETE SET ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <button onClick={() => send('TOGGLE_SERVICE', {})} style={{ ...btnStyle('#71717a', '0.8rem'), padding: '0.65rem' }}>⇄ Toggle Service</button>
           <button
@@ -671,7 +622,63 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
             ✓ Complete Set
           </button>
         </div>
+
+        {/* ── UNDO ── */}
         <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.84rem'), padding: '0.75rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo Last Point</button>
+
+        {/* ── FORMAT / SET TARGET — below the action buttons ── */}
+        <div style={{ padding: '0.75rem 0.85rem', background: 'rgba(16,185,129,0.05)', borderRadius: 10, border: '1px solid rgba(16,185,129,0.2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--accent-emerald)', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.08em' }}>
+              🎯 SET FORMAT
+            </span>
+            <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+              Set {liveState.currentSetNumber} of {liveState.config?.bestOfSets || 3} · Target: {currentTarget} {isTennis ? 'games' : 'pts'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            {sportPresets.map((p, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => send('SET_TARGET_POINTS', p.payload)}
+                style={{ ...btnStyle(p.color, '0.74rem'), padding: '0.4rem 0.75rem', minHeight: 'auto', flex: idx === 2 ? 2 : 1 }}
+                title={p.title || ''}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Custom pts:</span>
+            <input
+              type="number"
+              min="1"
+              max="99"
+              placeholder="e.g. 15"
+              id="custom-set-target-input"
+              style={{ flex: 1, padding: '0.3rem 0.5rem', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = parseInt(e.currentTarget.value, 10);
+                  if (val > 0) { send('SET_TARGET_POINTS', { pointsPerSet: val }); e.currentTarget.value = ''; }
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById('custom-set-target-input');
+                const val = parseInt(el?.value, 10);
+                if (val > 0) { send('SET_TARGET_POINTS', { pointsPerSet: val }); el.value = ''; }
+              }}
+              style={{ ...btnStyle('#38bdf8', '0.72rem'), padding: '0.3rem 0.75rem', minHeight: 'auto', width: 'auto' }}
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+
       </div>
     );
   }
