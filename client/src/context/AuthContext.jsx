@@ -114,6 +114,26 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token, logout]);
 
+  /**
+   * Update editable registration fields and refresh AuthContext user state
+   */
+  const updateProfile = useCallback(async (profileData) => {
+    if (!token) throw new Error('Not authenticated');
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }),
+      body: JSON.stringify(profileData)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Failed to update profile');
+    }
+    // Sync updated user into context + localStorage
+    setUser(data.user);
+    try { localStorage.setItem(USER_KEY, JSON.stringify(data.user)); } catch {}
+    return data.user;
+  }, [token]);
+
   const value = {
     token,
     user,
@@ -122,6 +142,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     deleteAccount,
+    updateProfile,
     fetchProfile
   };
 

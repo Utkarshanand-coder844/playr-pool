@@ -16,6 +16,7 @@ import { Events } from './pages/Events';
 import { Notifications } from './pages/Notifications';
 import { SportsAdmins } from './pages/SportsAdmins';
 import { MySports } from './pages/MySports';
+import { EditProfile } from './pages/EditProfile';
 import { Chat } from './pages/Chat';
 import { Discover } from './pages/Discover';
 import { LiveScoring } from './pages/LiveScoring';
@@ -67,6 +68,7 @@ function MainLayout() {
           {currentView === 'my-sports' && <ProtectedRoute onNavigate={navigate}><MySports /></ProtectedRoute>}
           {currentView === 'chat' && <ProtectedRoute onNavigate={navigate}><Chat playerId={viewParams} /></ProtectedRoute>}
           {currentView === 'discover' && <ProtectedRoute onNavigate={navigate}><Discover onNavigate={navigate} /></ProtectedRoute>}
+          {currentView === 'edit-profile' && <ProtectedRoute onNavigate={navigate}><EditProfile onNavigate={navigate} /></ProtectedRoute>}
           {currentView === 'team-profile' && <TeamProfile teamId={viewParams} onNavigate={navigate} />}
           {currentView === 'player-profile' && <PlayerProfile playerId={viewParams} onNavigate={navigate} />}
           {currentView === 'dashboard' && (

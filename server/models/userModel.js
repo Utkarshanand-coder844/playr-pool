@@ -113,6 +113,31 @@ export const UserModel = {
     await query('DELETE FROM admin_audit_log WHERE admin_user_id = $1;', [id]);
     const { rows } = await query('DELETE FROM users WHERE id = $1 RETURNING id;', [id]);
     return rows[0] || null;
+  },
+
+  /**
+   * Update editable profile fields for a user.
+   * College ID and role are intentionally excluded — use admin tools for those.
+   */
+  async updateProfile(id, { name, department, campus, year, email, phone, profile_photo }) {
+    const { rows } = await query(
+      `UPDATE users
+       SET name = $1, department = $2, campus = $3, year = $4,
+           email = $5, phone = $6, profile_photo = $7
+       WHERE id = $8
+       RETURNING id, college_id, name, department, campus, year, email, phone, profile_photo, role, created_at;`,
+      [
+        name.trim(),
+        department.trim(),
+        (campus || 'Main Campus').trim(),
+        year.toString().trim(),
+        email.trim().toLowerCase(),
+        phone.trim(),
+        profile_photo || null,
+        id
+      ]
+    );
+    return rows[0] || null;
   }
 };
 

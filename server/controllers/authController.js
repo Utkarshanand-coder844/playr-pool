@@ -344,6 +344,62 @@ export const getMe = async (req, res) => {
 };
 
 /**
+ * PUT /api/auth/profile
+ * Update the logged-in user's editable registration details
+ */
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const { name, department, campus, year, email, phone, profile_photo } = req.body;
+
+    // Basic server-side validation
+    if (!name || !name.trim()) return res.status(400).json({ success: false, message: 'Name is required' });
+    if (!department || !department.trim()) return res.status(400).json({ success: false, message: 'Department is required' });
+    if (!email || !email.trim()) return res.status(400).json({ success: false, message: 'Email is required' });
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+    if (!phone || !phone.trim()) return res.status(400).json({ success: false, message: 'Phone is required' });
+
+    if (profile_photo) {
+      if (typeof profile_photo !== 'string' || profile_photo.length > 180000 || !/^data:image\/(jpeg|png|webp);base64,/.test(profile_photo)) {
+        return res.status(400).json({ success: false, message: 'Profile photo must be a small JPEG, PNG, or WebP image' });
+      }
+    }
+
+    const updated = await UserModel.updateProfile(userId, {
+      name, department, campus, year, email, phone,
+      profile_photo: profile_photo !== undefined ? profile_photo : undefined
+    });
+
+    if (!updated) return res.status(404).json({ success: false, message: 'User not found' });
+
+    // Attach sports to returned user so the client can refresh AuthContext
+    const playerSports = await PlayerSportModel.getForUser(userId);
+    let adminSports = [];
+    if (updated.role === 'admin') {
+      const allAdmins = await SportsAdminModel.getAll();
+      adminSports = allAdmins.filter(a => a.admin_id === userId).map(a => a.sport);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        ...updated,
+        sports: Array.from(new Set([...playerSports, ...adminSports])),
+        admin_sports: adminSports
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    if (error.code === '23505') {
+      return res.status(409).json({ success: false, message: 'That email address is already in use by another account' });
+    }
+    return res.status(500).json({ success: false, message: 'Internal server error while updating profile' });
+  }
+};
+
+/**
  * DELETE /api/auth/account
  * Permanently delete the user account and cascade delete all associated data
  */
