@@ -549,40 +549,89 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
     const currentTarget = liveState.config?.setTargets?.[liveState.currentSetNumber] ||
       (Array.isArray(liveState.config?.pointsPerSet) ? liveState.config.pointsPerSet[liveState.currentSetNumber - 1] : liveState.config?.pointsPerSet) || 21;
 
+    // Dynamic preset definitions per sport
+    const isVB = sport.includes('volleyball');
+    const isTT = sport.includes('table tennis') || sport.includes('tt');
+    const isTennis = sport.includes('tennis');
+
+    let sportPresets = [];
+    if (isVB) {
+      sportPresets = [
+        { label: '25 pts', payload: { pointsPerSet: 25 }, color: '#38bdf8' },
+        { label: '15 pts', payload: { pointsPerSet: 15 }, color: '#a855f7' },
+        { label: '🏐 25-25-15 Format', payload: { setTargets: { 1: 25, 2: 25, 3: 15, 4: 25, 5: 15 } }, color: '#10b981', title: 'Standard Volleyball Best of 3/5' }
+      ];
+    } else if (isTT) {
+      sportPresets = [
+        { label: '11 pts', payload: { pointsPerSet: 11 }, color: '#38bdf8' },
+        { label: '21 pts', payload: { pointsPerSet: 21 }, color: '#a855f7' },
+        { label: '🏓 11-11-11 Format', payload: { setTargets: { 1: 11, 2: 11, 3: 11, 4: 11, 5: 11 } }, color: '#10b981', title: 'Standard Table Tennis Best of 3/5' }
+      ];
+    } else if (isTennis) {
+      sportPresets = [
+        { label: '6 games', payload: { pointsPerSet: 6 }, color: '#38bdf8' },
+        { label: '10 pt Tiebreak', payload: { pointsPerSet: 10 }, color: '#a855f7' },
+        { label: '🎾 6-6-10 Format', payload: { setTargets: { 1: 6, 2: 6, 3: 10 } }, color: '#10b981', title: 'Tennis Sets 1 & 2 regular, Set 3 Super Tiebreak' }
+      ];
+    } else {
+      sportPresets = [
+        { label: '15 pts', payload: { pointsPerSet: 15 }, color: '#38bdf8' },
+        { label: '21 pts', payload: { pointsPerSet: 21 }, color: '#a855f7' },
+        { label: '🏸 15-15-21 Format', payload: { setTargets: { 1: 15, 2: 15, 3: 21 } }, color: '#10b981', title: 'Sets 1 & 2 to 15 pts, Set 3 (decider) to 21 pts' }
+      ];
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', boxSizing: 'border-box' }}>
-        {/* Set Target Points Controls (supports 15, 15, 21 college tournament formats) */}
+        {/* Set Target Points Controls (supports Volleyball 25-25-15, Badminton 15-15-21, TT 11-11-11, etc.) */}
         <div style={{ padding: '0.65rem 0.85rem', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              SET {liveState.currentSetNumber} TARGET: {currentTarget} PTS
+              SET {liveState.currentSetNumber} TARGET: {currentTarget} {isTennis ? 'GAMES/PTS' : 'PTS'}
             </span>
             <span style={{ fontSize: '0.68rem', color: 'var(--accent-amber)', fontFamily: 'var(--font-mono)' }}>
               Set {liveState.currentSetNumber} of {liveState.config?.bestOfSets || 3}
             </span>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {sportPresets.map((p, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => send('SET_TARGET_POINTS', p.payload)}
+                style={{ ...btnStyle(p.color, '0.74rem'), padding: '0.35rem 0.75rem', minHeight: 'auto', flex: idx === 2 ? 2 : 1 }}
+                title={p.title || ''}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Custom Target:</span>
+            <input
+              type="number"
+              min="1"
+              max="99"
+              placeholder="e.g. 15"
+              id="custom-set-target-input"
+              style={{ width: '68px', padding: '0.25rem 0.5rem', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = parseInt(e.currentTarget.value, 10);
+                  if (val > 0) { send('SET_TARGET_POINTS', { pointsPerSet: val }); e.currentTarget.value = ''; }
+                }
+              }}
+            />
             <button
               type="button"
-              onClick={() => send('SET_TARGET_POINTS', { pointsPerSet: 15 })}
-              style={{ ...btnStyle('#38bdf8', '0.74rem'), padding: '0.35rem 0.75rem', minHeight: 'auto', flex: 1 }}
+              onClick={() => {
+                const el = document.getElementById('custom-set-target-input');
+                const val = parseInt(el?.value, 10);
+                if (val > 0) { send('SET_TARGET_POINTS', { pointsPerSet: val }); el.value = ''; }
+              }}
+              style={{ ...btnStyle('#38bdf8', '0.72rem'), padding: '0.25rem 0.65rem', minHeight: 'auto', width: 'auto' }}
             >
-              15 pts
-            </button>
-            <button
-              type="button"
-              onClick={() => send('SET_TARGET_POINTS', { pointsPerSet: 21 })}
-              style={{ ...btnStyle('#a855f7', '0.74rem'), padding: '0.35rem 0.75rem', minHeight: 'auto', flex: 1 }}
-            >
-              21 pts
-            </button>
-            <button
-              type="button"
-              onClick={() => send('SET_TARGET_POINTS', { setTargets: { 1: 15, 2: 15, 3: 21 } })}
-              style={{ ...btnStyle('#10b981', '0.74rem'), padding: '0.35rem 0.75rem', minHeight: 'auto', flex: 2 }}
-              title="Sets Set 1 & 2 to 15 pts, Set 3 (decider) to 21 pts"
-            >
-              🏸 15-15-21 Format
+              Set
             </button>
           </div>
         </div>

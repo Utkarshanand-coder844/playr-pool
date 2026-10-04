@@ -13,15 +13,21 @@ export const initialRacketState = (match, config = {}) => {
   // Sport specific target defaults
   let targetSetPoints = 21; // Badminton
   let maxCapPoints = 30;
+  let defaultSetTargets = null;
+
   if (sportName.toLowerCase().includes('table tennis') || sportName.toLowerCase().includes('tt')) {
     targetSetPoints = 11;
     maxCapPoints = 99;
   } else if (sportName.toLowerCase().includes('volleyball')) {
     targetSetPoints = 25;
     maxCapPoints = 99;
+    // Volleyball best of 3: Set 1 & 2 to 25 pts, Set 3 decider to 15 pts
+    defaultSetTargets = { 1: 25, 2: 25, 3: 15, 4: 25, 5: 15 };
   } else if (sportName.toLowerCase().includes('tennis')) {
     targetSetPoints = 6; // games
     maxCapPoints = 99;
+    // Tennis: Sets 1 & 2 to 6 games, Set 3 Super Tiebreak to 10 pts
+    defaultSetTargets = { 1: 6, 2: 6, 3: 10 };
   }
 
   const bestOfSets = Number(config.bestOfSets || 3);
@@ -33,6 +39,7 @@ export const initialRacketState = (match, config = {}) => {
       bestOfSets,
       setsToWin,
       pointsPerSet: Number(config.pointsPerSet || targetSetPoints),
+      setTargets: config.setTargets || defaultSetTargets || null,
       maxCapPoints: Number(config.maxCapPoints || maxCapPoints),
       winByTwo: Boolean(config.winByTwo ?? true)
     },
