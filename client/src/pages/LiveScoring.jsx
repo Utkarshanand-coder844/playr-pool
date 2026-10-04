@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { getAuthHeaders } from '../utils/authFetch';
+import { Scorecard } from './Scorecard';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:5000' : window.location.origin);
 
@@ -725,12 +726,14 @@ export function LiveScoring({ onNavigate }) {
   const [liveDetail, setLiveDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [mobileTab, setMobileTab] = useState('both'); // 'both' | 'scoreboard' | 'admin'
+  const [detailTab, setDetailTab] = useState('live'); // 'live' | 'scorecard'
   const [filter, setFilter] = useState('all');  // 'all' | 'live' | 'upcoming' | 'completed'
   const [sportFilter, setSportFilter] = useState('All');
   const [undoing, setUndoing] = useState(false);
   const [toast, setToast] = useState('');
   const socketRef = useRef(null);
   const selectedMatchRef = useRef(selectedMatch?.id);
+
 
   useEffect(() => {
     selectedMatchRef.current = selectedMatch?.id;
@@ -1051,30 +1054,34 @@ export function LiveScoring({ onNavigate }) {
           {/* Mobile Tab Switcher for Admin on small screens */}
           {isAdmin && (
             <div className="mobile-admin-tab-bar">
-              <button
-                type="button"
-                className={`mobile-tab-btn ${mobileTab === 'both' ? 'active' : ''}`}
-                onClick={() => setMobileTab('both')}
-              >
-                📑 Full View
-              </button>
-              <button
-                type="button"
-                className={`mobile-tab-btn ${mobileTab === 'scoreboard' ? 'active' : ''}`}
-                onClick={() => setMobileTab('scoreboard')}
-              >
-                📊 Scoreboard
-              </button>
-              <button
-                type="button"
-                className={`mobile-tab-btn ${mobileTab === 'admin' ? 'active' : ''}`}
-                onClick={() => setMobileTab('admin')}
-              >
-                ⚙️ Controls
-              </button>
+              <button type="button" className={`mobile-tab-btn ${mobileTab === 'both' ? 'active' : ''}`} onClick={() => setMobileTab('both')}>📑 Full View</button>
+              <button type="button" className={`mobile-tab-btn ${mobileTab === 'scoreboard' ? 'active' : ''}`} onClick={() => setMobileTab('scoreboard')}>📊 Scoreboard</button>
+              <button type="button" className={`mobile-tab-btn ${mobileTab === 'admin' ? 'active' : ''}`} onClick={() => setMobileTab('admin')}>⚙️ Controls</button>
             </div>
           )}
 
+          {/* Scorecard Tab Toggle (visible to all) */}
+          {selectedMatch && (
+            <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+              {[['live', '📡 Live View'], ['scorecard', '📋 Scorecard']].map(([key, label]) => (
+                <button key={key}
+                  onClick={() => setDetailTab(key)}
+                  style={{
+                    padding: '0.4rem 1rem', borderRadius: 100, fontSize: '0.72rem', fontWeight: 700,
+                    fontFamily: 'var(--font-mono)', border: '1.5px solid',
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    background: detailTab === key ? 'rgba(56,189,248,0.15)' : 'transparent',
+                    color: detailTab === key ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                    borderColor: detailTab === key ? 'rgba(56,189,248,0.4)' : 'transparent'
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+
+          {detailTab === 'scorecard' ? (
+            <Scorecard matchId={selectedMatch.id} onNavigate={onNavigate} />
+          ) : (
           <div className={`live-detail-layout ${!isAdmin ? 'spectator-only' : ''}`}>
             {/* Scoreboard panel */}
             {(!isAdmin || mobileTab === 'both' || mobileTab === 'scoreboard') && (
@@ -1122,6 +1129,7 @@ export function LiveScoring({ onNavigate }) {
               </div>
             )}
           </div>
+          )}
         </div>
       ) : (
         // ── MATCH LIST ──
@@ -1169,7 +1177,7 @@ export function LiveScoring({ onNavigate }) {
                 const statusColors = { live: '#f43f5e', upcoming: 'var(--accent-cyan)', completed: '#71717a' };
 
                 return (
-                  <div key={m.id} className="match-card" onClick={() => { setSelectedMatch(m); setMobileTab('both'); }} style={{
+                  <div key={m.id} className="match-card" onClick={() => { setSelectedMatch(m); setMobileTab('both'); setDetailTab('live'); }} style={{
                     background: 'rgba(18,20,25,0.88)', borderRadius: 14, border: `1px solid ${m.status === 'live' ? 'rgba(244,63,94,0.25)' : 'rgba(255,255,255,0.07)'}`,
                     padding: '1rem', cursor: 'pointer', transition: 'all 0.2s ease',
                     boxShadow: m.status === 'live' ? '0 0 20px rgba(244,63,94,0.1)' : 'none',
@@ -1193,6 +1201,11 @@ export function LiveScoring({ onNavigate }) {
                     <div style={{ fontSize: '0.68rem', color: '#52525b', marginTop: 6 }}>
                       {m.match_date ? new Date(m.match_date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
                     </div>
+                    {/* Scorecard quick-link */}
+                    <button
+                      onClick={e => { e.stopPropagation(); setSelectedMatch(m); setDetailTab('scorecard'); setMobileTab('both'); }}
+                      style={{ marginTop: 8, padding: '0.3rem 0.8rem', borderRadius: 100, fontSize: '0.68rem', fontWeight: 700, fontFamily: 'var(--font-mono)', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', color: 'var(--accent-cyan)', cursor: 'pointer' }}
+                    >📋 Scorecard</button>
                   </div>
                 );
               })}

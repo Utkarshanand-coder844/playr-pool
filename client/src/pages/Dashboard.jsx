@@ -179,6 +179,20 @@ export const Dashboard = ({ onNavigate }) => {
             </svg>
             Test Admin Middleware Guard
           </button>
+
+          {onNavigate && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigate('player-insights', user.id)}
+              style={{
+                borderColor: 'rgba(56, 189, 248, 0.4)',
+                background: 'rgba(56, 189, 248, 0.08)',
+                color: 'var(--accent-cyan)'
+              }}
+            >
+              📈 My Insights &amp; Stats
+            </button>
+          )}
         </div>
 
         {adminTestStatus && (
@@ -242,6 +256,23 @@ export const Dashboard = ({ onNavigate }) => {
               onClick={() => onNavigate && onNavigate('scorehub')}
             >
               Open ScoreHub →
+            </button>
+          </div>
+
+          <div className="action-card">
+            <div>
+              <h3>
+                <span style={{ color: 'var(--accent-emerald)' }}>📈</span> 
+                Player Insights &amp; Stats
+              </h3>
+              <p>Track your individual match performance, fantasy points, form trend, and tournament milestones.</p>
+            </div>
+            <button 
+              className="btn btn-primary btn-sm" 
+              style={{ width: '100%' }}
+              onClick={() => onNavigate && onNavigate('player-insights', user.id)}
+            >
+              View My Insights →
             </button>
           </div>
         </div>

@@ -40,7 +40,8 @@ export const initialRacketState = (match, config = {}) => {
     teamB: { id: teamBId, name: teamBName, currentPoints: 0, setsWon: 0 },
     currentSetNumber: 1,
     servingTeamId: teamAId,
-    setHistory: [], // array of { setNumber: 1, scoreA: 21, scoreB: 18, winnerTeamId }
+    setHistory: [],
+    players: {}, // { [playerId]: { id, name, teamId, pointsWon, setsWon, aces, smashes } }
     timeline: [],
     isCompleted: false,
     resultText: ''
@@ -54,7 +55,7 @@ export const racketReducer = (state, event) => {
     case 'POINT': {
       if (s.isCompleted) return s;
 
-      const { teamId } = event.payload || {};
+      const { teamId, playerId = null, playerName = '' } = event.payload || {};
       const isTeamA = String(teamId) === String(s.teamA?.id) || teamId === 'team_a' || teamId === 'A' || (teamId && teamId === s.teamA?.name);
       const isTeamB = String(teamId) === String(s.teamB?.id) || teamId === 'team_b' || teamId === 'B' || (teamId && teamId === s.teamB?.name);
       if (isTeamA) {
@@ -64,9 +65,17 @@ export const racketReducer = (state, event) => {
         s.teamB.currentPoints += 1;
         s.servingTeamId = s.teamB.id;
       } else {
-        // Fallback: assign to teamA if unclassified
         s.teamA.currentPoints += 1;
         s.servingTeamId = s.teamA.id;
+      }
+
+      // Per-player tracking
+      const pid = playerId || (playerName ? `name_${playerName}` : null);
+      if (pid) {
+        const pTeamId = isTeamA ? s.teamA.id : s.teamB.id;
+        if (!s.players[pid]) s.players[pid] = { id: pid, name: playerName || pid, teamId: pTeamId, pointsWon: 0, setsWon: 0, aces: 0, smashes: 0 };
+        s.players[pid].pointsWon = (s.players[pid].pointsWon || 0) + 1;
+        s.players[pid].teamId = pTeamId;
       }
 
       const ptsA = s.teamA.currentPoints;
@@ -100,6 +109,11 @@ export const racketReducer = (state, event) => {
         if (isSetWonByA) s.teamA.setsWon += 1;
         else s.teamB.setsWon += 1;
 
+        // Track sets won per player
+        if (pid) {
+          s.players[pid].setsWon = (s.players[pid].setsWon || 0) + 1;
+        }
+
         s.setHistory.push({
           setNumber: s.currentSetNumber,
           scoreA: ptsA,
@@ -114,7 +128,6 @@ export const racketReducer = (state, event) => {
           text: `🏆 Set ${s.currentSetNumber} won by ${isSetWonByA ? s.teamA.name : s.teamB.name} (${ptsA} - ${ptsB})`
         });
 
-        // Check if overall match is won
         if (s.teamA.setsWon >= s.config.setsToWin) {
           s.isCompleted = true;
           s.resultText = `${s.teamA.name} won ${s.teamA.setsWon} - ${s.teamB.setsWon} sets`;
@@ -122,7 +135,6 @@ export const racketReducer = (state, event) => {
           s.isCompleted = true;
           s.resultText = `${s.teamB.name} won ${s.teamB.setsWon} - ${s.teamA.setsWon} sets`;
         } else {
-          // Advance to next set
           s.currentSetNumber += 1;
           s.teamA.currentPoints = 0;
           s.teamB.currentPoints = 0;

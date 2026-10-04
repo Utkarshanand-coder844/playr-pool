@@ -15,7 +15,8 @@ export const initialKabaddiState = (match, config = {}) => {
     },
     teamA: { id: teamAId, name: teamAName, score: 0, raidPoints: 0, tacklePoints: 0, allOuts: 0, bonusPoints: 0 },
     teamB: { id: teamBId, name: teamBName, score: 0, raidPoints: 0, tacklePoints: 0, allOuts: 0, bonusPoints: 0 },
-    half: '1st Half', // '1st Half', 'Half Time', '2nd Half', 'Ended'
+    half: '1st Half',
+    players: {}, // { [playerId]: { id, name, teamId, raidPoints, tacklePoints, bonusPoints, superRaids, superTackles } }
     timeline: [],
     isCompleted: false,
     resultText: ''
@@ -28,8 +29,7 @@ export const kabaddiReducer = (state, event) => {
   switch (event.type) {
     case 'SCORE_ACTION': {
       if (s.isCompleted) return s;
-      const { teamId, actionType, points = 1, raider = '', defender = '' } = event.payload;
-      // actionType: 'RAID' | 'SUPER_RAID' | 'TACKLE' | 'SUPER_TACKLE' | 'ALL_OUT' | 'BONUS'
+      const { teamId, actionType, points = 1, raider = '', raiderId = null, defender = '', defenderId = null } = event.payload;
       const isTeamA = teamId === s.teamA.id;
       const targetTeam = isTeamA ? s.teamA : s.teamB;
       const pts = Number(points) || 1;
@@ -37,6 +37,28 @@ export const kabaddiReducer = (state, event) => {
       targetTeam.score += pts;
 
       let actionLabel = '';
+      const isRaidAction = actionType === 'RAID' || actionType === 'SUPER_RAID' || actionType === 'BONUS';
+      const isTackleAction = actionType === 'TACKLE' || actionType === 'SUPER_TACKLE';
+
+      // Per-player tracking: raider
+      const rpid = raiderId || (raider ? `name_${raider}` : null);
+      if (rpid && isRaidAction) {
+        if (!s.players[rpid]) s.players[rpid] = { id: rpid, name: raider, teamId, raidPoints: 0, tacklePoints: 0, bonusPoints: 0, superRaids: 0, superTackles: 0 };
+        s.players[rpid].teamId = teamId;
+        if (actionType === 'BONUS') s.players[rpid].bonusPoints = (s.players[rpid].bonusPoints || 0) + pts;
+        else { s.players[rpid].raidPoints = (s.players[rpid].raidPoints || 0) + pts; }
+        if (actionType === 'SUPER_RAID') s.players[rpid].superRaids = (s.players[rpid].superRaids || 0) + 1;
+      }
+
+      // Per-player tracking: defender
+      const dpid = defenderId || (defender ? `name_${defender}` : null);
+      if (dpid && isTackleAction) {
+        if (!s.players[dpid]) s.players[dpid] = { id: dpid, name: defender, teamId, raidPoints: 0, tacklePoints: 0, bonusPoints: 0, superRaids: 0, superTackles: 0 };
+        s.players[dpid].teamId = teamId;
+        s.players[dpid].tacklePoints = (s.players[dpid].tacklePoints || 0) + pts;
+        if (actionType === 'SUPER_TACKLE') s.players[dpid].superTackles = (s.players[dpid].superTackles || 0) + 1;
+      }
+
       if (actionType === 'RAID') {
         targetTeam.raidPoints += pts;
         actionLabel = `🏃 Raid Point (+${pts})`;

@@ -293,3 +293,38 @@ CREATE INDEX IF NOT EXISTS idx_player_sport_profiles_sport ON player_sport_profi
 CREATE INDEX IF NOT EXISTS idx_player_sport_profiles_primary_role ON player_sport_profiles(sport, primary_role);
 CREATE INDEX IF NOT EXISTS idx_player_sport_profiles_position ON player_sport_profiles(sport, position);
 CREATE INDEX IF NOT EXISTS idx_player_sport_profiles_bowling ON player_sport_profiles(sport, bowling_style);
+
+-- Player Stats Table (manually recorded by admin via POST /api/admin/player-stats)
+CREATE TABLE IF NOT EXISTS player_stats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    player_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    stat_type VARCHAR(60) NOT NULL,
+    value INTEGER NOT NULL DEFAULT 0,
+    recorded_by UUID NOT NULL REFERENCES users(id),
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT unique_player_match_stat UNIQUE (match_id, player_id, stat_type)
+);
+
+-- Player Match Points Table (auto-derived from match_events by the scoring engine)
+-- This is the fantasy points leaderboard table — fully rebuilt on each event replay.
+CREATE TABLE IF NOT EXISTS player_match_points (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    player_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
+    sport VARCHAR(60) NOT NULL DEFAULT 'Generic',
+    fantasy_points INTEGER NOT NULL DEFAULT 0,
+    stats JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT unique_player_match_points UNIQUE (match_id, player_id)
+);
+CREATE INDEX IF NOT EXISTS idx_player_match_points_player ON player_match_points(player_id);
+CREATE INDEX IF NOT EXISTS idx_player_match_points_match ON player_match_points(match_id);
+CREATE INDEX IF NOT EXISTS idx_player_match_points_sport ON player_match_points(sport);
+CREATE INDEX IF NOT EXISTS idx_player_match_points_campus ON player_match_points(player_id, sport);
+
+-- Match events index for fast replay
+CREATE INDEX IF NOT EXISTS idx_match_events_match_id ON match_events(match_id, created_at ASC);
+

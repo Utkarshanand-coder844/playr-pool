@@ -12,6 +12,7 @@ import { Schedule } from './pages/Schedule';
 import { ScoreHub } from './pages/Bracket';
 import { TeamProfile } from './pages/TeamProfile';
 import { PlayerProfile } from './pages/PlayerProfile';
+import { PlayerInsights } from './pages/PlayerInsights';
 import { Events } from './pages/Events';
 import { Notifications } from './pages/Notifications';
 import { SportsAdmins } from './pages/SportsAdmins';
@@ -20,6 +21,7 @@ import { EditProfile } from './pages/EditProfile';
 import { Chat } from './pages/Chat';
 import { Discover } from './pages/Discover';
 import { LiveScoring } from './pages/LiveScoring';
+import { Scorecard } from './pages/Scorecard';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import { ScoreToast } from './components/ScoreToast';
 import { CampusClashLoader } from './components/CampusClashLoader';
@@ -73,6 +75,8 @@ function MainLayout() {
           {currentView === 'edit-profile' && <ProtectedRoute onNavigate={navigate}><EditProfile onNavigate={navigate} /></ProtectedRoute>}
           {currentView === 'team-profile' && <TeamProfile teamId={viewParams} onNavigate={navigate} />}
           {currentView === 'player-profile' && <PlayerProfile playerId={viewParams} onNavigate={navigate} />}
+          {currentView === 'player-insights' && <PlayerInsights playerId={viewParams} onNavigate={navigate} />}
+          {currentView === 'scorecard' && <Scorecard matchId={viewParams} onNavigate={navigate} />}
           {currentView === 'dashboard' && (
             <ProtectedRoute onNavigate={navigate}>
               <Dashboard onNavigate={navigate} />

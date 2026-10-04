@@ -16,6 +16,7 @@ const memoryStore = {
   team_requests: [],
   team_admin_removal_votes: [],
   player_stats: [],
+  player_match_points: [],
   matches: [],
   scores: [],
   match_events: [],
@@ -378,6 +379,20 @@ export const initDb = async () => {
           event_type VARCHAR(80) NOT NULL,
           processed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS player_match_points (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+          player_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
+          sport VARCHAR(60) NOT NULL DEFAULT 'Generic',
+          fantasy_points INTEGER NOT NULL DEFAULT 0,
+          stats JSONB NOT NULL DEFAULT '{}'::jsonb,
+          updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          CONSTRAINT unique_player_match_points UNIQUE (match_id, player_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_player_match_points_player ON player_match_points(player_id);
+      CREATE INDEX IF NOT EXISTS idx_player_match_points_sport ON player_match_points(sport);
     `);
     client.release();
     console.log('✅ PostgreSQL all tournament tables verified/ready.');
@@ -1263,6 +1278,59 @@ export const query = async (text, params = []) => {
     }
 
     return { rows: enrichedScores };
+  }
+
+  // --- PLAYER MATCH POINTS (auto-derived fantasy points) ---
+  if (normalizedText.includes('delete from player_match_points where match_id = $1')) {
+    const matchId = params[0];
+    memoryStore.player_match_points = (memoryStore.player_match_points || []).filter(r => r.match_id !== matchId);
+    return { rows: [] };
+  }
+  if (normalizedText.includes('insert into player_match_points')) {
+    const [match_id, player_id, team_id, sport, fantasy_points, stats] = params;
+    let existing = (memoryStore.player_match_points || []).find(r => r.match_id === match_id && r.player_id === player_id);
+    const statsObj = typeof stats === 'string' ? JSON.parse(stats) : (stats || {});
+    if (existing) {
+      Object.assign(existing, { team_id, sport, fantasy_points: Number(fantasy_points), stats: statsObj, updated_at: new Date().toISOString() });
+    } else {
+      existing = { id: crypto.randomUUID(), match_id, player_id, team_id, sport, fantasy_points: Number(fantasy_points), stats: statsObj, updated_at: new Date().toISOString() };
+      (memoryStore.player_match_points = memoryStore.player_match_points || []).push(existing);
+    }
+    return { rows: [{ ...existing }] };
+  }
+  if (normalizedText.includes('from player_match_points')) {
+    const rows = (memoryStore.player_match_points || []).map(r => {
+      const user = memoryStore.users.find(u => u.id === r.player_id);
+      const match = memoryStore.matches.find(m => m.id === r.match_id);
+      const team = memoryStore.teams.find(t => t.id === r.team_id);
+      return { ...r, player_name: user?.name || 'Unknown', match_name: match?.name || '', team_name: team?.name || '', campus: user?.campus || 'Main Campus' };
+    });
+    // Filter by player_id if param given
+    if (normalizedText.includes('where player_id = $1') || normalizedText.includes('where pmp.player_id = $1')) {
+      let filtered = rows.filter(r => r.player_id === params[0]);
+      if (normalizedText.includes('like $2') && params[1]) {
+        const sportLike = String(params[1]).replace(/%/g, '').toLowerCase();
+        filtered = filtered.filter(r => r.sport && r.sport.toLowerCase().includes(sportLike));
+      }
+      return { rows: filtered };
+    }
+    if (normalizedText.includes('where match_id = $1') || normalizedText.includes('where pmp.match_id = $1')) {
+      return { rows: rows.filter(r => r.match_id === params[0]) };
+    }
+    // Group by player for leaderboard: sport filter optional
+    if (normalizedText.includes('group by')) {
+      const sportFilter = params[0];
+      const filtered = sportFilter ? rows.filter(r => r.sport && r.sport.toLowerCase().includes(sportFilter.toLowerCase())) : rows;
+      const byPlayer = {};
+      for (const r of filtered) {
+        if (!byPlayer[r.player_id]) byPlayer[r.player_id] = { player_id: r.player_id, player_name: r.player_name, campus: r.campus, total_points: 0, matches_played: 0 };
+        byPlayer[r.player_id].total_points += r.fantasy_points;
+        byPlayer[r.player_id].matches_played += 1;
+      }
+      const sorted = Object.values(byPlayer).sort((a, b) => b.total_points - a.total_points).map((p, i) => ({ rank: i + 1, ...p }));
+      return { rows: sorted };
+    }
+    return { rows };
   }
 
   // --- PAYMENTS & WEBHOOKS ---

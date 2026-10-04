@@ -30,6 +30,23 @@ export const initialCricketState = (match, config = {}) => {
   const teamAId = match.team_a_id || 'team_a';
   const teamBId = match.team_b_id || 'team_b';
 
+  const makeInnings = (teamId, teamName) => ({
+    teamId,
+    teamName,
+    totalRuns: 0,
+    wickets: 0,
+    legalBalls: 0,
+    oversFormatted: '0.0',
+    extras: { wides: 0, noBalls: 0, byes: 0, legByes: 0, penalty: 0, total: 0 },
+    batsmen: {}, // { [stableId]: { id, name, runs, balls, fours, sixes, isOut, dismissalText, catches, stumpings, runOuts, isCaptain, isWK } }
+    bowlers: {}, // { [stableId]: { id, name, legalBalls, oversFormatted, maidens, runs, wickets, economy, lbwBowledCount } }
+    partnerships: [],
+    oversHistory: [],
+    currentOverBalls: [],
+    yetToBat: [],    // list of { id, name } who haven't batted yet
+    fallOfWickets: [] // [{ wickets, runs, overs, batsmanName }]
+  });
+
   return {
     sport: 'Cricket',
     config: {
@@ -37,41 +54,27 @@ export const initialCricketState = (match, config = {}) => {
       maxWickets: Number(config.maxWickets || 10),
       oversPerBowler: Number(config.oversPerBowler || Math.ceil(oversLimit / 5))
     },
-    inningsNumber: 1, // 1 or 2
+    inningsNumber: 1,
     battingTeamId: teamAId,
     battingTeamName: teamAName,
     bowlingTeamId: teamBId,
     bowlingTeamName: teamBName,
-    
-    // Innings 1 data
-    innings1: {
-      teamId: teamAId,
-      teamName: teamAName,
-      totalRuns: 0,
-      wickets: 0,
-      legalBalls: 0, // total legal deliveries bowled in this innings
-      oversFormatted: '0.0',
-      extras: { wides: 0, noBalls: 0, byes: 0, legByes: 0, penalty: 0, total: 0 },
-      batsmen: {}, // { [playerIdOrName]: { name, runs, balls, fours, sixes, isOut, dismissalText } }
-      bowlers: {}, // { [playerIdOrName]: { name, legalBalls, oversFormatted, maidens, runs, wickets, economy } }
-      partnerships: [], // array of { runs, balls, batsman1, batsman2 }
-      oversHistory: [], // array of overs: [ { overNumber: 1, balls: [...], bowler, runsConceded } ]
-      currentOverBalls: [] // balls in ongoing over e.g. ['1', '4', 'W', 'Wd']
-    },
 
-    // Innings 2 data (when active)
+    innings1: makeInnings(teamAId, teamAName),
     innings2: null,
 
-    // Active crease state
-    striker: null, // { name: 'Player 1', id: 'p1' }
-    nonStriker: null, // { name: 'Player 2', id: 'p2' }
-    currentBowler: null, // { name: 'Bowler 1', id: 'b1' }
+    // Roster snapshots (set via SET_LINEUP)
+    teamALineup: [], // [{ id, name, isCaptain, isWK }]
+    teamBLineup: [], // [{ id, name, isCaptain, isWK }]
+
+    striker: null,
+    nonStriker: null,
+    currentBowler: null,
     lastBowler: null,
 
     isFreeHit: false,
     partnershipCurrent: { runs: 0, balls: 0 },
-    
-    // Result & status
+
     target: null,
     isCompleted: false,
     resultText: ''
@@ -119,10 +122,12 @@ const swapStrikers = (state) => {
 };
 
 /**
- * Ensure batsman stats structure exists
+ * Ensure batsman stats structure exists.
+ * Key is ALWAYS the stable id (fallback: name) for idempotent replay.
  */
 const getOrCreateBatsman = (innings, player) => {
-  const key = player?.name || player?.id || 'Striker';
+  // Stable key: prefer real user id, then p_name-style id, then name
+  const key = player?.id || player?.name || 'Striker';
   if (!innings.batsmen[key]) {
     innings.batsmen[key] = {
       id: player?.id || key,
@@ -132,10 +137,35 @@ const getOrCreateBatsman = (innings, player) => {
       fours: 0,
       sixes: 0,
       isOut: false,
-      dismissalText: 'not out'
+      dismissalText: 'not out',
+      // Fielding credits
+      catches: 0,
+      stumpings: 0,
+      runOuts: 0,
+      // Flags from lineup
+      isCaptain: player?.isCaptain || false,
+      isWK: player?.isWK || false
     };
   }
   return innings.batsmen[key];
+};
+
+/**
+ * Build dismissal text similar to cricket scorecard:
+ * "c Axar b Washington", "b X", "lbw b X", "run out (X)", "st X b Y"
+ */
+const buildDismissalText = (dismissalType, bowlerName, fielderName) => {
+  const b = bowlerName || 'Bowler';
+  const f = fielderName || '';
+  switch ((dismissalType || '').toLowerCase()) {
+    case 'bowled':    return `b ${b}`;
+    case 'lbw':       return `lbw b ${b}`;
+    case 'caught':    return f ? `c ${f} b ${b}` : `c & b ${b}`;
+    case 'stumped':   return f ? `st ${f} b ${b}` : `st † b ${b}`;
+    case 'run_out':   return f ? `run out (${f})` : 'run out';
+    case 'hit_wicket':return `hit wicket b ${b}`;
+    default:          return `${dismissalType || 'out'} b ${b}`;
+  }
 };
 
 /**
@@ -169,10 +199,23 @@ export const cricketReducer = (state, event) => {
 
   switch (event.type) {
     case 'SET_LINEUP': {
-      // Set initial batsmen and bowler
-      if (event.payload.striker) s.striker = event.payload.striker;
-      if (event.payload.nonStriker) s.nonStriker = event.payload.nonStriker;
-      if (event.payload.bowler) s.currentBowler = event.payload.bowler;
+      const pl = event.payload;
+      if (pl.striker) s.striker = pl.striker;
+      if (pl.nonStriker) s.nonStriker = pl.nonStriker;
+      if (pl.bowler) s.currentBowler = pl.bowler;
+
+      // Store full batting lineup for yetToBat display
+      if (pl.battingLineup && Array.isArray(pl.battingLineup)) {
+        activeInnings.yetToBat = pl.battingLineup.filter(
+          p => p.id !== pl.striker?.id && p.id !== pl.nonStriker?.id &&
+               p.name !== pl.striker?.name && p.name !== pl.nonStriker?.name
+        );
+      }
+
+      // Store team-level lineups for captain/WK flags
+      if (pl.teamALineup) s.teamALineup = pl.teamALineup;
+      if (pl.teamBLineup) s.teamBLineup = pl.teamBLineup;
+
       if (s.striker) getOrCreateBatsman(activeInnings, s.striker);
       if (s.nonStriker) getOrCreateBatsman(activeInnings, s.nonStriker);
       if (s.currentBowler) getOrCreateBowler(activeInnings, s.currentBowler);
@@ -273,24 +316,69 @@ export const cricketReducer = (state, event) => {
       // 2. Handle Wicket
       if (wicket) {
         activeInnings.wickets += 1;
-        if (bowlerStat && !['run_out'].includes(wicket.dismissalType)) {
+        const isRunOut = (wicket.dismissalType || '').toLowerCase() === 'run_out';
+        if (bowlerStat && !isRunOut) {
           bowlerStat.wickets += 1;
         }
+        // Track LBW/Bowled bonus for fantasy points
+        const dt = (wicket.dismissalType || '').toLowerCase();
+        if ((dt === 'lbw' || dt === 'bowled') && bowlerStat) {
+          bowlerStat.lbwBowledCount = (bowlerStat.lbwBowledCount || 0) + 1;
+        }
+
         ballLabel = isLegal && runs === 0 ? 'W' : `${ballLabel}/W`;
 
         const dismissedPlayer = wicket.playerOut || s.striker;
         const outBatsmanStat = dismissedPlayer ? getOrCreateBatsman(activeInnings, dismissedPlayer) : batsmanStat;
         if (outBatsmanStat) {
           outBatsmanStat.isOut = true;
-          outBatsmanStat.dismissalText = `${wicket.dismissalType || 'out'} b ${bowler?.name || 'Bowler'}`;
+          outBatsmanStat.dismissalText = buildDismissalText(
+            wicket.dismissalType,
+            bowler?.name,
+            wicket.fielder?.name
+          );
         }
+
+        // Credit fielder (catches / stumpings / run-outs)
+        if (wicket.fielder) {
+          // Fielder may be on the bowling team — they appear as bowlers or need separate tracking
+          // We store fielding credits on the batsmen map keyed by fielder id
+          const fKey = wicket.fielder.id || wicket.fielder.name || 'Fielder';
+          if (!activeInnings.batsmen[fKey]) {
+            activeInnings.batsmen[fKey] = {
+              id: wicket.fielder.id || fKey,
+              name: wicket.fielder.name || fKey,
+              runs: 0, balls: 0, fours: 0, sixes: 0,
+              isOut: false, dismissalText: 'not out',
+              catches: 0, stumpings: 0, runOuts: 0,
+              isCaptain: false, isWK: false,
+              isFieldingOnlyCredit: true // not a batter in this innings
+            };
+          }
+          const fStat = activeInnings.batsmen[fKey];
+          if (dt === 'caught') fStat.catches = (fStat.catches || 0) + 1;
+          else if (dt === 'stumped') fStat.stumpings = (fStat.stumpings || 0) + 1;
+          else if (dt === 'run_out') fStat.runOuts = (fStat.runOuts || 0) + 1;
+        }
+
+        // Fall of wicket record
+        activeInnings.fallOfWickets = activeInnings.fallOfWickets || [];
+        activeInnings.fallOfWickets.push({
+          wickets: activeInnings.wickets,
+          runs: activeInnings.totalRuns,
+          overs: activeInnings.oversFormatted,
+          batsmanName: (dismissedPlayer?.name || 'Batter')
+        });
 
         // Record partnership end
         activeInnings.partnerships.push({ ...s.partnershipCurrent });
         s.partnershipCurrent = { runs: 0, balls: 0 };
 
-        // Introduce new batsman
+        // Remove incoming batter from yetToBat
         if (wicket.nextBatsman) {
+          activeInnings.yetToBat = (activeInnings.yetToBat || []).filter(
+            p => p.id !== wicket.nextBatsman.id && p.name !== wicket.nextBatsman.name
+          );
           if (dismissedPlayer?.id === s.nonStriker?.id || dismissedPlayer?.name === s.nonStriker?.name) {
             s.nonStriker = wicket.nextBatsman;
           } else {
@@ -377,7 +465,6 @@ export const cricketReducer = (state, event) => {
       if (s.inningsNumber === 1) {
         s.target = s.innings1.totalRuns + 1;
         s.inningsNumber = 2;
-        // Swap batting and bowling teams
         const prevBattingId = s.battingTeamId;
         const prevBattingName = s.battingTeamName;
         s.battingTeamId = s.bowlingTeamId;
@@ -397,7 +484,9 @@ export const cricketReducer = (state, event) => {
           bowlers: {},
           partnerships: [],
           oversHistory: [],
-          currentOverBalls: []
+          currentOverBalls: [],
+          yetToBat: event.payload?.battingLineup || [],
+          fallOfWickets: []
         };
 
         s.striker = event.payload?.striker || null;
@@ -406,6 +495,11 @@ export const cricketReducer = (state, event) => {
         s.lastBowler = null;
         s.isFreeHit = false;
         s.partnershipCurrent = { runs: 0, balls: 0 };
+
+        // Register opener batsmen
+        if (s.striker) getOrCreateBatsman(s.innings2, s.striker);
+        if (s.nonStriker) getOrCreateBatsman(s.innings2, s.nonStriker);
+        if (s.currentBowler) getOrCreateBowler(s.innings2, s.currentBowler);
       }
       break;
     }

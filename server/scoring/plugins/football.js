@@ -17,10 +17,11 @@ export const initialFootballState = (match, config = {}) => {
     },
     teamA: { id: teamAId, name: teamAName, score: 0, yellowCards: 0, redCards: 0, penaltyScore: 0 },
     teamB: { id: teamBId, name: teamBName, score: 0, yellowCards: 0, redCards: 0, penaltyScore: 0 },
-    period: '1st Half', // '1st Half', 'Half Time', '2nd Half', 'Full Time', 'Extra Time', 'Penalties', 'Ended'
+    period: '1st Half',
     currentMinute: 0,
-    timeline: [], // array of { type, minute, teamId, teamName, detail, text }
-    penaltyKicks: [], // array of { teamId, kickNumber, scored }
+    timeline: [],
+    penaltyKicks: [],
+    players: {}, // { [playerId]: { id, name, teamId, goals, assists, yellowCards, redCards, ownGoals } }
     isCompleted: false,
     resultText: ''
   };
@@ -31,12 +32,30 @@ export const footballReducer = (state, event) => {
 
   switch (event.type) {
     case 'GOAL': {
-      const { teamId, scorer = 'Unknown', assist = '', minute = s.currentMinute, isOwnGoal = false } = event.payload;
+      const { teamId, scorer = 'Unknown', scorerId = null, assist = '', assistId = null, minute = s.currentMinute, isOwnGoal = false } = event.payload;
       const isTeamA = teamId === s.teamA.id;
       if (isTeamA) s.teamA.score += 1;
       else s.teamB.score += 1;
 
       const teamName = isTeamA ? s.teamA.name : s.teamB.name;
+
+      // Per-player tracking: scorer
+      const sPid = scorerId || (scorer && scorer !== 'Unknown' ? `name_${scorer}` : null);
+      if (sPid) {
+        if (!s.players[sPid]) s.players[sPid] = { id: sPid, name: scorer, teamId, goals: 0, assists: 0, yellowCards: 0, redCards: 0, ownGoals: 0 };
+        if (isOwnGoal) s.players[sPid].ownGoals = (s.players[sPid].ownGoals || 0) + 1;
+        else s.players[sPid].goals = (s.players[sPid].goals || 0) + 1;
+        s.players[sPid].teamId = teamId;
+      }
+
+      // Per-player tracking: assist
+      const aPid = assistId || (assist ? `name_${assist}` : null);
+      if (aPid && !isOwnGoal) {
+        if (!s.players[aPid]) s.players[aPid] = { id: aPid, name: assist, teamId, goals: 0, assists: 0, yellowCards: 0, redCards: 0, ownGoals: 0 };
+        s.players[aPid].assists = (s.players[aPid].assists || 0) + 1;
+        s.players[aPid].teamId = teamId;
+      }
+
       s.timeline.unshift({
         type: 'GOAL',
         minute,
@@ -48,9 +67,18 @@ export const footballReducer = (state, event) => {
     }
 
     case 'CARD': {
-      const { teamId, cardType = 'YELLOW', player = 'Player', minute = s.currentMinute } = event.payload;
+      const { teamId, cardType = 'YELLOW', player = 'Player', playerId = null, minute = s.currentMinute } = event.payload;
       const isTeamA = teamId === s.teamA.id;
       const targetTeam = isTeamA ? s.teamA : s.teamB;
+
+      // Per-player tracking
+      const pid = playerId || (player ? `name_${player}` : null);
+      if (pid) {
+        if (!s.players[pid]) s.players[pid] = { id: pid, name: player, teamId, goals: 0, assists: 0, yellowCards: 0, redCards: 0, ownGoals: 0 };
+        if (cardType === 'YELLOW') s.players[pid].yellowCards = (s.players[pid].yellowCards || 0) + 1;
+        else s.players[pid].redCards = (s.players[pid].redCards || 0) + 1;
+        s.players[pid].teamId = teamId;
+      }
 
       if (cardType === 'YELLOW') {
         targetTeam.yellowCards += 1;

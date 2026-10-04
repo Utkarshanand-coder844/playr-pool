@@ -8,6 +8,7 @@
     "start": "node server/server.js",
     "test:auth": "node test-auth.js",
     "test:teams": "node test-teams.js",
-    "test:scores": "node test-scores.js"
+    "test:scores": "node test-scores.js",
+    "test:features": "node test-features-verification.js"
   }
 }

@@ -12,13 +12,14 @@ export const initialGenericState = (match, config = {}) => {
   return {
     sport: sportName,
     config: {
-      scoringType: config.scoringType || 'POINTS', // 'POINTS' | 'ROUND_WINS' | 'DECISIVE'
+      scoringType: config.scoringType || 'POINTS',
       winTarget: Number(config.winTarget || 0)
     },
     teamA: { id: teamAId, name: teamAName, score: 0, roundsWon: 0 },
     teamB: { id: teamBId, name: teamBName, score: 0, roundsWon: 0 },
     currentRound: 1,
     roundHistory: [],
+    players: {}, // { [playerId]: { id, name, teamId, points } }
     timeline: [],
     isCompleted: false,
     resultText: ''
@@ -30,10 +31,18 @@ export const genericReducer = (state, event) => {
 
   switch (event.type) {
     case 'ADD_POINTS': {
-      const { teamId, delta = 1, note = '' } = event.payload;
+      const { teamId, delta = 1, note = '', playerId = null, playerName = '' } = event.payload;
       const isTeamA = teamId === s.teamA.id;
       const targetTeam = isTeamA ? s.teamA : s.teamB;
       targetTeam.score += Number(delta);
+
+      // Per-player tracking
+      const pid = playerId || (playerName ? `name_${playerName}` : null);
+      if (pid && delta > 0) {
+        if (!s.players[pid]) s.players[pid] = { id: pid, name: playerName || pid, teamId, points: 0 };
+        s.players[pid].points = (s.players[pid].points || 0) + Number(delta);
+        s.players[pid].teamId = teamId;
+      }
 
       s.timeline.unshift({
         type: 'POINTS_ADJUST',

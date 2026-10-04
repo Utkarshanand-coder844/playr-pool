@@ -16,7 +16,7 @@ export const initialBasketballState = (match, config = {}) => {
     },
     teamA: { id: teamAId, name: teamAName, score: 0, fouls: 0, timeouts: 0 },
     teamB: { id: teamBId, name: teamBName, score: 0, fouls: 0, timeouts: 0 },
-    quarter: 'Q1', // Q1, Q2, Q3, Q4, OT
+    quarter: 'Q1',
     gameClock: '10:00',
     quarterScores: {
       Q1: { teamA: 0, teamB: 0 },
@@ -25,6 +25,7 @@ export const initialBasketballState = (match, config = {}) => {
       Q4: { teamA: 0, teamB: 0 },
       OT: { teamA: 0, teamB: 0 }
     },
+    players: {}, // { [playerId]: { id, name, teamId, points, threes, twos, freeThrows, fouls } }
     timeline: [],
     isCompleted: false,
     resultText: ''
@@ -36,7 +37,7 @@ export const basketballReducer = (state, event) => {
 
   switch (event.type) {
     case 'SCORE_POINTS': {
-      const { teamId, points, player = '' } = event.payload; // points: 1, 2, or 3
+      const { teamId, points, player = '', playerId = null } = event.payload;
       const isTeamA = teamId === s.teamA.id;
       const targetTeam = isTeamA ? s.teamA : s.teamB;
       const pts = Number(points) || 1;
@@ -45,6 +46,17 @@ export const basketballReducer = (state, event) => {
       if (s.quarterScores[s.quarter]) {
         if (isTeamA) s.quarterScores[s.quarter].teamA += pts;
         else s.quarterScores[s.quarter].teamB += pts;
+      }
+
+      // Per-player tracking
+      const pid = playerId || (player ? `name_${player}` : null);
+      if (pid) {
+        if (!s.players[pid]) s.players[pid] = { id: pid, name: player, teamId, points: 0, threes: 0, twos: 0, freeThrows: 0, fouls: 0 };
+        s.players[pid].points = (s.players[pid].points || 0) + pts;
+        s.players[pid].teamId = teamId;
+        if (pts === 3) s.players[pid].threes = (s.players[pid].threes || 0) + 1;
+        else if (pts === 2) s.players[pid].twos = (s.players[pid].twos || 0) + 1;
+        else if (pts === 1) s.players[pid].freeThrows = (s.players[pid].freeThrows || 0) + 1;
       }
 
       s.timeline.unshift({
@@ -57,10 +69,19 @@ export const basketballReducer = (state, event) => {
     }
 
     case 'FOUL': {
-      const { teamId, player = '' } = event.payload;
+      const { teamId, player = '', playerId = null } = event.payload;
       const isTeamA = teamId === s.teamA.id;
       const targetTeam = isTeamA ? s.teamA : s.teamB;
       targetTeam.fouls += 1;
+
+      // Per-player tracking
+      const pid = playerId || (player ? `name_${player}` : null);
+      if (pid) {
+        if (!s.players[pid]) s.players[pid] = { id: pid, name: player, teamId, points: 0, threes: 0, twos: 0, freeThrows: 0, fouls: 0 };
+        s.players[pid].fouls = (s.players[pid].fouls || 0) + 1;
+        s.players[pid].teamId = teamId;
+      }
+
       s.timeline.unshift({
         type: 'FOUL',
         quarter: s.quarter,

@@ -117,6 +117,23 @@ export const PlayerProfile = ({ playerId, onNavigate }) => {
         </div>
       </div>
 
+      {/* Player Insights Quick Link */}
+      {onNavigate && (
+        <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => onNavigate('player-insights', playerId)}
+            style={{
+              padding: '0.6rem 1.2rem', borderRadius: 100, fontSize: '0.8rem', fontWeight: 700,
+              fontFamily: 'var(--font-mono)', cursor: 'pointer', transition: 'all 0.2s',
+              background: 'rgba(245,158,11,0.12)', border: '1.5px solid rgba(245,158,11,0.35)',
+              color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 6
+            }}
+          >
+            📊 View Player Insights & Fantasy Points
+          </button>
+        </div>
+      )}
+
       {/* Sport Roles & Positions Section */}
       <div className="auth-card" style={{ maxWidth: '100%', marginTop: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>

@@ -2,6 +2,7 @@ import { query } from '../config/db.js';
 import { getIO } from '../config/socket.js';
 import { MatchModel } from '../models/matchModel.js';
 import { AuditLogModel } from '../models/auditLogModel.js';
+import { derivePlayerStats } from './playerStats.js';
 
 // Import sport plugins
 import { initialCricketState, cricketReducer } from './plugins/cricket.js';
@@ -133,6 +134,47 @@ async function resolveValidAdminId(providedId) {
 }
 
 /**
+ * Persist derived player stats to player_match_points.
+ * Called after every event, undo, or reset — fully idempotent.
+ * Only rows with real user IDs (not 'name_...' or 'p_...' guest keys) are stored.
+ */
+async function persistPlayerStats(matchId, sport, liveState, match) {
+  try {
+    const playerRows = derivePlayerStats(sport, liveState, match);
+
+    // Filter to real user IDs only (UUID-like, not name_ or p_ prefixes)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const realPlayers = playerRows.filter(p => p.playerId && uuidPattern.test(p.playerId));
+
+    if (realPlayers.length === 0) return;
+
+    // Delete existing rows for this match (idempotent)
+    await query('DELETE FROM player_match_points WHERE match_id = $1', [matchId]);
+
+    // Upsert each real player
+    for (const p of realPlayers) {
+      await query(
+        `INSERT INTO player_match_points (match_id, player_id, team_id, sport, fantasy_points, stats, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+         ON CONFLICT (match_id, player_id) DO UPDATE
+           SET team_id = EXCLUDED.team_id,
+               sport = EXCLUDED.sport,
+               fantasy_points = EXCLUDED.fantasy_points,
+               stats = EXCLUDED.stats,
+               updated_at = CURRENT_TIMESTAMP`,
+        [matchId, p.playerId, p.teamId, p.sport, Math.round(p.fantasyPoints), JSON.stringify(p.stats)]
+      );
+    }
+
+    // Emit socket event so clients can refresh player stats
+    const io = getIO();
+    io.emit('player:stats_update', { matchId });
+  } catch (err) {
+    console.warn('persistPlayerStats warning:', err.message);
+  }
+}
+
+/**
  * Event-Sourced Scoring Engine API
  */
 export const ScoringEngine = {
@@ -247,6 +289,9 @@ export const ScoringEngine = {
       io.emit('match:status', { match_id: matchId, status: newStatus });
     }
 
+    // 5. Persist player fantasy points (async, non-blocking)
+    persistPlayerStats(matchId, match.sport, liveState, match);
+
     // Audit log
     if (validAdminId) {
       try {
@@ -341,6 +386,9 @@ export const ScoringEngine = {
       team_b_score: scoreB
     });
 
+    // Re-persist player stats after undo (idempotent)
+    persistPlayerStats(matchId, match.sport, liveState, match);
+
     if (validAdminId) {
       try {
         AuditLogModel.record({
@@ -367,6 +415,9 @@ export const ScoringEngine = {
    */
   async resetMatch(matchId, adminId) {
     await query('DELETE FROM match_events WHERE match_id = $1;', [matchId]);
+    await query('DELETE FROM player_match_points WHERE match_id = $1;', [matchId]).catch(() => {});
+    const io = getIO();
+    io.emit('player:stats_update', { matchId });
     return await this.getLiveMatchState(matchId);
   }
 };
