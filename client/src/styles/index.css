@@ -1487,8 +1487,12 @@ textarea.form-input {
   }
 
   .main-content {
-    padding: 1.25rem 1rem 5.5rem; /* bottom padding ensures content clears the dock */
+    padding: 1rem 0.75rem 6rem; /* bottom padding ensures content clears the dock */
     align-items: flex-start;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   .mobile-bottom-dock {
@@ -1496,8 +1500,10 @@ textarea.form-input {
   }
 
   .auth-card {
-    padding: 1.75rem 1.25rem;
+    padding: 1.5rem 1rem;
     border-radius: var(--radius-md);
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .form-grid {
@@ -1555,6 +1561,41 @@ textarea.form-input {
     -webkit-overflow-scrolling: touch;
     padding-bottom: 0.4rem;
   }
+
+  /* Roster Member Edit Row on Mobile */
+  .roster-member-row {
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem !important;
+    padding: 0.85rem !important;
+  }
+
+  .roster-member-row .remove-member-btn {
+    width: 100% !important;
+    justify-content: center;
+  }
+
+  .schedule-match-card {
+    padding: 0.85rem 1rem !important;
+    gap: 0.6rem !important;
+  }
+}
+
+.roster-member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.schedule-match-card {
+  box-sizing: border-box;
+  width: 100%;
 }
 
 /* Compact Mobile (<= 480px) */

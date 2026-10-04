@@ -176,7 +176,7 @@ export const Schedule = ({ focusMatchId }) => {
       </div>
 
       {hasAnyMatches && (
-        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
           <input
             className="form-input no-icon"
             placeholder="Search by team, e.g. 'Titans' or 'Titans vs Warriors'"
@@ -212,11 +212,11 @@ export const Schedule = ({ focusMatchId }) => {
                       key={m.id}
                       ref={isFocused ? focusedRef : null}
                       onClick={() => setFocusedId(prev => prev === m.id ? null : m.id)}
+                      className="schedule-match-card"
                       style={{
                         background: isFocused ? 'rgba(0,242,254,0.06)' : 'var(--bg-card)',
                         border: isFocused ? '1px solid rgba(0,242,254,0.5)' : group.key === 'live' ? '1px solid rgba(239,68,68,0.4)' : '1px solid var(--border-subtle)',
                         borderRadius: 'var(--radius-md)',
-                        padding: '1rem 1.5rem',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',

@@ -26,7 +26,8 @@ const sendResetEmail = async ({ email, name, resetUrl }) => {
   const isDummyKey = !apiKey || apiKey.startsWith('re_xxxxxxxxx') || apiKey === 'your_resend_api_key';
   if (!apiKey || !from || isDummyKey) {
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
+      // Dev: log as warn (not log) so it doesn't leak to production-style log aggregators
+      console.warn(`[DEV] Password reset link generated for ${email} (check server console only, never exposed to client)`);
       return; // Succeed silently in dev — no real email sent
     }
     throw new Error('Password reset email is not configured');
@@ -78,6 +79,15 @@ export const signup = async (req, res) => {
       });
     }
 
+    // Check if email already exists
+    const existingEmail = await UserModel.findByEmail(email);
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: 'An account with this email address is already registered'
+      });
+    }
+
     // Never trust a client-supplied role directly — that's what let any
     // visitor pick "admin" from the signup form and get real admin access.
     // Admin only gets granted if the request also includes the correct
@@ -86,14 +96,13 @@ export const signup = async (req, res) => {
     if (role === 'admin') {
       const providedCode = String(admin_code || '').trim();
       const expectedCode = String(process.env.ADMIN_SIGNUP_CODE || '').trim();
-      // Match configured environment code, or local developer/demo codes (case-insensitive, trimmed)
-      const validCodes = [expectedCode, '1234', 'local-admin-code', 'admin123'].filter(Boolean);
-      const isMatch = validCodes.some(code => code.toLowerCase() === providedCode.toLowerCase());
+      // Only accept the env-configured code. Never hardcode fallbacks in production.
+      const isMatch = expectedCode && providedCode === expectedCode;
 
       if (!providedCode || !isMatch) {
         return res.status(403).json({
           success: false,
-          message: 'Invalid admin access code. Enter the tournament admin access code (1234).'
+          message: 'Invalid admin access code.'
         });
       }
       finalRole = 'admin';

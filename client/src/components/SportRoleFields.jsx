@@ -16,7 +16,7 @@ export const SportRoleFields = ({ sport, profile = {}, onChange }) => {
       </label>
       <select
         className="form-select no-icon"
-        style={{ fontSize: '0.85rem', padding: '0.45rem 0.65rem' }}
+        style={{ padding: '0.55rem 0.75rem', minHeight: '40px' }}
         value={profile[field] || ''}
         onChange={e => onChange(field, e.target.value)}
       >

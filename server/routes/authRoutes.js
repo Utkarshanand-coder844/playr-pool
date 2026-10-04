@@ -7,7 +7,7 @@ import { credentialRateLimit } from '../middleware/rateLimitMiddleware.js';
 const router = express.Router();
 
 // Public routes
-router.post('/signup', validateSignup, signup);
+router.post('/signup', credentialRateLimit({ max: 5 }), validateSignup, signup);
 router.post('/login', credentialRateLimit(), validateLogin, login);
 router.post('/password-reset/request', credentialRateLimit({ max: 5 }), requestPasswordReset);
 router.post('/password-reset/confirm', credentialRateLimit({ max: 5 }), resetPassword);

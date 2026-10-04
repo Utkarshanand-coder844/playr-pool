@@ -1,8 +1,16 @@
 # Secrets and deployment configuration
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!*.env.example
 server/.env
 server/env
 *.pem
 *.key
+*.cert
+*.crt
 
 # Dependencies and generated client files
 **/node_modules/

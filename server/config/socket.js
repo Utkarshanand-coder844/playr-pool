@@ -37,7 +37,6 @@ export const initSocket = (httpServer) => {
   });
 
   io.on('connection', (socket) => {
-    console.log('🔌 Client connected:', socket.id);
 
     // Allow a user to join their personal notification room by userId
     socket.on('join:user', async () => {
@@ -46,15 +45,13 @@ export const initSocket = (httpServer) => {
         const user = await UserModel.findById(socket.data.userId);
         if (user?.campus) socket.join(`campus:${user.campus}`);
         socket.join('campus:all');
-        console.log(`🔌 Socket ${socket.id} joined its personal notification room`);
       }
     });
 
     // Match live scoring subscription room
     socket.on('join:match', (matchId) => {
-      if (matchId) {
+      if (matchId && typeof matchId === 'string' && /^[0-9a-f-]{36}$/i.test(matchId)) {
         socket.join(`match:${matchId}`);
-        console.log(`🔌 Socket ${socket.id} subscribed to live scoring for match:${matchId}`);
       }
     });
 
@@ -65,7 +62,7 @@ export const initSocket = (httpServer) => {
     });
 
     socket.on('disconnect', () => {
-      console.log('🔌 Client disconnected:', socket.id);
+      // no-op — avoid logging every disconnect to reduce log noise
     });
   });
 

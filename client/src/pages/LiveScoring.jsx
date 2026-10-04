@@ -175,19 +175,65 @@ function GenericScoreboard({ match, liveState }) {
     const sets = liveState.setHistory || [];
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
           {[liveState.teamA, liveState.teamB].map((team, i) => (
-            <div key={i} style={{ textAlign: 'center', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: `1px solid ${liveState.servingTeamId === team?.id ? 'rgba(56,189,248,0.35)' : 'rgba(255,255,255,0.07)'}` }}>
-              <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{team?.name?.toUpperCase()}</div>
-              <div style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f4f4f5' }}>{team?.currentPoints ?? 0}</div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)' }}>Sets: {team?.setsWon ?? 0}</div>
-              {liveState.servingTeamId === team?.id && <div style={{ fontSize: '0.65rem', color: '#f59e0b', marginTop: 2 }}>● SERVING</div>}
+            <div key={i} style={{
+              textAlign: 'center',
+              padding: '1rem 0.5rem',
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: 12,
+              border: `1.5px solid ${liveState.servingTeamId === team?.id ? 'rgba(56,189,248,0.5)' : 'rgba(255,255,255,0.07)'}`,
+              boxShadow: liveState.servingTeamId === team?.id ? '0 0 16px rgba(56,189,248,0.12)' : 'none',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                fontSize: '0.72rem',
+                color: '#a1a1aa',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                marginBottom: 4,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                padding: '0 4px'
+              }}>
+                {team?.name?.toUpperCase()}
+              </div>
+              <div style={{
+                fontSize: 'clamp(2.2rem, 8vw, 3rem)',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                color: '#f4f4f5',
+                lineHeight: 1.1
+              }}>
+                {team?.currentPoints ?? 0}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', fontWeight: 600, marginTop: 4 }}>
+                Sets: {team?.setsWon ?? 0}
+              </div>
+              {liveState.servingTeamId === team?.id ? (
+                <div style={{
+                  fontSize: '0.65rem',
+                  color: '#f59e0b',
+                  marginTop: 6,
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  background: 'rgba(245,158,11,0.12)',
+                  padding: '2px 8px',
+                  borderRadius: 100,
+                  display: 'inline-block'
+                }}>
+                  ● SERVING
+                </div>
+              ) : (
+                <div style={{ height: '1.2rem', marginTop: 6 }} />
+              )}
             </div>
           ))}
         </div>
         {sets.length > 0 && (
-          <div style={{ fontSize: '0.75rem', color: '#71717a' }}>
-            {sets.map((s, i) => <span key={i} style={{ marginRight: 10 }}>Set {s.setNumber}: {s.scoreA}–{s.scoreB} ({s.winnerName})</span>)}
+          <div style={{ fontSize: '0.75rem', color: '#71717a', flexWrap: 'wrap', display: 'flex', gap: 8 }}>
+            {sets.map((s, i) => <span key={i} style={{ padding: '2px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4 }}>Set {s.setNumber}: {s.scoreA}–{s.scoreB} ({s.winnerName})</span>)}
           </div>
         )}
         {liveState.isCompleted && <div style={{ padding: '0.75rem', textAlign: 'center', background: 'rgba(16,185,129,0.1)', borderRadius: 10, border: '1px solid rgba(16,185,129,0.25)', fontWeight: 700, color: 'var(--accent-emerald)' }}>🏆 {liveState.resultText}</div>}
@@ -201,15 +247,23 @@ function GenericScoreboard({ match, liveState }) {
   const teamB = liveState.teamB;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', padding: '1.25rem 0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center' }}>
-        <div>
-          <div style={{ fontSize: '0.72rem', color: '#71717a', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{teamA?.name?.toUpperCase()}</div>
-          <div style={{ fontSize: '3rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f4f4f5' }}>{teamA?.score ?? 0}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', gap: 8, alignItems: 'center', padding: '1.25rem 0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center' }}>
+        <div style={{ overflow: 'hidden' }}>
+          <div style={{ fontSize: '0.72rem', color: '#a1a1aa', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>
+            {teamA?.name?.toUpperCase()}
+          </div>
+          <div style={{ fontSize: 'clamp(2.4rem, 8vw, 3.2rem)', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f4f4f5', lineHeight: 1 }}>
+            {teamA?.score ?? 0}
+          </div>
         </div>
-        <div style={{ fontSize: '0.85rem', color: '#71717a', fontFamily: 'var(--font-mono)' }}>VS</div>
-        <div>
-          <div style={{ fontSize: '0.72rem', color: '#71717a', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{teamB?.name?.toUpperCase()}</div>
-          <div style={{ fontSize: '3rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f4f4f5' }}>{teamB?.score ?? 0}</div>
+        <div style={{ fontSize: '0.85rem', color: '#71717a', fontFamily: 'var(--font-mono)', padding: '0 4px' }}>VS</div>
+        <div style={{ overflow: 'hidden' }}>
+          <div style={{ fontSize: '0.72rem', color: '#a1a1aa', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>
+            {teamB?.name?.toUpperCase()}
+          </div>
+          <div style={{ fontSize: 'clamp(2.4rem, 8vw, 3.2rem)', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f4f4f5', lineHeight: 1 }}>
+            {teamB?.score ?? 0}
+          </div>
         </div>
       </div>
       {(liveState.period || liveState.quarter || liveState.half) && (
@@ -480,10 +534,11 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
   const teamBName = liveState?.teamB?.name || match?.team_b_name || 'Team B';
 
   const btnStyle = (accent = '#f4f4f5', size = '1rem') => ({
-    padding: '0.85rem 0.6rem', borderRadius: 12, border: `1.5px solid ${accent}33`,
+    padding: '0.75rem 0.5rem', borderRadius: 12, border: `1.5px solid ${accent}33`,
     background: `${accent}11`, color: accent, fontSize: size, fontWeight: 800,
     fontFamily: 'var(--font-mono)', cursor: 'pointer', transition: 'all 0.15s ease',
-    textAlign: 'center', userSelect: 'none'
+    textAlign: 'center', userSelect: 'none', boxSizing: 'border-box', width: '100%',
+    minHeight: '44px'
   });
 
   if (!liveState) return null;
@@ -491,16 +546,30 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
   // Badminton / Racket
   if (sport.includes('badminton') || sport.includes('volleyball') || sport.includes('table tennis') || sport.includes('tt') || sport.includes('tennis')) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
           {[[teamAId, teamAName, 'var(--accent-cyan)'], [teamBId, teamBName, '#a855f7']].map(([id, name, color]) => (
-            <button key={id} onClick={() => send('POINT', { teamId: id })} style={{ ...btnStyle(color, '0.88rem'), padding: '1.25rem', lineHeight: 1.3 }}>
-              ⊕ POINT<br /><span style={{ fontSize: '0.72rem', fontWeight: 600, opacity: 0.8 }}>{name}</span>
+            <button
+              key={id}
+              onClick={() => send('POINT', { teamId: id })}
+              style={{
+                ...btnStyle(color, '0.92rem'),
+                padding: '1.1rem 0.5rem',
+                minHeight: '68px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4
+              }}
+            >
+              <span style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '0.04em' }}>⊕ POINT</span>
+              <span style={{ fontSize: '0.74rem', fontWeight: 600, opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', padding: '0 4px' }}>{name}</span>
             </button>
           ))}
         </div>
-        <button onClick={() => send('TOGGLE_SERVICE', {})} style={{ ...btnStyle('#71717a', '0.82rem'), padding: '0.65rem' }}>⇄ Toggle Service</button>
-        <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.82rem'), padding: '0.65rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo Last Point</button>
+        <button onClick={() => send('TOGGLE_SERVICE', {})} style={{ ...btnStyle('#71717a', '0.84rem'), padding: '0.75rem' }}>⇄ Toggle Service</button>
+        <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.84rem'), padding: '0.75rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo Last Point</button>
       </div>
     );
   }
@@ -508,36 +577,62 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
   // Football
   if (sport.includes('football') || sport.includes('futsal') || sport.includes('soccer')) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
           {[[teamAId, teamAName, 'var(--accent-cyan)'], [teamBId, teamBName, '#a855f7']].map(([id, name, color]) => (
-            <button key={id} onClick={() => send('GOAL', { teamId: id, scorer: goal.scorer, assist: goal.assist, minute: parseInt(goal.minute) || liveState.currentMinute })} style={{ ...btnStyle(color, '0.88rem'), padding: '1.25rem', lineHeight: 1.3 }}>
-              ⚽ GOAL<br /><span style={{ fontSize: '0.72rem', fontWeight: 600, opacity: 0.8 }}>{name}</span>
+            <button
+              key={id}
+              onClick={() => send('GOAL', { teamId: id, scorer: goal.scorer, assist: goal.assist, minute: parseInt(goal.minute) || liveState.currentMinute })}
+              style={{
+                ...btnStyle(color, '0.92rem'),
+                padding: '1.1rem 0.5rem',
+                minHeight: '68px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4
+              }}
+            >
+              <span style={{ fontSize: '1rem', fontWeight: 800 }}>⚽ GOAL</span>
+              <span style={{ fontSize: '0.74rem', fontWeight: 600, opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', padding: '0 4px' }}>{name}</span>
             </button>
           ))}
         </div>
-        <input placeholder="Goal scorer name" value={goal.scorer} onChange={e => setGoal(g => ({ ...g, scorer: e.target.value }))}
-          style={{ padding: '0.55rem 0.75rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '0.88rem' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <input placeholder="Minute" value={goal.minute} onChange={e => setGoal(g => ({ ...g, minute: e.target.value }))}
-            style={{ padding: '0.55rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '0.88rem' }} />
-          <input placeholder="Assist (optional)" value={goal.assist} onChange={e => setGoal(g => ({ ...g, assist: e.target.value }))}
-            style={{ padding: '0.55rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '0.88rem' }} />
+        <input
+          placeholder="Goal scorer name"
+          value={goal.scorer}
+          onChange={e => setGoal(g => ({ ...g, scorer: e.target.value }))}
+          style={{ padding: '0.65rem 0.75rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '16px', width: '100%', boxSizing: 'border-box' }}
+        />
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 8 }}>
+          <input
+            placeholder="Minute"
+            value={goal.minute}
+            onChange={e => setGoal(g => ({ ...g, minute: e.target.value }))}
+            style={{ padding: '0.65rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '16px', width: '100%', boxSizing: 'border-box' }}
+          />
+          <input
+            placeholder="Assist (optional)"
+            value={goal.assist}
+            onChange={e => setGoal(g => ({ ...g, assist: e.target.value }))}
+            style={{ padding: '0.65rem', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5', fontFamily: 'var(--font-mono)', fontSize: '16px', width: '100%', boxSizing: 'border-box' }}
+          />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
           {[['🟨 Yellow', () => { const t = prompt(`Card: ${teamAName} or ${teamBName}?`) === teamAName ? teamAId : teamBId; send('CARD', { teamId: t, cardType: 'YELLOW', player: prompt('Player name?') || '' }); }, '#f59e0b'],
             ['🟥 Red', () => { const t = prompt(`Card: ${teamAName} or ${teamBName}?`) === teamAName ? teamAId : teamBId; send('CARD', { teamId: t, cardType: 'RED', player: prompt('Player name?') || '' }); }, '#f43f5e'],
             ['🔄 Sub', () => { const t = prompt(`Sub: ${teamAName} or ${teamBName}?`) === teamAName ? teamAId : teamBId; send('SUBSTITUTION', { teamId: t, playerIn: prompt('Player IN?') || '', playerOut: prompt('Player OUT?') || '' }); }, '#71717a'],
           ].map(([label, fn, c]) => (
-            <button key={label} onClick={fn} style={{ ...btnStyle(c, '0.78rem'), padding: '0.65rem 0.4rem' }}>{label}</button>
+            <button key={label} onClick={fn} style={{ ...btnStyle(c, '0.78rem'), padding: '0.75rem 0.3rem' }}>{label}</button>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
           {['1st Half', 'Half Time', '2nd Half', 'Full Time', 'Extra Time', 'Ended'].map(p => (
-            <button key={p} onClick={() => send('SET_PERIOD', { period: p })} style={{ ...btnStyle('#71717a', '0.72rem'), padding: '0.55rem 0.3rem' }}>{p}</button>
+            <button key={p} onClick={() => send('SET_PERIOD', { period: p })} style={{ ...btnStyle('#71717a', '0.72rem'), padding: '0.6rem 0.2rem' }}>{p}</button>
           ))}
         </div>
-        <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.82rem'), padding: '0.65rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo</button>
+        <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.84rem'), padding: '0.75rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo</button>
       </div>
     );
   }
@@ -545,26 +640,26 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
   // Basketball
   if (sport.includes('basketball')) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
           {[[teamAId, teamAName, 'var(--accent-cyan)'], [teamBId, teamBName, '#a855f7']].map(([id, name, color]) => (
             <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>{name.toUpperCase()}</div>
+              <div style={{ fontSize: '0.72rem', color: '#a1a1aa', fontFamily: 'var(--font-mono)', fontWeight: 700, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name.toUpperCase()}</div>
               {[['+1', 1], ['+2', 2], ['+3', 3]].map(([label, pts]) => (
-                <button key={pts} onClick={() => send('SCORE_POINTS', { teamId: id, points: pts })} style={{ ...btnStyle(color, '0.88rem'), padding: '0.75rem' }}>{label}</button>
+                <button key={pts} onClick={() => send('SCORE_POINTS', { teamId: id, points: pts })} style={{ ...btnStyle(color, '0.92rem'), padding: '0.8rem' }}>{label}</button>
               ))}
-              <button onClick={() => send('FOUL', { teamId: id })} style={{ ...btnStyle('#f43f5e', '0.75rem'), padding: '0.55rem' }}>🚨 Foul</button>
-              <button onClick={() => send('TIMEOUT', { teamId: id })} style={{ ...btnStyle('#71717a', '0.72rem'), padding: '0.5rem' }}>⏸ TO</button>
+              <button onClick={() => send('FOUL', { teamId: id })} style={{ ...btnStyle('#f43f5e', '0.78rem'), padding: '0.6rem' }}>🚨 Foul</button>
+              <button onClick={() => send('TIMEOUT', { teamId: id })} style={{ ...btnStyle('#71717a', '0.75rem'), padding: '0.55rem' }}>⏸ TO</button>
             </div>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
           {['Q1', 'Q2', 'Q3', 'Q4', 'OT'].map(q => (
-            <button key={q} onClick={() => send('SET_QUARTER', { quarter: q })} style={{ ...btnStyle('#71717a', '0.78rem'), padding: '0.55rem' }}>{q}</button>
+            <button key={q} onClick={() => send('SET_QUARTER', { quarter: q })} style={{ ...btnStyle('#71717a', '0.78rem'), padding: '0.65rem' }}>{q}</button>
           ))}
-          <button onClick={() => send('END_GAME', {})} style={{ ...btnStyle('#f43f5e', '0.72rem'), padding: '0.55rem' }}>End</button>
+          <button onClick={() => send('END_GAME', {})} style={{ ...btnStyle('#f43f5e', '0.75rem'), padding: '0.65rem' }}>End</button>
         </div>
-        <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.82rem'), padding: '0.65rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo</button>
+        <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.84rem'), padding: '0.75rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo</button>
       </div>
     );
   }
@@ -572,46 +667,46 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
   // Kabaddi
   if (sport.includes('kabaddi')) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 8 }}>
           {[[teamAId, teamAName, 'var(--accent-cyan)'], [teamBId, teamBName, '#a855f7']].map(([id, name, color]) => (
             <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>{name.toUpperCase()}</div>
-              {[['🏃 Raid +1', 'RAID', 1], ['🔥 Super Raid +3', 'SUPER_RAID', 3], ['🛡️ Tackle +1', 'TACKLE', 1], ['⚡ Super Tackle +2', 'SUPER_TACKLE', 2], ['💥 All Out +2', 'ALL_OUT', 2]].map(([label, action, pts]) => (
-                <button key={action} onClick={() => send('SCORE_ACTION', { teamId: id, actionType: action, points: pts })} style={{ ...btnStyle(color, '0.75rem'), padding: '0.65rem 0.4rem' }}>{label}</button>
+              <div style={{ fontSize: '0.72rem', color: '#a1a1aa', fontFamily: 'var(--font-mono)', fontWeight: 700, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name.toUpperCase()}</div>
+              {[['🏃 Raid +1', 'RAID', 1], ['🔥 Super +3', 'SUPER_RAID', 3], ['🛡️ Tackle +1', 'TACKLE', 1], ['⚡ Super Tackle +2', 'SUPER_TACKLE', 2], ['💥 All Out +2', 'ALL_OUT', 2]].map(([label, action, pts]) => (
+                <button key={action} onClick={() => send('SCORE_ACTION', { teamId: id, actionType: action, points: pts })} style={{ ...btnStyle(color, '0.75rem'), padding: '0.65rem 0.35rem' }}>{label}</button>
               ))}
             </div>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
           {['1st Half', 'Half Time', '2nd Half', 'Ended'].map(h => (
-            <button key={h} onClick={() => send('SET_HALF', { half: h })} style={{ ...btnStyle('#71717a', '0.72rem'), padding: '0.55rem 0.3rem' }}>{h}</button>
+            <button key={h} onClick={() => send('SET_HALF', { half: h })} style={{ ...btnStyle('#71717a', '0.72rem'), padding: '0.6rem 0.2rem' }}>{h}</button>
           ))}
         </div>
-        <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.82rem'), padding: '0.65rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo</button>
+        <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.84rem'), padding: '0.75rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo</button>
       </div>
     );
   }
 
   // Generic
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
         {[[teamAId, teamAName, 'var(--accent-cyan)'], [teamBId, teamBName, '#a855f7']].map(([id, name, color]) => (
           <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>{name.toUpperCase()}</div>
+            <div style={{ fontSize: '0.72rem', color: '#a1a1aa', fontFamily: 'var(--font-mono)', fontWeight: 700, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name.toUpperCase()}</div>
             {[['+1', 1], ['+2', 2], ['+3', 3], ['-1', -1]].map(([label, delta]) => (
-              <button key={label} onClick={() => send('ADD_POINTS', { teamId: id, delta })} style={{ ...btnStyle(color, '0.9rem'), padding: '0.75rem' }}>{label}</button>
+              <button key={label} onClick={() => send('ADD_POINTS', { teamId: id, delta })} style={{ ...btnStyle(color, '0.92rem'), padding: '0.8rem' }}>{label}</button>
             ))}
           </div>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-        <button onClick={() => send('SET_RESULT', { outcome: 'WIN', winnerTeamId: teamAId })} style={{ ...btnStyle('var(--accent-emerald)', '0.72rem'), padding: '0.55rem' }}>{teamAName} Wins</button>
-        <button onClick={() => send('SET_RESULT', { outcome: 'DRAW' })} style={{ ...btnStyle('#71717a', '0.72rem'), padding: '0.55rem' }}>Draw</button>
-        <button onClick={() => send('SET_RESULT', { outcome: 'WIN', winnerTeamId: teamBId })} style={{ ...btnStyle('#a855f7', '0.72rem'), padding: '0.55rem' }}>{teamBName} Wins</button>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+        <button onClick={() => send('SET_RESULT', { outcome: 'WIN', winnerTeamId: teamAId })} style={{ ...btnStyle('var(--accent-emerald)', '0.75rem'), padding: '0.65rem 0.3rem' }}>{teamAName} Wins</button>
+        <button onClick={() => send('SET_RESULT', { outcome: 'DRAW' })} style={{ ...btnStyle('#71717a', '0.75rem'), padding: '0.65rem 0.3rem' }}>Draw</button>
+        <button onClick={() => send('SET_RESULT', { outcome: 'WIN', winnerTeamId: teamBId })} style={{ ...btnStyle('#a855f7', '0.75rem'), padding: '0.65rem 0.3rem' }}>{teamBName} Wins</button>
       </div>
-      <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.82rem'), padding: '0.65rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo</button>
+      <button onClick={onUndo} disabled={undoing} style={{ ...btnStyle('#f43f5e', '0.84rem'), padding: '0.75rem', opacity: undoing ? 0.5 : 1 }}>↩ Undo</button>
     </div>
   );
 }
@@ -629,6 +724,7 @@ export function LiveScoring({ onNavigate }) {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [liveDetail, setLiveDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [mobileTab, setMobileTab] = useState('both'); // 'both' | 'scoreboard' | 'admin'
   const [filter, setFilter] = useState('all');  // 'all' | 'live' | 'upcoming' | 'completed'
   const [sportFilter, setSportFilter] = useState('All');
   const [undoing, setUndoing] = useState(false);
@@ -788,7 +884,7 @@ export function LiveScoring({ onNavigate }) {
   const liveState = liveDetail?.liveState;
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem 1rem' }}>
+    <div className="live-scoring-page">
       {/* Toast */}
       {toast && (
         <div style={{
@@ -808,71 +904,216 @@ export function LiveScoring({ onNavigate }) {
         .match-card:hover { border-color: rgba(255,255,255,0.18) !important; transform: translateY(-1px); }
         .score-highlight { animation: scoreFlash 0.6s ease-out; }
         @keyframes scoreFlash { 0% { background: rgba(56,189,248,0.2); } 100% { background: transparent; } }
+
+        .live-scoring-page {
+          max-width: 1100px;
+          width: 100%;
+          margin: 0 auto;
+          padding: 1.5rem 1rem;
+          box-sizing: border-box;
+          overflow-x: hidden;
+        }
+
+        .live-detail-layout {
+          display: grid;
+          grid-template-columns: 1fr 380px;
+          gap: 20px;
+          width: 100%;
+          box-sizing: border-box;
+          align-items: start;
+        }
+        .live-detail-layout.spectator-only {
+          grid-template-columns: 1fr;
+        }
+
+        .live-card {
+          background: rgba(18,20,25,0.88);
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,0.08);
+          padding: 1.25rem;
+          box-sizing: border-box;
+          width: 100%;
+          overflow: hidden;
+        }
+
+        .mobile-admin-tab-bar {
+          display: none;
+        }
+
+        .match-grid-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
+          gap: 14px;
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        .live-filter-bar {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          padding-bottom: 6px;
+          margin-bottom: 20px;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .live-filter-bar::-webkit-scrollbar {
+          display: none;
+        }
+
+        @media (max-width: 880px) {
+          .live-scoring-page {
+            padding: 1rem 0.5rem 5.5rem;
+          }
+          .live-detail-layout {
+            grid-template-columns: 1fr !important;
+            gap: 14px;
+          }
+          .live-card {
+            padding: 1rem 0.75rem;
+            border-radius: 14px;
+          }
+          .mobile-admin-tab-bar {
+            display: flex;
+            gap: 6px;
+            padding: 4px;
+            margin-bottom: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            width: 100%;
+            box-sizing: border-box;
+          }
+          .mobile-tab-btn {
+            flex: 1;
+            padding: 0.6rem 0.35rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: #a1a1aa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            white-space: nowrap;
+          }
+          .mobile-tab-btn.active {
+            background: rgba(56, 189, 248, 0.2);
+            color: #38bdf8;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+          }
+        }
       `}</style>
 
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', fontWeight: 700, color: '#f4f4f5', marginBottom: 4 }}>
+      <div style={{ marginBottom: 24, width: '100%', boxSizing: 'border-box' }}>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(1.5rem, 5vw, 2.4rem)', fontWeight: 700, color: '#f4f4f5', marginBottom: 4, wordBreak: 'break-word' }}>
           🏟️ <em>Live Scoring</em>
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Real-time match scores, event-sourced for accuracy</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Real-time match scores, event-sourced for accuracy</p>
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+      <div className="live-filter-bar">
         {[['all', 'All Matches'], ['live', '🔴 Live'], ['upcoming', 'Upcoming'], ['completed', 'Completed']].map(([val, label]) => (
           <button key={val} onClick={() => setFilter(val)} style={{
             padding: '0.45rem 1rem', borderRadius: 100, fontSize: '0.82rem', fontWeight: 600,
             border: `1px solid ${filter === val ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.08)'}`,
-            background: filter === val ? 'rgba(255,255,255,0.1)' : 'transparent', color: filter === val ? '#f4f4f5' : '#71717a', cursor: 'pointer'
+            background: filter === val ? 'rgba(255,255,255,0.1)' : 'transparent', color: filter === val ? '#f4f4f5' : '#71717a',
+            cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
           }}>{label}</button>
         ))}
         <select value={sportFilter} onChange={e => setSportFilter(e.target.value)}
-          style={{ padding: '0.45rem 0.85rem', borderRadius: 100, fontSize: '0.82rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', cursor: 'pointer' }}>
+          style={{ padding: '0.45rem 0.85rem', borderRadius: 100, fontSize: '0.82rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
           {allSports.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
       {selectedMatch ? (
         // ── DETAIL VIEW ──
-        <div>
-          <button onClick={() => { setSelectedMatch(null); setLiveDetail(null); }} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16,
-            padding: '0.45rem 1rem', borderRadius: 100, fontSize: '0.82rem', fontWeight: 600,
-            border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#a1a1aa', cursor: 'pointer'
-          }}>← Back to matches</button>
+        <div style={{ width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+            <button onClick={() => { setSelectedMatch(null); setLiveDetail(null); }} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '0.45rem 1rem', borderRadius: 100, fontSize: '0.82rem', fontWeight: 600,
+              border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#a1a1aa', cursor: 'pointer'
+            }}>← Back to matches</button>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 380px' : '1fr', gap: 20 }}>
-            {/* Scoreboard panel */}
-            <div style={{ background: 'rgba(18,20,25,0.88)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)', padding: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>
-                    {selectedMatch.sport?.toUpperCase()} · {selectedMatch.name}
-                  </div>
-                  <div style={{ fontWeight: 700, color: '#f4f4f5', fontSize: '1.05rem' }}>
-                    {selectedMatch.team_a_name} vs {selectedMatch.team_b_name}
-                  </div>
-                </div>
-                {selectedMatch.status === 'live' && <LiveBadge />}
-              </div>
+            {isAdmin && (
+              <span style={{ fontSize: '0.72rem', color: 'var(--accent-amber)', fontFamily: 'var(--font-mono)', fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                ⚙ ADMIN SCORER
+              </span>
+            )}
+          </div>
 
-              {detailLoading ? (
-                <div style={{ textAlign: 'center', color: '#71717a', padding: '2rem' }}>Loading live state…</div>
-              ) : liveState ? (
-                isCricket ? (
-                  <CricketScoreboard match={selectedMatch} liveState={liveState} isLive={selectedMatch.status === 'live'} />
-                ) : (
-                  <GenericScoreboard match={selectedMatch} liveState={liveState} />
-                )
-              ) : (
-                <div style={{ textAlign: 'center', color: '#71717a', padding: '2rem' }}>No scoring data yet</div>
-              )}
+          {/* Mobile Tab Switcher for Admin on small screens */}
+          {isAdmin && (
+            <div className="mobile-admin-tab-bar">
+              <button
+                type="button"
+                className={`mobile-tab-btn ${mobileTab === 'both' ? 'active' : ''}`}
+                onClick={() => setMobileTab('both')}
+              >
+                📑 Full View
+              </button>
+              <button
+                type="button"
+                className={`mobile-tab-btn ${mobileTab === 'scoreboard' ? 'active' : ''}`}
+                onClick={() => setMobileTab('scoreboard')}
+              >
+                📊 Scoreboard
+              </button>
+              <button
+                type="button"
+                className={`mobile-tab-btn ${mobileTab === 'admin' ? 'active' : ''}`}
+                onClick={() => setMobileTab('admin')}
+              >
+                ⚙️ Controls
+              </button>
             </div>
+          )}
+
+          <div className={`live-detail-layout ${!isAdmin ? 'spectator-only' : ''}`}>
+            {/* Scoreboard panel */}
+            {(!isAdmin || mobileTab === 'both' || mobileTab === 'scoreboard') && (
+              <div className="live-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 16 }}>
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>
+                      {selectedMatch.sport?.toUpperCase()} · {selectedMatch.name}
+                    </div>
+                    <div style={{ fontWeight: 700, color: '#f4f4f5', fontSize: 'clamp(0.95rem, 4vw, 1.15rem)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {selectedMatch.team_a_name} vs {selectedMatch.team_b_name}
+                    </div>
+                  </div>
+                  {selectedMatch.status === 'live' && <LiveBadge />}
+                </div>
+
+                {detailLoading ? (
+                  <div style={{ textAlign: 'center', color: '#71717a', padding: '2rem' }}>Loading live state…</div>
+                ) : liveState ? (
+                  isCricket ? (
+                    <CricketScoreboard match={selectedMatch} liveState={liveState} isLive={selectedMatch.status === 'live'} />
+                  ) : (
+                    <GenericScoreboard match={selectedMatch} liveState={liveState} />
+                  )
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#71717a', padding: '2rem' }}>No scoring data yet</div>
+                )}
+              </div>
+            )}
 
             {/* Admin Panel */}
-            {isAdmin && (
-              <div style={{ background: 'rgba(18,20,25,0.88)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)', padding: '1.25rem' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--accent-amber)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 12 }}>⚙ ADMIN SCORING PANEL</div>
+            {isAdmin && (mobileTab === 'both' || mobileTab === 'admin') && (
+              <div className="live-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--accent-amber)', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.04em' }}>
+                    ⚙ ADMIN SCORING PANEL
+                  </div>
+                  <span style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)' }}>TAP TO SCORE</span>
+                </div>
                 {isCricket ? (
                   <CricketAdminPanel matchId={selectedMatch.id} liveState={liveState} onEvent={handleEvent} undoing={undoing} onUndo={handleUndo} />
                 ) : (
@@ -884,7 +1125,7 @@ export function LiveScoring({ onNavigate }) {
         </div>
       ) : (
         // ── MATCH LIST ──
-        <div>
+        <div style={{ width: '100%', boxSizing: 'border-box' }}>
           {loading ? (
             <div style={{ textAlign: 'center', color: '#71717a', padding: '3rem' }}>Loading matches…</div>
           ) : filtered.length === 0 ? (
@@ -892,7 +1133,7 @@ export function LiveScoring({ onNavigate }) {
               No matches found for this filter
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+            <div className="match-grid-list">
               {filtered.map(m => {
                 const ls = m.liveState;
                 const sport = (m.sport || '').toLowerCase();
@@ -928,10 +1169,11 @@ export function LiveScoring({ onNavigate }) {
                 const statusColors = { live: '#f43f5e', upcoming: 'var(--accent-cyan)', completed: '#71717a' };
 
                 return (
-                  <div key={m.id} className="match-card" onClick={() => setSelectedMatch(m)} style={{
+                  <div key={m.id} className="match-card" onClick={() => { setSelectedMatch(m); setMobileTab('both'); }} style={{
                     background: 'rgba(18,20,25,0.88)', borderRadius: 14, border: `1px solid ${m.status === 'live' ? 'rgba(244,63,94,0.25)' : 'rgba(255,255,255,0.07)'}`,
-                    padding: '1.1rem', cursor: 'pointer', transition: 'all 0.2s ease',
-                    boxShadow: m.status === 'live' ? '0 0 20px rgba(244,63,94,0.1)' : 'none'
+                    padding: '1rem', cursor: 'pointer', transition: 'all 0.2s ease',
+                    boxShadow: m.status === 'live' ? '0 0 20px rgba(244,63,94,0.1)' : 'none',
+                    boxSizing: 'border-box', width: '100%', overflow: 'hidden'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                       <span style={{ fontSize: '0.65rem', fontFamily: 'var(--font-mono)', color: '#71717a', letterSpacing: '0.08em' }}>{m.sport?.toUpperCase()}</span>
@@ -939,12 +1181,12 @@ export function LiveScoring({ onNavigate }) {
                         <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: statusColors[m.status] || '#71717a', fontWeight: 700 }}>{(m.status || 'upcoming').toUpperCase()}</span>
                       )}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 6, alignItems: 'center', marginBottom: 8 }}>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f4f4f5' }}>{m.team_a_name || 'TBA'}</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 800, color: '#f4f4f5', textAlign: 'center', letterSpacing: '-0.02em' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f4f4f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.team_a_name || 'TBA'}</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.3rem', fontWeight: 800, color: '#f4f4f5', textAlign: 'center', letterSpacing: '-0.02em', padding: '0 4px' }}>
                         {m.status === 'upcoming' ? '–·–' : `${scoreA}–${scoreB}`}
                       </div>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f4f4f5', textAlign: 'right' }}>{m.team_b_name || 'TBA'}</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f4f4f5', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.team_b_name || 'TBA'}</div>
                     </div>
                     {subInfo && <div style={{ fontSize: '0.72rem', color: '#71717a', fontFamily: 'var(--font-mono)' }}>{subInfo}</div>}
                     {ls?.resultText && <div style={{ fontSize: '0.72rem', color: 'var(--accent-emerald)', fontWeight: 700, marginTop: 4 }}>{ls.resultText}</div>}

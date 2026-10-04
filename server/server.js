@@ -14,9 +14,11 @@ import sportsAdminRoutes from './routes/sportsAdminRoutes.js';
 import playerSportRoutes from './routes/playerSportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import liveScoringRoutes from './routes/liveScoringRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 import { initDb } from './config/db.js';
 import { initSocket } from './config/socket.js';
 import { corsOptions } from './config/cors.js';
+import { globalRateLimit } from './middleware/rateLimitMiddleware.js';
 
 if (process.env.NODE_ENV === 'production') {
   const missing = ['DATABASE_URL', 'JWT_SECRET', 'ADMIN_SIGNUP_CODE', 'FRONTEND_ORIGIN', 'FRONTEND_URL', 'RESEND_API_KEY', 'PASSWORD_RESET_EMAIL_FROM']
@@ -40,14 +42,39 @@ initSocket(httpServer);
 
 // Middlewares
 app.use(cors(corsOptions));
+
+// Remove X-Powered-By to avoid fingerprinting the stack
+app.disable('x-powered-by');
+
+// Security headers (Helmet-equivalent, no extra dependency needed)
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
+  // Strict CSP: only allow our own origin + no inline scripts on the API
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'none'; frame-ancestors 'none';"
+  );
+  // Prevent clients from caching sensitive API responses
+  if (req.path.startsWith('/api/auth') || req.path.startsWith('/api/admin') || req.path.startsWith('/api/payments')) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Pragma', 'no-cache');
+  }
   next();
 });
-// JSON body parser with limit to support device photo uploads & profile pictures
-app.use(express.json({ limit: '5mb' }));
+
+// Global rate limit — must come early, after CORS (so OPTIONS passes) but before routes
+app.use(globalRateLimit);
+// JSON body parser with rawBody preservation for cryptographic webhook signature verification
+app.use(express.json({
+  limit: '5mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -62,6 +89,7 @@ app.use('/api/sports-admins', sportsAdminRoutes);
 app.use('/api/player-sports', playerSportRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/live-scoring', liveScoringRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -99,21 +127,22 @@ app.get('/api/sitemap.xml', async (req, res) => {
   }
 });
 
-// 404 Handler
+// 404 Handler — do NOT echo the full path (prevents log injection / path disclosure)
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: `Endpoint ${req.method} ${req.originalUrl} not found`
+    message: 'The requested endpoint was not found'
   });
 });
 
-// Global Error Handler
+// Global Error Handler — never leak internal error details in production
 app.use((err, req, res, next) => {
+  // Only log internally — never expose stack traces to clients
   console.error('Unhandled server error:', err);
-  res.status(500).json({
+  const isDev = process.env.NODE_ENV !== 'production';
+  res.status(err.status || 500).json({
     success: false,
-    message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    message: isDev ? (err.message || 'Internal server error') : 'Internal server error'
   });
 });
 

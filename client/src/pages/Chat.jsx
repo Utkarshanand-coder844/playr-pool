@@ -72,11 +72,48 @@ export const Chat = ({ playerId: initialPlayerId }) => {
         <p>Chat directly with registered players and administrators.</p>
       </div>
       <Alert type="error" message={error} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 0.85fr) minmax(0, 1.5fr)', gap: '1rem' }}>
+      <style>{`
+        .chat-layout-grid {
+          display: grid;
+          grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.5fr);
+          gap: 1rem;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .chat-mobile-back-btn {
+          display: none;
+        }
+        @media (max-width: 768px) {
+          .chat-layout-grid {
+            grid-template-columns: 1fr;
+          }
+          .chat-sidebar.mobile-hidden {
+            display: none !important;
+          }
+          .chat-conversation.mobile-hidden {
+            display: none !important;
+          }
+          .chat-mobile-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 0.85rem;
+            padding: 0.4rem 0.85rem;
+            border-radius: 100px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+            color: #a1a1aa;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+          }
+        }
+      `}</style>
+      <div className="chat-layout-grid">
 
         {/* Player List Sidebar */}
         <aside
-          className="auth-card"
+          className={`auth-card chat-sidebar ${activePlayerId ? 'mobile-hidden' : ''}`}
           style={{ maxWidth: '100%', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
         >
           {/* Search Bar */}
@@ -98,7 +135,7 @@ export const Chat = ({ playerId: initialPlayerId }) => {
                 border: '1px solid rgba(255,255,255,0.12)',
                 background: 'rgba(255,255,255,0.06)',
                 color: 'var(--text-primary)',
-                fontSize: '0.85rem',
+                fontSize: '16px',
                 outline: 'none',
                 transition: 'border-color 0.2s',
               }}
@@ -121,7 +158,7 @@ export const Chat = ({ playerId: initialPlayerId }) => {
                   style={{
                     width: '100%',
                     textAlign: 'left',
-                    padding: '0.6rem 0.75rem',
+                    padding: '0.65rem 0.75rem',
                     borderRadius: '8px',
                     border: `1px solid ${player.id === activePlayerId ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.08)'}`,
                     background: player.id === activePlayerId ? 'rgba(0,200,200,0.1)' : 'rgba(255,255,255,0.04)',
@@ -165,29 +202,46 @@ export const Chat = ({ playerId: initialPlayerId }) => {
         </aside>
 
         {/* Chat Section */}
-        <section className="auth-card" style={{ maxWidth: '100%', minHeight: '420px', display: 'flex', flexDirection: 'column' }}>
+        <section className={`auth-card chat-conversation ${!activePlayerId ? 'mobile-hidden' : ''}`} style={{ maxWidth: '100%', minHeight: '420px', display: 'flex', flexDirection: 'column' }}>
           {activePlayer ? (
             <>
-              <h3 style={{ marginBottom: '1rem' }}>Chat with {activePlayer.name}</h3>
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.55rem', maxHeight: '360px' }}>
-                {messages.map(message => (
-                  <div
-                    key={message.id}
-                    style={{
-                      alignSelf: message.sender_id === user.id ? 'flex-end' : 'flex-start',
-                      maxWidth: '76%',
-                      padding: '0.65rem 0.8rem',
-                      borderRadius: '12px',
-                      background: message.sender_id === user.id ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.08)',
-                      color: message.sender_id === user.id ? '#07101c' : 'var(--text-primary)',
-                    }}
-                  >
-                    {message.body}
-                    <small style={{ display: 'block', marginTop: '0.25rem', opacity: 0.7 }}>
-                      {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </small>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: 6 }}>
+                <button
+                  type="button"
+                  className="chat-mobile-back-btn"
+                  onClick={() => setActivePlayerId('')}
+                >
+                  ← All Players
+                </button>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Chat with {activePlayer.name}</h3>
+                <span className="role-pill player" style={{ fontSize: '0.72rem' }}>{activePlayer.campus}</span>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.55rem', maxHeight: '360px', paddingRight: '4px' }}>
+                {messages.length === 0 ? (
+                  <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    No messages yet. Send a message to start the conversation!
                   </div>
-                ))}
+                ) : (
+                  messages.map(message => (
+                    <div
+                      key={message.id}
+                      style={{
+                        alignSelf: message.sender_id === user.id ? 'flex-end' : 'flex-start',
+                        maxWidth: '82%',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '12px',
+                        background: message.sender_id === user.id ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.08)',
+                        color: message.sender_id === user.id ? '#07101c' : 'var(--text-primary)',
+                        wordBreak: 'break-word'
+                      }}
+                    >
+                      {message.body}
+                      <small style={{ display: 'block', marginTop: '0.25rem', opacity: 0.7, fontSize: '0.68rem' }}>
+                        {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </small>
+                    </div>
+                  ))
+                )}
               </div>
               <form onSubmit={send} style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem' }}>
                 <input
@@ -196,12 +250,15 @@ export const Chat = ({ playerId: initialPlayerId }) => {
                   onChange={event => setBody(event.target.value)}
                   maxLength="1000"
                   placeholder="Write a message…"
+                  style={{ fontSize: '16px' }}
                 />
-                <button className="btn btn-primary btn-sm" type="submit">Send</button>
+                <button className="btn btn-primary btn-sm" type="submit" style={{ minWidth: '70px' }}>Send</button>
               </form>
             </>
           ) : (
-            <div style={{ margin: 'auto', color: 'var(--text-muted)' }}>Choose an account to start chatting.</div>
+            <div style={{ margin: 'auto', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+              💬 Select a player from the list to start chatting.
+            </div>
           )}
         </section>
       </div>

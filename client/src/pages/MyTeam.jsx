@@ -603,18 +603,9 @@ export const MyTeam = ({ onNavigate }) => {
                   {members.map((member, index) => (
                     <div
                       key={index}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr auto',
-                        gap: '0.75rem',
-                        alignItems: 'center',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        padding: '0.6rem 0.75rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-subtle)'
-                      }}
+                      className="roster-member-row"
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%', minWidth: 0 }}>
                         <input className="form-input no-icon" placeholder="Search player name or College ID" value={member.player_search || ''} onChange={(e) => handleMemberChange(index, 'player_search', e.target.value)} />
                         <select className="form-select no-icon" value={member.member_user_id || ''} onChange={(e) => handleMemberChange(index, 'member_user_id', e.target.value)} required>
                           <option value="" disabled>Choose a registered player</option>
@@ -664,12 +655,12 @@ export const MyTeam = ({ onNavigate }) => {
                       {members.length > 1 && (
                         <button
                           type="button"
-                          className="btn btn-danger btn-sm"
+                          className="btn btn-danger btn-sm remove-member-btn"
                           onClick={() => handleRemoveMember(index)}
                           title="Remove player"
-                          style={{ padding: '0.5rem 0.75rem' }}
+                          style={{ padding: '0.55rem 0.75rem' }}
                         >
-                          ✕
+                          ✕ Remove
                         </button>
                       )}
                     </div>
@@ -893,18 +884,9 @@ export const MyTeam = ({ onNavigate }) => {
                     {members.map((member, index) => (
                       <div
                         key={index}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr auto',
-                          gap: '0.75rem',
-                          alignItems: 'center',
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          padding: '0.6rem 0.75rem',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border-subtle)'
-                        }}
+                        className="roster-member-row"
                       >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%', minWidth: 0 }}>
                         <input className="form-input no-icon" placeholder="Search player name or College ID" value={member.player_search || ''} onChange={(e) => handleMemberChange(index, 'player_search', e.target.value)} />
                         <select className="form-select no-icon" value={member.member_user_id || ''} onChange={(e) => handleMemberChange(index, 'member_user_id', e.target.value)} required>
                           <option value="" disabled>Choose a registered player</option>
@@ -954,11 +936,12 @@ export const MyTeam = ({ onNavigate }) => {
                         {members.length > 1 && (
                           <button
                             type="button"
-                            className="btn btn-danger btn-sm"
+                            className="btn btn-danger btn-sm remove-member-btn"
                             onClick={() => handleRemoveMember(index)}
                             title="Remove player"
+                            style={{ padding: '0.55rem 0.75rem' }}
                           >
-                            ✕
+                            ✕ Remove
                           </button>
                         )}
                       </div>

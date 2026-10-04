@@ -24,6 +24,7 @@ import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import { ScoreToast } from './components/ScoreToast';
 import { CampusClashLoader } from './components/CampusClashLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { NetworkStatusIndicator } from './components/NetworkStatusIndicator';
 
 function MainLayout() {
   const { isAuthenticated } = useAuth();
@@ -53,6 +54,7 @@ function MainLayout() {
     <div className="app-container">
       <Navbar currentView={currentView} onViewChange={navigate} />
       <ScoreToast />
+      <NetworkStatusIndicator />
       <main className="main-content">
         <ErrorBoundary onReset={() => navigate('dashboard')}>
           {currentView === 'login' && <Login onNavigate={navigate} />}

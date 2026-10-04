@@ -667,13 +667,14 @@ export const AdminDashboard = ({ onNavigate }) => {
         <div style={{
           position: 'fixed',
           top: '80px',
-          right: '25px',
+          right: '1rem',
+          maxWidth: 'calc(100vw - 2rem)',
           zIndex: 9999,
           background: toastMessage.isError
             ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.96), rgba(185, 28, 28, 0.96))'
             : 'linear-gradient(135deg, rgba(16, 185, 129, 0.96), rgba(5, 150, 105, 0.96))',
           color: '#fff',
-          padding: '1rem 1.5rem',
+          padding: '0.85rem 1.25rem',
           borderRadius: 'var(--radius-md)',
           boxShadow: toastMessage.isError
             ? '0 10px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(239, 68, 68, 0.4)'
@@ -1345,9 +1346,10 @@ export const AdminDashboard = ({ onNavigate }) => {
           background: 'var(--bg-card)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-lg)',
-          overflow: 'hidden'
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch'
         }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: 'rgba(255, 255, 255, 0.04)', borderBottom: '1px solid var(--border-subtle)' }}>
                 <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Match Fixture</th>
@@ -1506,9 +1508,10 @@ export const AdminDashboard = ({ onNavigate }) => {
           background: 'var(--bg-card)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-lg)',
-          overflow: 'hidden'
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch'
         }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: 'rgba(255, 255, 255, 0.04)', borderBottom: '1px solid var(--border-subtle)' }}>
                 <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Athlete</th>

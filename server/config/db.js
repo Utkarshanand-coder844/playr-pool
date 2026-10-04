@@ -28,6 +28,8 @@ const memoryStore = {
   player_sports: [],
   player_sport_profiles: [],
   direct_messages: [],
+  payments: [],
+  processed_webhooks: [],
   settings: {
     tournament_started: false
   }
@@ -114,6 +116,7 @@ export const initDb = async () => {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS campus VARCHAR(100) NOT NULL DEFAULT 'Main Campus';
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
 
       CREATE TABLE IF NOT EXISTS teams (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -354,7 +357,27 @@ export const initDb = async () => {
           admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
           created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_match_events_match ON match_events(match_id, created_at ASC);
+      CREATE TABLE IF NOT EXISTS payments (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          order_id VARCHAR(100) UNIQUE NOT NULL,
+          payment_id VARCHAR(100),
+          amount INTEGER NOT NULL,
+          currency VARCHAR(10) NOT NULL DEFAULT 'INR',
+          status VARCHAR(25) NOT NULL DEFAULT 'created',
+          purpose VARCHAR(100) NOT NULL DEFAULT 'tournament_fee',
+          metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+          created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+      CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);
+
+      CREATE TABLE IF NOT EXISTS processed_webhooks (
+          event_id VARCHAR(120) PRIMARY KEY,
+          event_type VARCHAR(80) NOT NULL,
+          processed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
     `);
     client.release();
     console.log('✅ PostgreSQL all tournament tables verified/ready.');
@@ -1240,6 +1263,78 @@ export const query = async (text, params = []) => {
     }
 
     return { rows: enrichedScores };
+  }
+
+  // --- PAYMENTS & WEBHOOKS ---
+  if (normalizedText.includes('insert into payments')) {
+    const [user_id, order_id, amount, currency, purpose, metadata] = params;
+    const payment = {
+      id: crypto.randomUUID(),
+      user_id,
+      order_id,
+      amount,
+      currency: currency || 'INR',
+      status: 'created',
+      purpose: purpose || 'tournament_fee',
+      metadata: typeof metadata === 'string' ? JSON.parse(metadata) : (metadata || {}),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    memoryStore.payments.push(payment);
+    return { rows: [{ ...payment }] };
+  }
+
+  if (normalizedText.includes('from payments')) {
+    if (normalizedText.includes('order_id = $1') || normalizedText.includes('order_id=$1')) {
+      const orderId = params[0];
+      const found = memoryStore.payments.find(p => p.order_id === orderId);
+      return { rows: found ? [{ ...found }] : [] };
+    }
+    if (normalizedText.includes('user_id = $1') || normalizedText.includes('user_id=$1')) {
+      const userId = params[0];
+      const list = memoryStore.payments.filter(p => p.user_id === userId);
+      return { rows: list.map(p => ({ ...p })) };
+    }
+  }
+
+  if (normalizedText.includes('update payments')) {
+    if (normalizedText.includes("status = 'paid'") || normalizedText.includes('status = $1')) {
+      const [payment_id, order_id] = params;
+      const found = memoryStore.payments.find(p => p.order_id === order_id);
+      if (found) {
+        found.status = 'paid';
+        found.payment_id = payment_id;
+        found.updated_at = new Date().toISOString();
+        return { rows: [{ ...found }] };
+      }
+      return { rows: [] };
+    }
+    if (normalizedText.includes("status = 'failed'")) {
+      const [reason, order_id] = params;
+      const found = memoryStore.payments.find(p => p.order_id === order_id);
+      if (found) {
+        found.status = 'failed';
+        found.metadata = { ...(found.metadata || {}), failure_reason: reason };
+        found.updated_at = new Date().toISOString();
+        return { rows: [{ ...found }] };
+      }
+      return { rows: [] };
+    }
+  }
+
+  if (normalizedText.includes('from processed_webhooks')) {
+    const eventId = params[0];
+    const exists = memoryStore.processed_webhooks.some(w => w.event_id === eventId);
+    return { rows: exists ? [{ event_id: eventId }] : [] };
+  }
+
+  if (normalizedText.includes('insert into processed_webhooks')) {
+    const [event_id, event_type] = params;
+    const exists = memoryStore.processed_webhooks.some(w => w.event_id === event_id);
+    if (!exists) {
+      memoryStore.processed_webhooks.push({ event_id, event_type, processed_at: new Date().toISOString() });
+    }
+    return { rows: [{ event_id }] };
   }
 
   return { rows: [] };
