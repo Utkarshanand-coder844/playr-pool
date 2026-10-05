@@ -924,6 +924,14 @@ export function LiveScoring({ onNavigate }) {
       setMatches(prev => prev.map(m => m.id === match_id ? { ...m, status } : m));
     });
 
+    socket.on('match:deleted', ({ match_id }) => {
+      setMatches(prev => prev.filter(m => m.id !== match_id));
+      if (selectedMatchRef.current === match_id) {
+        setSelectedMatch(null);
+        setLiveDetail(null);
+      }
+    });
+
     return () => socket.disconnect();
   }, [loadMatches]);
 

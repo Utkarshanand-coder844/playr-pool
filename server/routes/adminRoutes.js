@@ -6,6 +6,7 @@ import {
   createMatch,
   getMatches,
   updateMatchStatus,
+  deleteMatch,
   saveScore,
   getScores,
   getTeams, getPlayers, getPlayersByRole,
@@ -33,6 +34,7 @@ router.get('/tournament-status', getAdminTournamentStatus);
 router.post('/matches', createMatch);
 router.get('/matches', getMatches);
 router.put('/matches/:id/status', updateMatchStatus);
+router.delete('/matches/:id', deleteMatch);
 
 // Scores Management
 router.post('/scores', saveScore);

@@ -11,6 +11,7 @@
     "test:teams": "node test-teams.js",
     "test:scores": "node test-scores.js",
     "test:features": "node test-features-verification.js",
+    "test:delete-match": "node scripts/test-delete-match.js",
     "audit:security": "node scripts/security-audit.js"
   }
 }

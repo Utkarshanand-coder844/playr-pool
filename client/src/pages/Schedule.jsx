@@ -81,6 +81,11 @@ export const Schedule = ({ focusMatchId }) => {
       socket.on('match:status', ({ match_id, status }) => {
         setMatches((prev) => prev.map((m) => (m.id === match_id ? { ...m, status } : m)));
       });
+
+      // A match was deleted by admin
+      socket.on('match:deleted', ({ match_id }) => {
+        setMatches((prev) => prev.filter((m) => m.id !== match_id));
+      });
     } catch (err) {
       console.warn('Socket connection failed, live match updates disabled:', err);
     }

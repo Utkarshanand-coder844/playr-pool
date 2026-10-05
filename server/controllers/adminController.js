@@ -302,6 +302,58 @@ export const updateMatchStatus = async (req, res) => {
 };
 
 /**
+ * DELETE /api/admin/matches/:id
+ * Admin route: delete any match fixture (upcoming, live, or completed)
+ */
+export const deleteMatch = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existingMatch = await MatchModel.getMatchById(id);
+    if (!existingMatch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Match not found'
+      });
+    }
+
+    const deletedMatch = await MatchModel.deleteMatch(id);
+    if (!deletedMatch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Match not found'
+      });
+    }
+
+    await audit(req, 'delete_fixture', 'match', id, {
+      name: existingMatch.name,
+      sport: existingMatch.sport,
+      status: existingMatch.status
+    });
+
+    try {
+      const io = getIO();
+      io.emit('match:deleted', { match_id: id, sport: existingMatch.sport });
+      const leaderboard = await MatchModel.getLeaderboard(existingMatch.sport);
+      io.emit('leaderboard:update', { sport: existingMatch.sport, leaderboard });
+    } catch (socketErr) {
+      console.warn('Socket emit failed (non-fatal):', socketErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: `Match '${existingMatch.name}' deleted successfully`,
+      match: deletedMatch
+    });
+  } catch (error) {
+    console.error('Delete match error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error deleting match'
+    });
+  }
+};
+
+/**
  * POST /api/admin/scores
  * Add or update a team's score for a match (UPSERT)
  */

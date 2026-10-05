@@ -1204,6 +1204,25 @@ export const query = async (text, params = []) => {
     return { rows: [] };
   }
 
+  if (normalizedText.includes('delete from matches')) {
+    const id = params[0];
+    const index = memoryStore.matches.findIndex(m => m.id === id);
+    if (index >= 0) {
+      const [deleted] = memoryStore.matches.splice(index, 1);
+      // CASCADE cleanup in memory store
+      memoryStore.scores = (memoryStore.scores || []).filter(s => s.match_id !== id);
+      memoryStore.match_events = (memoryStore.match_events || []).filter(e => e.match_id !== id);
+      memoryStore.player_match_points = (memoryStore.player_match_points || []).filter(p => p.match_id !== id);
+      memoryStore.player_stats = (memoryStore.player_stats || []).filter(s => s.match_id !== id);
+      memoryStore.knockout_brackets = (memoryStore.knockout_brackets || []).filter(b => b.match_id !== id);
+      if (memoryStore.player_availability) {
+        memoryStore.player_availability = memoryStore.player_availability.filter(a => a.match_id !== id);
+      }
+      return { rows: [{ ...deleted }] };
+    }
+    return { rows: [] };
+  }
+
   if (normalizedText.includes('from matches')) {
     const enrichMatch = (match) => ({
       ...match,

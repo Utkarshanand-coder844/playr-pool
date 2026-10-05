@@ -195,6 +195,13 @@ export const AdminDashboard = ({ onNavigate }) => {
         };
       }));
     });
+    socket.on('match:deleted', ({ match_id }) => {
+      setMatches(prev => prev.filter(m => String(m.id) !== String(match_id)));
+      if (String(lsMatchIdRef.current) === String(match_id)) {
+        setLsMatchId('');
+        setLsLiveState(null);
+      }
+    });
     return () => socket.disconnect();
   }, []);
 
@@ -435,6 +442,53 @@ export const AdminDashboard = ({ onNavigate }) => {
       }
 
       showToast(`Status updated to "${status.toUpperCase()}"`);
+      fetchData();
+    } catch (err) {
+      setErrorMessage(err.message);
+    }
+  };
+
+  // Handle Match Deletion
+  const handleDeleteMatch = async (matchId) => {
+    const matchToDelete = matches.find(m => m.id === matchId);
+    const matchTitle = matchToDelete
+      ? (matchToDelete.team_a_name && matchToDelete.team_b_name
+          ? `${matchToDelete.team_a_name} vs ${matchToDelete.team_b_name}`
+          : matchToDelete.name)
+      : 'this match fixture';
+
+    const statusLabel = matchToDelete?.status?.toUpperCase() || 'FIXTURE';
+
+    if (!window.confirm(`Are you sure you want to delete "${matchTitle}" (${statusLabel})?\n\nThis action cannot be undone. All recorded scores, live events, and stats for this match will also be deleted.`)) {
+      return;
+    }
+
+    setErrorMessage('');
+    try {
+      const res = await fetch(`/api/admin/matches/${matchId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token)
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to delete match');
+      }
+
+      showToast(`Match "${matchTitle}" deleted successfully`);
+
+      // Immediately remove from local state
+      setMatches(prev => prev.filter(m => m.id !== matchId));
+      if (selectedMatchId === matchId) {
+        const remaining = matches.filter(m => m.id !== matchId);
+        setSelectedMatchId(remaining.length > 0 ? remaining[0].id : '');
+      }
+      if (lsMatchId === matchId) {
+        setLsMatchId('');
+        setLsLiveState(null);
+      }
+
+      // Refresh remaining dependent datasets
       fetchData();
     } catch (err) {
       setErrorMessage(err.message);
@@ -952,6 +1006,22 @@ export const AdminDashboard = ({ onNavigate }) => {
                   {lsLiveState?.isCompleted ? '✅ COMPLETED' : (lsMatch?.status === 'live' ? '🔴 LIVE' : (lsMatch?.status || 'UPCOMING').toUpperCase())}
                 </span>
                 <button onClick={() => lsLoadState(lsMatchId)} style={{ padding: '4px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', fontSize: '0.72rem', cursor: 'pointer' }}>🔄 Refresh</button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMatch(lsMatchId)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#f87171',
+                    fontSize: '0.72rem',
+                    cursor: 'pointer'
+                  }}
+                  title="Delete this match fixture"
+                >
+                  🗑️ Delete Match
+                </button>
               </div>
 
               {lsLoading ? (
@@ -1429,6 +1499,18 @@ export const AdminDashboard = ({ onNavigate }) => {
                       disabled={isCompleted}
                     >
                       Completed
+                    </button>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        color: '#f87171'
+                      }}
+                      onClick={() => handleDeleteMatch(m.id)}
+                      title="Delete match fixture (all statuses)"
+                    >
+                      🗑️ Delete
                     </button>
                   </div>
                 </div>

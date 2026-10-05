@@ -72,6 +72,21 @@ export const MatchModel = {
   },
 
   /**
+   * Delete match fixture by ID
+   * @param {string} id
+   * @returns {Promise<object|null>}
+   */
+  async deleteMatch(id) {
+    const text = `
+      DELETE FROM matches
+      WHERE id = $1
+      RETURNING id, name, match_date, status, sport, team_a_id, team_b_id;
+    `;
+    const { rows } = await query(text, [id]);
+    return rows[0] || null;
+  },
+
+  /**
    * Add or update a team's score for a match (UPSERT on conflict team_id, match_id)
    * @param {object} param0 
    * @returns {Promise<object>}
