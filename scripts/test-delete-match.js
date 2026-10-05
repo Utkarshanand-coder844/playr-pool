@@ -93,6 +93,43 @@ async function runTests() {
     const scoresAfter = (await MatchModel.getAllScores()).filter(s => s.match_id === completedMatch.id);
     assert(scoresAfter.length === 0, 'Associated scores cascaded/cleaned up on match deletion');
 
+    // Test 3b: Verify Player Fantasy Points (FP) are automatically deleted
+    console.log('\n📌 Test 3b: Verify Player Fantasy Points (FP) are deleted when match is deleted');
+    const fpMatch = await MatchModel.createMatch({
+      name: 'FP Test Match',
+      sport: 'Football',
+      team_a_id: teamA.id,
+      team_b_id: teamB.id,
+      status: 'completed'
+    });
+    const testPlayerId = '99999999-8888-7777-6666-555555555555';
+    await (await import('../server/config/db.js')).query(
+      `INSERT INTO player_match_points (match_id, player_id, team_id, sport, fantasy_points, stats)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [fpMatch.id, testPlayerId, teamA.id, 'Football', 25, JSON.stringify({ goals: 2 })]
+    );
+
+    const fpRowsBefore = (await (await import('../server/config/db.js')).query(
+      'SELECT * FROM player_match_points WHERE match_id = $1',
+      [fpMatch.id]
+    )).rows;
+    assert(fpRowsBefore.length === 1 && fpRowsBefore[0].fantasy_points === 25, 'Player FP of 25 recorded for match');
+
+    // Delete the match
+    await MatchModel.deleteMatch(fpMatch.id);
+
+    const fpRowsAfter = (await (await import('../server/config/db.js')).query(
+      'SELECT * FROM player_match_points WHERE match_id = $1',
+      [fpMatch.id]
+    )).rows;
+    assert(fpRowsAfter.length === 0, 'Player FP row deleted automatically when match is deleted');
+
+    const playerRemainingFP = (await (await import('../server/config/db.js')).query(
+      'SELECT * FROM player_match_points WHERE player_id = $1',
+      [testPlayerId]
+    )).rows;
+    assert(playerRemainingFP.length === 0, 'Player total FP no longer includes points from deleted match');
+
     // Test 4: deleteMatch controller endpoint
     console.log('\n📌 Test 4: Admin Controller deleteMatch endpoint');
     const controllerMatch = await MatchModel.createMatch({
