@@ -128,21 +128,74 @@ export const Dashboard = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Registered / Administered Sports */}
-        {user.sports && user.sports.length > 0 && (
-          <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-            <div className="detail-label" style={{ marginBottom: '0.6rem' }}>
-              {user.role === 'admin' ? '🛡️ Administered Sports' : '🏅 Registered Sports'}
+        {/* Chosen / Registered Sports for All Registered Persons */}
+        {(() => {
+          const chosenSports = (user.chosen_sports && user.chosen_sports.length > 0)
+            ? user.chosen_sports
+            : (user.player_sports && user.player_sports.length > 0)
+            ? user.player_sports
+            : (user.sports && user.sports.length > 0)
+            ? user.sports
+            : [];
+
+          const adminSports = (user.role === 'admin' && user.admin_sports && user.admin_sports.length > 0)
+            ? user.admin_sports
+            : [];
+
+          return (
+            <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div className="detail-label" style={{ marginBottom: '0.6rem' }}>
+                🏅 Chosen Sports
+              </div>
+              {chosenSports.length > 0 ? (
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {chosenSports.map((sp) => (
+                    <span key={sp} className="role-pill player" style={{ fontSize: '0.85rem' }}>
+                      {sp}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  No sports chosen yet.{' '}
+                  {onNavigate && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('edit-profile')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--accent-cyan)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        textDecoration: 'underline',
+                        font: 'inherit'
+                      }}
+                    >
+                      Choose your sports
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Administered Sports (if admin administers sports) */}
+              {user.role === 'admin' && adminSports.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div className="detail-label" style={{ marginBottom: '0.6rem' }}>
+                    🛡️ Administered Sports
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {adminSports.map((sp) => (
+                      <span key={sp} className="role-pill admin" style={{ fontSize: '0.85rem' }}>
+                        {sp}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {user.sports.map((sp) => (
-                <span key={sp} className={`role-pill ${user.role === 'admin' ? 'admin' : 'player'}`} style={{ fontSize: '0.85rem' }}>
-                  {sp}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button 

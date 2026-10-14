@@ -496,7 +496,7 @@ export const getPlayerProfile = async (req, res) => {
     for (const p of profileRows) {
       sport_profiles[p.sport] = { ...(sport_profiles[p.sport] || {}), ...p };
     }
-    return res.json({ success: true, player: { ...player, sport_profiles, sports: allUserSports, registered_sports: allUserSports, admin_sports: adminSports }, stats });
+    return res.json({ success: true, player: { ...player, sport_profiles, sports: allUserSports, chosen_sports: registeredSports, player_sports: registeredSports, registered_sports: registeredSports, admin_sports: adminSports }, stats });
   } catch (error) {
     console.error('Get player profile error:', error);
     return res.status(500).json({ success: false, message: 'Unable to load player profile' });

@@ -115,6 +115,59 @@ export const PlayerProfile = ({ playerId, onNavigate }) => {
             <div className="detail-value">{player.phone || '—'}</div>
           </div>
         </div>
+
+        {/* Chosen / Registered Sports */}
+        <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <div className="detail-label" style={{ marginBottom: '0.6rem' }}>
+            🏅 Chosen Sports
+          </div>
+          {(() => {
+            const chosen = (player.chosen_sports && player.chosen_sports.length > 0)
+              ? player.chosen_sports
+              : (player.player_sports && player.player_sports.length > 0)
+              ? player.player_sports
+              : (player.sports && player.sports.length > 0)
+              ? player.sports
+              : sportsWithRoles;
+
+            const adminSports = (player.role === 'admin' && player.admin_sports && player.admin_sports.length > 0)
+              ? player.admin_sports
+              : [];
+
+            return (
+              <>
+                {chosen.length > 0 ? (
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {chosen.map((sp) => (
+                      <span key={sp} className="role-pill player" style={{ fontSize: '0.85rem' }}>
+                        {sp}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    No sports chosen yet.
+                  </div>
+                )}
+
+                {player.role === 'admin' && adminSports.length > 0 && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <div className="detail-label" style={{ marginBottom: '0.6rem' }}>
+                      🛡️ Administered Sports
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {adminSports.map((sp) => (
+                        <span key={sp} className="role-pill admin" style={{ fontSize: '0.85rem' }}>
+                          {sp}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Player Insights Quick Link */}
@@ -139,7 +192,7 @@ export const PlayerProfile = ({ playerId, onNavigate }) => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <h3 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>{player.role === 'admin' ? '🛡️' : '🏅'}</span>
-            <span>{player.role === 'admin' ? 'Administered & Registered Sports' : 'Registered Sports & Playing Roles'}</span>
+            <span>{player.role === 'admin' ? 'Chosen & Administered Sports Roles' : 'Chosen Sports & Playing Roles'}</span>
           </h3>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             {sportsWithRoles.length} {sportsWithRoles.length === 1 ? 'Sport' : 'Sports'} Configured

@@ -197,6 +197,9 @@ export const signup = async (req, res) => {
         profile_photo: newUser.profile_photo,
         role: newUser.role,
         sports,
+        chosen_sports: sports,
+        player_sports: sports,
+        admin_sports: finalRole === 'admin' ? sports : [],
         created_at: newUser.created_at
       }
     });
@@ -257,6 +260,8 @@ export const login = async (req, res) => {
       adminSports = allAdmins.filter(a => a.admin_id === user.id).map(a => a.sport);
     }
     safeUser.sports = Array.from(new Set([...playerSports, ...adminSports]));
+    safeUser.chosen_sports = playerSports;
+    safeUser.player_sports = playerSports;
     safeUser.admin_sports = adminSports;
 
     return res.json({
@@ -346,6 +351,8 @@ export const getMe = async (req, res) => {
       user: {
         ...user,
         sports: combinedSports,
+        chosen_sports: playerSports,
+        player_sports: playerSports,
         admin_sports: adminSports
       }
     });
@@ -402,6 +409,8 @@ export const updateProfile = async (req, res) => {
       user: {
         ...updated,
         sports: Array.from(new Set([...playerSports, ...adminSports])),
+        chosen_sports: playerSports,
+        player_sports: playerSports,
         admin_sports: adminSports
       }
     });
