@@ -165,6 +165,15 @@ export const Navbar = ({ currentView, onViewChange }) => {
           >
             Events
           </button>
+          {isAuthenticated && (
+            <button
+              type="button"
+              className={`nav-link-item ${currentView === 'tournaments' ? 'active' : ''}`}
+              onClick={() => handleNav('tournaments')}
+            >
+              Tournaments
+            </button>
+          )}
           <button
             type="button"
             className={`nav-link-item ${currentView === 'live-scoring' ? 'active' : ''}`}
@@ -249,6 +258,16 @@ export const Navbar = ({ currentView, onViewChange }) => {
                   onClick={() => handleNav('admin-dashboard')}
                 >
                   ⚙️ Admin Desk
+                </button>
+              )}
+              {user.role !== 'admin' && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${currentView === 'admin-dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => handleNav('tournaments')}
+                  title="Manage your tournaments"
+                >
+                  🏆 Tournaments
                 </button>
               )}
 
@@ -397,6 +416,16 @@ export const Navbar = ({ currentView, onViewChange }) => {
                   <span className="mobile-item-icon">🔴</span>
                   <span className="mobile-item-label">Live Scoring</span>
                 </button>
+                {isAuthenticated && (
+                  <button
+                    type="button"
+                    className={`mobile-nav-item ${currentView === 'tournaments' ? 'active' : ''}`}
+                    onClick={() => handleNav('tournaments')}
+                  >
+                    <span className="mobile-item-icon">🏆</span>
+                    <span className="mobile-item-label">Tournaments</span>
+                  </button>
+                )}
               </div>
 
               {/* Category: Squad & Social */}
@@ -484,7 +513,7 @@ export const Navbar = ({ currentView, onViewChange }) => {
                         onClick={() => handleNav('admin-dashboard')}
                       >
                         <span className="mobile-item-icon">⚙️</span>
-                        <span className="mobile-item-label">Tournament Admin Desk</span>
+                        <span className="mobile-item-label">Super Admin Dashboard</span>
                       </button>
                     )}
                     <button

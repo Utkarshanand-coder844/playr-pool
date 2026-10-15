@@ -328,3 +328,119 @@ CREATE INDEX IF NOT EXISTS idx_player_match_points_campus ON player_match_points
 -- Match events index for fast replay
 CREATE INDEX IF NOT EXISTS idx_match_events_match_id ON match_events(match_id, created_at ASC);
 
+-- ============================================================================
+-- TOURNAMENT SCOPED ARCHITECTURE
+-- ============================================================================
+
+-- Tournaments Table
+CREATE TABLE IF NOT EXISTS tournaments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(150) NOT NULL,
+    description TEXT,
+    campus VARCHAR(100) NOT NULL DEFAULT 'Main Campus',
+    sports TEXT[] NOT NULL DEFAULT '{}',
+    status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'registration', 'live', 'completed')),
+    locked BOOLEAN NOT NULL DEFAULT FALSE,
+    registration_opens_at TIMESTAMPTZ,
+    registration_closes_at TIMESTAMPTZ,
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    verified BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_tournaments_campus ON tournaments(campus);
+CREATE INDEX IF NOT EXISTS idx_tournaments_status ON tournaments(status);
+CREATE INDEX IF NOT EXISTS idx_tournaments_created_by ON tournaments(created_by);
+
+-- Tournament Admins Table
+CREATE TABLE IF NOT EXISTS tournament_admins (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL DEFAULT 'admin' CHECK (role IN ('owner', 'admin')),
+    granted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_tournament_admin UNIQUE (tournament_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_tournament_admins_user ON tournament_admins(user_id);
+CREATE INDEX IF NOT EXISTS idx_tournament_admins_tournament ON tournament_admins(tournament_id);
+
+-- Tournament Teams Entry Table
+CREATE TABLE IF NOT EXISTS tournament_teams (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'removed')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_tournament_team UNIQUE (tournament_id, team_id)
+);
+CREATE INDEX IF NOT EXISTS idx_tournament_teams_tournament ON tournament_teams(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_tournament_teams_team ON tournament_teams(team_id);
+
+-- Add tournament_id to existing matches, knockout_brackets, announcements, registration_deadlines
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_matches_tournament_id ON matches(tournament_id);
+
+ALTER TABLE knockout_brackets ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_knockout_brackets_tournament_id ON knockout_brackets(tournament_id);
+
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_announcements_tournament_id ON announcements(tournament_id);
+
+ALTER TABLE registration_deadlines ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_registration_deadlines_tournament_id ON registration_deadlines(tournament_id);
+
+-- Change knockout_brackets unique constraint to include tournament_id
+ALTER TABLE knockout_brackets DROP CONSTRAINT IF EXISTS unique_bracket_slot;
+DROP INDEX IF EXISTS idx_unique_bracket_tourney_slot;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_bracket_tourney_slot ON knockout_brackets (
+    COALESCE(tournament_id, '00000000-0000-0000-0000-000000000001'::uuid),
+    sport,
+    round_number,
+    slot_number
+);
+
+-- Idempotent Migration: Create Default Tournament, attach existing matches, brackets, announcements & teams,
+-- and grant owner role on Default Tournament to all existing global admins. Safe to run repeatedly.
+DO $$
+DECLARE
+    default_tourney_id UUID := '00000000-0000-0000-0000-000000000001'::uuid;
+    first_creator_id UUID;
+BEGIN
+    SELECT id INTO first_creator_id FROM users WHERE role = 'admin' ORDER BY created_at ASC LIMIT 1;
+    IF first_creator_id IS NULL THEN
+        SELECT id INTO first_creator_id FROM users ORDER BY created_at ASC LIMIT 1;
+    END IF;
+
+    IF first_creator_id IS NOT NULL THEN
+        INSERT INTO tournaments (id, name, description, campus, sports, status, locked, created_by, verified)
+        VALUES (
+            default_tourney_id,
+            'Default Tournament',
+            'Campus tournament covering legacy fixtures and sports',
+            'Main Campus',
+            ARRAY['Football', 'Cricket', 'Basketball', 'Badminton', 'Volleyball', 'Table Tennis'],
+            'live',
+            FALSE,
+            first_creator_id,
+            TRUE
+        )
+        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+
+        -- Attach all existing records to Default Tournament if not already set
+        UPDATE matches SET tournament_id = default_tourney_id WHERE tournament_id IS NULL;
+        UPDATE knockout_brackets SET tournament_id = default_tourney_id WHERE tournament_id IS NULL;
+        UPDATE announcements SET tournament_id = default_tourney_id WHERE tournament_id IS NULL;
+        UPDATE registration_deadlines SET tournament_id = default_tourney_id WHERE tournament_id IS NULL;
+
+        -- Attach all existing teams to Default Tournament
+        INSERT INTO tournament_teams (tournament_id, team_id, status)
+        SELECT default_tourney_id, id, 'approved' FROM teams
+        ON CONFLICT (tournament_id, team_id) DO NOTHING;
+
+        -- Make every existing global admin an owner of Default Tournament
+        INSERT INTO tournament_admins (tournament_id, user_id, role)
+        SELECT default_tourney_id, id, 'owner' FROM users WHERE role = 'admin'
+        ON CONFLICT (tournament_id, user_id) DO NOTHING;
+    END IF;
+END $$;
+

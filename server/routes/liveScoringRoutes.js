@@ -1,6 +1,6 @@
 import express from 'express';
 import { LiveScoringController } from '../controllers/liveScoringController.js';
-import { authenticateToken, requireAdmin } from '../middleware/authMiddleware.js';
+import { authenticateToken, requireTournamentAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -15,9 +15,9 @@ router.get('/:matchId', LiveScoringController.getMatchLiveDetail);
 router.get('/:matchId/scorecard', LiveScoringController.getScorecard);
 router.get('/:matchId/player-stats', LiveScoringController.getPlayerMatchStats);
 
-// Admin-only scoring controllers
-router.post('/:matchId/event', authenticateToken, requireAdmin, LiveScoringController.recordEvent);
-router.post('/:matchId/undo', authenticateToken, requireAdmin, LiveScoringController.undoEvent);
-router.post('/:matchId/reset', authenticateToken, requireAdmin, LiveScoringController.resetMatch);
+// Tournament admin scoring controllers
+router.post('/:matchId/event', authenticateToken, requireTournamentAdmin, LiveScoringController.recordEvent);
+router.post('/:matchId/undo', authenticateToken, requireTournamentAdmin, LiveScoringController.undoEvent);
+router.post('/:matchId/reset', authenticateToken, requireTournamentAdmin, LiveScoringController.resetMatch);
 
 export default router;

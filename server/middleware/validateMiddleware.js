@@ -78,3 +78,151 @@ export const validateLogin = (req, res, next) => {
 
   next();
 };
+
+/**
+ * Validate tournament creation payload
+ */
+export const validateCreateTournament = (req, res, next) => {
+  const { name, description, campus, sports, status, registration_opens_at, registration_closes_at } = req.body;
+  const errors = [];
+
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    errors.push('Tournament name is required');
+  } else if (name.trim().length < 2 || name.trim().length > 150) {
+    errors.push('Tournament name must be between 2 and 150 characters');
+  }
+
+  if (description && (typeof description !== 'string' || description.trim().length > 2000)) {
+    errors.push('Description cannot exceed 2000 characters');
+  }
+
+  if (campus && (typeof campus !== 'string' || campus.trim().length > 100)) {
+    errors.push('Campus name cannot exceed 100 characters');
+  }
+
+  if (sports !== undefined) {
+    if (!Array.isArray(sports)) {
+      errors.push('Sports must be an array of sport names');
+    } else if (sports.some(s => typeof s !== 'string' || !s.trim() || s.trim().length > 60)) {
+      errors.push('Each sport must be a non-empty string under 60 characters');
+    }
+  }
+
+  const allowedStatuses = ['draft', 'registration', 'live', 'completed'];
+  if (status && !allowedStatuses.includes(status.toLowerCase())) {
+    errors.push("Status must be one of 'draft', 'registration', 'live', or 'completed'");
+  }
+
+  if (registration_opens_at && Number.isNaN(new Date(registration_opens_at).getTime())) {
+    errors.push('Invalid registration opening date');
+  }
+  if (registration_closes_at && Number.isNaN(new Date(registration_closes_at).getTime())) {
+    errors.push('Invalid registration closing date');
+  }
+  if (registration_opens_at && registration_closes_at) {
+    if (new Date(registration_opens_at) >= new Date(registration_closes_at)) {
+      errors.push('Registration closing date must be after opening date');
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: errors[0],
+      errors
+    });
+  }
+
+  next();
+};
+
+/**
+ * Validate tournament update payload
+ */
+export const validateUpdateTournament = (req, res, next) => {
+  const { name, description, campus, sports, status, registration_opens_at, registration_closes_at } = req.body;
+  const errors = [];
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || !name.trim() || name.trim().length < 2 || name.trim().length > 150) {
+      errors.push('Tournament name must be between 2 and 150 characters');
+    }
+  }
+
+  if (description !== undefined && description !== null) {
+    if (typeof description !== 'string' || description.trim().length > 2000) {
+      errors.push('Description cannot exceed 2000 characters');
+    }
+  }
+
+  if (campus !== undefined) {
+    if (typeof campus !== 'string' || !campus.trim() || campus.trim().length > 100) {
+      errors.push('Campus name must be between 1 and 100 characters');
+    }
+  }
+
+  if (sports !== undefined) {
+    if (!Array.isArray(sports)) {
+      errors.push('Sports must be an array of sport names');
+    } else if (sports.some(s => typeof s !== 'string' || !s.trim() || s.trim().length > 60)) {
+      errors.push('Each sport must be a non-empty string under 60 characters');
+    }
+  }
+
+  const allowedStatuses = ['draft', 'registration', 'live', 'completed'];
+  if (status !== undefined && !allowedStatuses.includes(status.toLowerCase())) {
+    errors.push("Status must be one of 'draft', 'registration', 'live', or 'completed'");
+  }
+
+  if (registration_opens_at && Number.isNaN(new Date(registration_opens_at).getTime())) {
+    errors.push('Invalid registration opening date');
+  }
+  if (registration_closes_at && Number.isNaN(new Date(registration_closes_at).getTime())) {
+    errors.push('Invalid registration closing date');
+  }
+  if (registration_opens_at && registration_closes_at) {
+    if (new Date(registration_opens_at) >= new Date(registration_closes_at)) {
+      errors.push('Registration closing date must be after opening date');
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: errors[0],
+      errors
+    });
+  }
+
+  next();
+};
+
+/**
+ * Validate promote to admin request
+ */
+export const validateTournamentAdminPromotion = (req, res, next) => {
+  const userId = req.body?.userId || req.body?.user_id;
+  if (!userId || typeof userId !== 'string' || !/^[0-9a-f-]{36}$/i.test(userId.trim())) {
+    return res.status(400).json({
+      success: false,
+      message: 'Valid user ID is required to promote to admin'
+    });
+  }
+  req.targetUserId = userId.trim();
+  next();
+};
+
+/**
+ * Validate tournament team entry
+ */
+export const validateTournamentTeamEntry = (req, res, next) => {
+  const teamId = req.body?.teamId || req.body?.team_id;
+  if (!teamId || typeof teamId !== 'string' || !/^[0-9a-f-]{36}$/i.test(teamId.trim())) {
+    return res.status(400).json({
+      success: false,
+      message: 'Valid team ID is required to enter tournament'
+    });
+  }
+  req.teamId = teamId.trim();
+  next();
+};

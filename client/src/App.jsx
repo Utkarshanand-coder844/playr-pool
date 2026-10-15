@@ -22,6 +22,7 @@ import { Chat } from './pages/Chat';
 import { Discover } from './pages/Discover';
 import { LiveScoring } from './pages/LiveScoring';
 import { Scorecard } from './pages/Scorecard';
+import { Tournaments } from './pages/Tournaments';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import { ScoreToast } from './components/ScoreToast';
 import { CampusClashLoader } from './components/CampusClashLoader';
@@ -77,6 +78,11 @@ function MainLayout() {
           {currentView === 'player-profile' && <PlayerProfile playerId={viewParams} onNavigate={navigate} />}
           {currentView === 'player-insights' && <PlayerInsights playerId={viewParams} onNavigate={navigate} />}
           {currentView === 'scorecard' && <Scorecard matchId={viewParams} onNavigate={navigate} />}
+          {currentView === 'tournaments' && (
+            <ProtectedRoute onNavigate={navigate}>
+              <Tournaments onNavigate={navigate} />
+            </ProtectedRoute>
+          )}
           {currentView === 'dashboard' && (
             <ProtectedRoute onNavigate={navigate}>
               <Dashboard onNavigate={navigate} />
@@ -89,7 +95,7 @@ function MainLayout() {
           )}
           {currentView === 'admin-dashboard' && (
             <AdminRoute onNavigate={navigate}>
-              <AdminDashboard onNavigate={navigate} />
+              <AdminDashboard onNavigate={navigate} tournamentId={viewParams} />
             </AdminRoute>
           )}
         </ErrorBoundary>

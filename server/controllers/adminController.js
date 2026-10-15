@@ -209,7 +209,8 @@ export const createMatch = async (req, res) => {
       team_a_id,
       team_b_id,
       match_date,
-      status: status.toLowerCase()
+      status: status.toLowerCase(),
+      tournament_id: req.tournamentId || null
     });
     await audit(req, 'create_fixture', 'match', match.id, { name: match.name, sport: match.sport, team_a_id, team_b_id, status: match.status });
 
@@ -233,7 +234,7 @@ export const createMatch = async (req, res) => {
  */
 export const getMatches = async (req, res) => {
   try {
-    const matches = await MatchModel.getAllMatches();
+    const matches = await MatchModel.getAllMatches(req.tournamentId || null);
     return res.json({
       success: true,
       matches
@@ -448,7 +449,7 @@ export const saveScore = async (req, res) => {
  */
 export const getScores = async (req, res) => {
   try {
-    const scores = await MatchModel.getAllScores();
+    const scores = await MatchModel.getAllScores(req.tournamentId || null);
     return res.json({
       success: true,
       scores
@@ -468,7 +469,7 @@ export const getScores = async (req, res) => {
  */
 export const getTeams = async (req, res) => {
   try {
-    const teams = await MatchModel.getAllTeams();
+    const teams = await MatchModel.getAllTeams(req.tournamentId || null);
     return res.json({
       success: true,
       teams
@@ -568,11 +569,12 @@ export const generateBracketRound = async (req, res) => {
   try {
     const sport = typeof req.body.sport === 'string' ? req.body.sport.trim() : '';
     if (!sport) return res.status(400).json({ success: false, message: 'A sport is required' });
-    const existing = await BracketModel.getForSport(sport);
+    const tournamentId = req.tournamentId || null;
+    const existing = await BracketModel.getForSport(sport, tournamentId);
     let entrants;
     let roundNumber;
     if (existing.length === 0) {
-      entrants = (await MatchModel.getAllTeams()).filter(team => team.sport === sport).map(team => team.id);
+      entrants = (await MatchModel.getAllTeams(tournamentId)).filter(team => team.sport === sport).map(team => team.id);
       if (entrants.length < 2 || (entrants.length & (entrants.length - 1)) !== 0) {
         return res.status(400).json({ success: false, message: 'A knockout bracket needs a power-of-two number of registered teams (2, 4, 8, …).' });
       }
@@ -580,7 +582,7 @@ export const generateBracketRound = async (req, res) => {
     } else {
       const currentRound = Math.max(...existing.map(item => item.round_number));
       const currentFixtures = existing.filter(item => item.round_number === currentRound);
-      const scores = await MatchModel.getAllScores();
+      const scores = await MatchModel.getAllScores(tournamentId);
       entrants = currentFixtures.map(fixture => {
         const fixtureScores = scores.filter(score => score.match_id === fixture.match_id);
         const a = fixtureScores.find(score => score.team_id === fixture.team_a_id)?.points;
@@ -593,13 +595,13 @@ export const generateBracketRound = async (req, res) => {
       roundNumber = currentRound + 1;
     }
 
-    const teams = await MatchModel.getAllTeams();
+    const teams = await MatchModel.getAllTeams(tournamentId);
     const fixtures = [];
     for (let index = 0; index < entrants.length; index += 2) {
       const teamAId = entrants[index]; const teamBId = entrants[index + 1];
       const teamA = teams.find(team => team.id === teamAId); const teamB = teams.find(team => team.id === teamBId);
-      const match = await MatchModel.createMatch({ name: `${sport} Knockout — Round ${roundNumber}, Match ${index / 2 + 1}`, sport, team_a_id: teamAId, team_b_id: teamBId, match_date: new Date().toISOString(), status: 'upcoming' });
-      fixtures.push(await BracketModel.add({ sport, roundNumber, slotNumber: index / 2 + 1, matchId: match.id, teamAId, teamBId }));
+      const match = await MatchModel.createMatch({ name: `${sport} Knockout — Round ${roundNumber}, Match ${index / 2 + 1}`, sport, team_a_id: teamAId, team_b_id: teamBId, match_date: new Date().toISOString(), status: 'upcoming', tournament_id: tournamentId });
+      fixtures.push(await BracketModel.add({ sport, roundNumber, slotNumber: index / 2 + 1, matchId: match.id, teamAId, teamBId, tournamentId }));
       fixtures[fixtures.length - 1].team_a_name = teamA?.name; fixtures[fixtures.length - 1].team_b_name = teamB?.name;
     }
     await audit(req, 'generate_bracket_round', 'knockout_bracket', null, { sport, round_number: roundNumber, fixture_count: fixtures.length });
@@ -614,7 +616,7 @@ export const getBracket = async (req, res) => {
   try {
     const sport = typeof req.query.sport === 'string' ? req.query.sport.trim() : '';
     if (!sport) return res.status(400).json({ success: false, message: 'Sport is required' });
-    return res.json({ success: true, fixtures: await BracketModel.getForSport(sport) });
+    return res.json({ success: true, fixtures: await BracketModel.getForSport(sport, req.tournamentId || null) });
   } catch (error) { return res.status(500).json({ success: false, message: 'Unable to load bracket' }); }
 };
 

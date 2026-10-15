@@ -5,8 +5,46 @@ import { Alert } from '../components/Alert';
 import { SPORT_LIST, SPORT_ROLES, formatSportProfile } from '../utils/sportRoles';
 import { getAuthHeaders } from '../utils/authFetch';
 
-export const AdminDashboard = ({ onNavigate }) => {
+export const AdminDashboard = ({ onNavigate, tournamentId: propTournamentId }) => {
   const { user, token } = useAuth();
+  const [activeTournamentId, setActiveTournamentId] = useState(propTournamentId || null);
+  const [myTournaments, setMyTournaments] = useState([]);
+  const [tournamentSelectorLoading, setTournamentSelectorLoading] = useState(!propTournamentId);
+
+  // Fetch user's managed tournaments for the selector
+  useEffect(() => {
+    if (propTournamentId) {
+      setActiveTournamentId(propTournamentId);
+      setTournamentSelectorLoading(false);
+      return;
+    }
+    if (!token) { setTournamentSelectorLoading(false); return; }
+    const load = async () => {
+      try {
+        const res = await fetch('/api/tournaments/mine', { headers: getAuthHeaders(token) });
+        const data = await res.json();
+        if (data.success && data.tournaments?.length) {
+          setMyTournaments(data.tournaments);
+          if (!activeTournamentId) setActiveTournamentId(data.tournaments[0].id);
+        }
+      } catch { /* ignore */ }
+      setTournamentSelectorLoading(false);
+    };
+    load();
+  }, [token, propTournamentId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build auth headers with tournament context
+  const adminHeaders = useCallback(() => {
+    const h = getAuthHeaders(token);
+    if (activeTournamentId) h['x-tournament-id'] = activeTournamentId;
+    return h;
+  }, [token, activeTournamentId]);
+
+  const adminJsonHeaders = useCallback(() => {
+    const h = getAuthHeaders(token, { 'Content-Type': 'application/json' });
+    if (activeTournamentId) h['x-tournament-id'] = activeTournamentId;
+    return h;
+  }, [token, activeTournamentId]);
 
   // Note: role guard is enforced by AdminRoute in App.jsx before this renders.
   // No useEffect redirect needed — AdminRoute blocks non-admins synchronously.
@@ -218,7 +256,7 @@ export const AdminDashboard = ({ onNavigate }) => {
     try {
       const res = await fetch(`/api/live-scoring/${lsMatchId}/event`, {
         method: 'POST',
-        headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }),
+        headers: adminJsonHeaders(),
         body: JSON.stringify({ eventType, payload })
       });
       const data = await res.json();
@@ -257,7 +295,7 @@ export const AdminDashboard = ({ onNavigate }) => {
     try {
       const res = await fetch(`/api/live-scoring/${lsMatchId}/undo`, {
         method: 'POST',
-        headers: getAuthHeaders(token, { 'Content-Type': 'application/json' })
+        headers: adminJsonHeaders()
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -296,7 +334,7 @@ export const AdminDashboard = ({ onNavigate }) => {
 
   // Fetch all admin data
   const fetchData = useCallback(async () => {
-    if (!token || !user || user.role !== 'admin') {
+    if (!token || !user) {
       setLoading(false);
       return;
     }
@@ -304,7 +342,7 @@ export const AdminDashboard = ({ onNavigate }) => {
     setLoading(true);
     setErrorMessage('');
     try {
-      const headers = getAuthHeaders(token);
+      const headers = adminHeaders();
 
       const [matchesRes, teamsRes, playersRes, scoresRes, deadlinesRes, auditRes, announcementsRes, sportsAdminsRes] = await Promise.all([
         fetch('/api/admin/matches', { headers }).catch(e => ({ ok: false, error: e })),
@@ -375,11 +413,11 @@ export const AdminDashboard = ({ onNavigate }) => {
     } finally {
       setLoading(false);
     }
-  }, [token, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, user, activeTournamentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (activeTournamentId || user?.role === 'admin') fetchData();
+  }, [fetchData, activeTournamentId]);
 
   // Handle Match Creation
   const handleCreateMatch = async (e) => {
@@ -398,14 +436,15 @@ export const AdminDashboard = ({ onNavigate }) => {
     try {
       const res = await fetch('/api/admin/matches', {
         method: 'POST',
-        headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }),
+        headers: adminJsonHeaders(),
         body: JSON.stringify({
           name: newMatchName.trim(),
           sport,
           team_a_id: newMatchTeamA,
           team_b_id: newMatchTeamB,
           match_date: newMatchDate,
-          status: newMatchStatus
+          status: newMatchStatus,
+          tournament_id: activeTournamentId || undefined
         })
       });
 
@@ -432,7 +471,7 @@ export const AdminDashboard = ({ onNavigate }) => {
     try {
       const res = await fetch(`/api/admin/matches/${matchId}/status`, {
         method: 'PUT',
-        headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }),
+        headers: adminJsonHeaders(),
         body: JSON.stringify({ status })
       });
 
@@ -467,7 +506,7 @@ export const AdminDashboard = ({ onNavigate }) => {
     try {
       const res = await fetch(`/api/admin/matches/${matchId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(token)
+        headers: adminHeaders()
       });
 
       const data = await res.json();
@@ -513,7 +552,7 @@ export const AdminDashboard = ({ onNavigate }) => {
     try {
       const res = await fetch('/api/admin/scores', {
         method: 'POST',
-        headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }),
+        headers: adminJsonHeaders(),
         body: JSON.stringify({
           match_id: selectedMatchId,
           team_id: selectedTeamId,
@@ -547,19 +586,19 @@ export const AdminDashboard = ({ onNavigate }) => {
   const handleSaveDeadline = async (e) => {
     e.preventDefault(); setErrorMessage('');
     try {
-      const res = await fetch('/api/admin/registration-deadlines', { method: 'PUT', headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ sport: deadlineSport, opens_at: deadlineOpensAt || null, closes_at: deadlineClosesAt || null }) });
+      const res = await fetch('/api/admin/registration-deadlines', { method: 'PUT', headers: adminJsonHeaders(), body: JSON.stringify({ sport: deadlineSport, opens_at: deadlineOpensAt || null, closes_at: deadlineClosesAt || null }) });
       const data = await res.json(); if (!res.ok || !data.success) throw new Error(data.message || 'Unable to save deadline');
       showToast(`Registration window saved for ${data.deadline.sport}`); fetchData();
     } catch (err) { setErrorMessage(err.message); }
   };
 
   const loadBracket = async (sport = bracketSport) => {
-    try { const res = await fetch(`/api/admin/brackets?sport=${encodeURIComponent(sport)}`, { headers: getAuthHeaders(token) }); const data = await res.json(); if (!res.ok || !data.success) throw new Error(data.message); setBracketFixtures(data.fixtures || []); } catch (err) { setErrorMessage(err.message); }
+    try { const res = await fetch(`/api/admin/brackets?sport=${encodeURIComponent(sport)}`, { headers: adminHeaders() }); const data = await res.json(); if (!res.ok || !data.success) throw new Error(data.message); setBracketFixtures(data.fixtures || []); } catch (err) { setErrorMessage(err.message); }
   };
 
   const handleGenerateBracket = async () => {
     setErrorMessage('');
-    try { const res = await fetch('/api/admin/brackets/generate', { method: 'POST', headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ sport: bracketSport }) }); const data = await res.json(); if (!res.ok || !data.success) throw new Error(data.message || 'Unable to generate bracket'); showToast(data.message); loadBracket(); fetchData(); } catch (err) { setErrorMessage(err.message); }
+    try { const res = await fetch('/api/admin/brackets/generate', { method: 'POST', headers: adminJsonHeaders(), body: JSON.stringify({ sport: bracketSport }) }); const data = await res.json(); if (!res.ok || !data.success) throw new Error(data.message || 'Unable to generate bracket'); showToast(data.message); loadBracket(); fetchData(); } catch (err) { setErrorMessage(err.message); }
   };
 
   const handlePostAnnouncement = async (event) => {
@@ -576,7 +615,7 @@ export const AdminDashboard = ({ onNavigate }) => {
           finalAttachments.push({ label, url, type: attachmentType || 'other' });
         }
       }
-      const response = await fetch(editingAnnouncementId ? `/api/admin/announcements/${editingAnnouncementId}` : '/api/admin/announcements', { method: editingAnnouncementId ? 'PUT' : 'POST', headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ title: announcementTitle, message: announcementMessage, category: announcementCategory, event_at: announcementDate || null, is_pinned: announcementPinned, campus: announcementCampus, attachments: finalAttachments }) });
+      const response = await fetch(editingAnnouncementId ? `/api/admin/announcements/${editingAnnouncementId}` : '/api/admin/announcements', { method: editingAnnouncementId ? 'PUT' : 'POST', headers: adminJsonHeaders(), body: JSON.stringify({ title: announcementTitle, message: announcementMessage, category: announcementCategory, event_at: announcementDate || null, is_pinned: announcementPinned, campus: announcementCampus, attachments: finalAttachments, tournament_id: activeTournamentId || undefined }) });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message || 'Unable to post announcement');
       showToast(editingAnnouncementId ? 'Announcement updated.' : 'Announcement posted to the public Events feed.');
@@ -603,7 +642,7 @@ export const AdminDashboard = ({ onNavigate }) => {
 
   const handleDeleteAnnouncement = async (id) => {
     try {
-      const response = await fetch(`/api/admin/announcements/${id}`, { method: 'DELETE', headers: getAuthHeaders(token) });
+      const response = await fetch(`/api/admin/announcements/${id}`, { method: 'DELETE', headers: adminHeaders() });
       const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.message || 'Unable to remove announcement');
       showToast('Announcement removed.'); fetchData();
     } catch (err) { setErrorMessage(err.message); }
@@ -613,7 +652,7 @@ export const AdminDashboard = ({ onNavigate }) => {
     event.preventDefault(); setErrorMessage('');
     if (!adminSport.trim()) return setErrorMessage('Enter a sport name.');
     try {
-      const response = await fetch('/api/sports-admins/mine', { method: 'POST', headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ sport: adminSport.trim() }) });
+      const response = await fetch('/api/sports-admins/mine', { method: 'POST', headers: adminJsonHeaders(), body: JSON.stringify({ sport: adminSport.trim() }) });
       const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.message || 'Unable to assign sport');
       showToast(data.message); setAdminSport(''); fetchData();
     } catch (err) { setErrorMessage(err.message); }
@@ -621,7 +660,7 @@ export const AdminDashboard = ({ onNavigate }) => {
 
   const handleRemoveMySport = async (sport) => {
     try {
-      const response = await fetch(`/api/sports-admins/mine/${encodeURIComponent(sport)}`, { method: 'DELETE', headers: getAuthHeaders(token) });
+      const response = await fetch(`/api/sports-admins/mine/${encodeURIComponent(sport)}`, { method: 'DELETE', headers: adminHeaders() });
       const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.message || 'Unable to remove sport');
       showToast(data.message); fetchData();
     } catch (err) { setErrorMessage(err.message); }
@@ -702,17 +741,25 @@ export const AdminDashboard = ({ onNavigate }) => {
     );
   }
 
-  if (!user || user.role !== 'admin') {
+  const isSuperAdmin = user?.role === 'admin';
+  const hasAccess = isSuperAdmin || myTournaments.length > 0 || Boolean(activeTournamentId);
+
+  if (!user || (!tournamentSelectorLoading && !hasAccess)) {
     return (
       <div className="auth-card" style={{ textAlign: 'center', margin: '3rem auto', maxWidth: '500px' }}>
         <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚫</div>
         <h2 style={{ color: 'var(--danger, #ef4444)' }}>Administrator Access Required</h2>
         <p style={{ margin: '1rem 0', color: 'var(--text-secondary)' }}>
-          You must be signed in with an administrator account to view the tournament control desk.
+          You must be an administrator or manage a tournament to view the tournament control desk.
         </p>
-        <button className="btn btn-primary" onClick={() => onNavigate && onNavigate('dashboard')}>
-          Back to Dashboard
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1rem' }}>
+          <button className="btn btn-secondary" onClick={() => onNavigate && onNavigate('dashboard')}>
+            Back to Dashboard
+          </button>
+          <button className="btn btn-primary" onClick={() => onNavigate && onNavigate('tournaments')}>
+            Create or View Tournaments
+          </button>
+        </div>
       </div>
     );
   }
@@ -752,6 +799,66 @@ export const AdminDashboard = ({ onNavigate }) => {
           </button>
         </div>
       )}
+
+      {/* Tournament Context Selector */}
+      <div style={{
+        background: 'rgba(30, 41, 59, 0.7)',
+        border: '1px solid var(--border-color, #334155)',
+        borderRadius: '14px',
+        padding: '0.85rem 1.25rem',
+        marginBottom: '1.25rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.75rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ fontSize: '1.25rem' }}>🏆</span>
+          <div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Active Tournament Scope
+            </div>
+            {myTournaments.length > 0 ? (
+              <select
+                value={activeTournamentId || ''}
+                onChange={(e) => setActiveTournamentId(e.target.value)}
+                style={{
+                  background: 'var(--input-bg, #0f172a)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border, #334155)',
+                  borderRadius: '8px',
+                  padding: '4px 8px',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  marginTop: '2px'
+                }}
+              >
+                {myTournaments.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.campus}) {t.my_role === 'owner' ? '👑' : '⚡'}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                {activeTournamentId ? `Tournament ID: ${activeTournamentId.slice(0, 8)}…` : (isSuperAdmin ? 'Platform-Wide (Super Admin Default)' : 'General Scope')}
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onNavigate && onNavigate('tournaments')}
+            style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+          >
+            🏟️ All Tournaments
+          </button>
+        </div>
+      </div>
 
       {/* Admin Header */}
       <div className="id-card-hero">

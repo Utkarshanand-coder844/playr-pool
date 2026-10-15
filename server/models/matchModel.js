@@ -1,4 +1,4 @@
-import { query } from '../config/db.js';
+import { query, DEFAULT_TOURNAMENT_ID } from '../config/db.js';
 
 export const MatchModel = {
   /**
@@ -6,28 +6,44 @@ export const MatchModel = {
    * @param {object} param0 
    * @returns {Promise<object>}
    */
-  async createMatch({ name, sport, team_a_id, team_b_id, match_date, status = 'upcoming' }) {
+  async createMatch({ name, sport, team_a_id, team_b_id, match_date, status = 'upcoming', tournament_id = null }) {
     const text = `
-      INSERT INTO matches (name, match_date, status, sport, team_a_id, team_b_id)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, name, match_date, status, sport, team_a_id, team_b_id, created_at;
+      INSERT INTO matches (name, match_date, status, sport, team_a_id, team_b_id, tournament_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, name, match_date, status, sport, team_a_id, team_b_id, tournament_id, created_at;
     `;
     const params = [
       name.trim(),
       match_date ? new Date(match_date).toISOString() : new Date().toISOString(),
-      status.toLowerCase(), sport, team_a_id, team_b_id
+      status.toLowerCase(),
+      sport,
+      team_a_id,
+      team_b_id,
+      tournament_id || DEFAULT_TOURNAMENT_ID
     ];
     const { rows } = await query(text, params);
     return rows[0];
   },
 
   /**
-   * Retrieve all matches
+   * Retrieve all matches, optionally filtered by tournament
+   * @param {string|null} tournamentId
    * @returns {Promise<Array>}
    */
-  async getAllMatches() {
-    const text = `
-      SELECT m.id, m.name, m.match_date, m.status, m.sport, m.team_a_id, m.team_b_id, m.created_at,
+  async getAllMatches(tournamentId = null) {
+    const text = tournamentId ? `
+      SELECT m.id, m.name, m.match_date, m.status, m.sport, m.team_a_id, m.team_b_id, m.tournament_id, m.created_at,
+        ta.name AS team_a_name, tb.name AS team_b_name,
+        sa.points AS team_a_score, sb.points AS team_b_score
+      FROM matches m
+      LEFT JOIN teams ta ON ta.id = m.team_a_id
+      LEFT JOIN teams tb ON tb.id = m.team_b_id
+      LEFT JOIN scores sa ON sa.match_id = m.id AND sa.team_id = m.team_a_id
+      LEFT JOIN scores sb ON sb.match_id = m.id AND sb.team_id = m.team_b_id
+      WHERE m.tournament_id = $1
+      ORDER BY m.match_date ASC;
+    ` : `
+      SELECT m.id, m.name, m.match_date, m.status, m.sport, m.team_a_id, m.team_b_id, m.tournament_id, m.created_at,
         ta.name AS team_a_name, tb.name AS team_b_name,
         sa.points AS team_a_score, sb.points AS team_b_score
       FROM matches m
@@ -37,7 +53,7 @@ export const MatchModel = {
       LEFT JOIN scores sb ON sb.match_id = m.id AND sb.team_id = m.team_b_id
       ORDER BY m.match_date ASC;
     `;
-    const { rows } = await query(text);
+    const { rows } = await query(text, tournamentId ? [tournamentId] : []);
     return rows;
   },
 
@@ -47,7 +63,7 @@ export const MatchModel = {
    * @returns {Promise<object|null>}
    */
   async getMatchById(id) {
-    const text = `SELECT m.id, m.name, m.match_date, m.status, m.sport, m.team_a_id, m.team_b_id, m.created_at,
+    const text = `SELECT m.id, m.name, m.match_date, m.status, m.sport, m.team_a_id, m.team_b_id, m.tournament_id, m.created_at,
       ta.name AS team_a_name, tb.name AS team_b_name FROM matches m
       LEFT JOIN teams ta ON ta.id = m.team_a_id LEFT JOIN teams tb ON tb.id = m.team_b_id WHERE m.id = $1 LIMIT 1;`;
     const { rows } = await query(text, [id]);
@@ -65,7 +81,7 @@ export const MatchModel = {
       UPDATE matches 
       SET status = $1 
       WHERE id = $2 
-      RETURNING id, name, match_date, status, sport, created_at;
+      RETURNING id, name, match_date, status, sport, tournament_id, created_at;
     `;
     const { rows } = await query(text, [status.toLowerCase(), id]);
     return rows[0] || null;
@@ -80,7 +96,7 @@ export const MatchModel = {
     const text = `
       DELETE FROM matches
       WHERE id = $1
-      RETURNING id, name, match_date, status, sport, team_a_id, team_b_id;
+      RETURNING id, name, match_date, status, sport, team_a_id, team_b_id, tournament_id;
     `;
     const { rows } = await query(text, [id]);
     return rows[0] || null;
@@ -109,10 +125,11 @@ export const MatchModel = {
 
   /**
    * Retrieve all scores joined with team name, match name, and updated_by username
+   * @param {string|null} tournamentId
    * @returns {Promise<Array>}
    */
-  async getAllScores() {
-    const text = `
+  async getAllScores(tournamentId = null) {
+    const text = tournamentId ? `
       SELECT 
         s.id, 
         s.team_id, 
@@ -124,6 +141,27 @@ export const MatchModel = {
         m.name AS match_name,
         m.status AS match_status,
         m.sport,
+        m.tournament_id,
+        u.name AS updated_by_name
+      FROM scores s
+      LEFT JOIN teams t ON s.team_id = t.id
+      LEFT JOIN matches m ON s.match_id = m.id
+      LEFT JOIN users u ON s.updated_by = u.id
+      WHERE m.tournament_id = $1
+      ORDER BY s.updated_at DESC;
+    ` : `
+      SELECT 
+        s.id, 
+        s.team_id, 
+        s.match_id, 
+        s.points, 
+        s.updated_by, 
+        s.updated_at,
+        t.name AS team_name,
+        m.name AS match_name,
+        m.status AS match_status,
+        m.sport,
+        m.tournament_id,
         u.name AS updated_by_name
       FROM scores s
       LEFT JOIN teams t ON s.team_id = t.id
@@ -131,23 +169,34 @@ export const MatchModel = {
       LEFT JOIN users u ON s.updated_by = u.id
       ORDER BY s.updated_at DESC;
     `;
-    const { rows } = await query(text);
+    const { rows } = await query(text, tournamentId ? [tournamentId] : []);
     return rows;
   },
 
   /**
-   * Get all registered teams for selection dropdowns
+   * Get teams for selection dropdowns, optionally scoped to a tournament
+   * @param {string|null} tournamentId
    * @returns {Promise<Array>}
    */
-  async getAllTeams() {
-    const text = 'SELECT id, name, sport, owner_user_id, locked, created_at FROM teams ORDER BY sport ASC, name ASC;';
+  async getAllTeams(tournamentId = null) {
+    if (tournamentId) {
+      const text = `
+        SELECT t.id, t.name, t.sport, t.owner_user_id, t.locked, t.campus, t.created_at, tt.status as entry_status
+        FROM teams t
+        JOIN tournament_teams tt ON tt.team_id = t.id
+        WHERE tt.tournament_id = $1 AND tt.status != 'removed'
+        ORDER BY t.sport ASC, t.name ASC;
+      `;
+      const { rows } = await query(text, [tournamentId]);
+      return rows;
+    }
+    const text = 'SELECT id, name, sport, owner_user_id, locked, campus, created_at FROM teams ORDER BY sport ASC, name ASC;';
     const { rows } = await query(text);
     return rows;
   },
 
   /**
    * Get a single team's match-by-match score history, joined with match info.
-   * Used by the public team profile page.
    * @param {string} teamId
    * @returns {Promise<Array>}
    */
@@ -161,6 +210,7 @@ export const MatchModel = {
         m.name AS match_name,
         m.status AS match_status,
         m.sport,
+        m.tournament_id,
         m.match_date
       FROM scores s
       LEFT JOIN matches m ON s.match_id = m.id
@@ -174,9 +224,32 @@ export const MatchModel = {
   /**
    * Calculate public leaderboard: SUM(scores.points) grouped by team_id,
    * joined with team name, sorted descending by total points, with rank included.
+   * Optionally filtered by sport and tournament.
+   * @param {string|null} sport
+   * @param {string|null} tournamentId
    * @returns {Promise<Array>}
    */
-  async getLeaderboard(sport = null) {
+  async getLeaderboard(sport = null, tournamentId = null) {
+    let whereClauses = [];
+    let params = [];
+
+    if (sport) {
+      params.push(sport);
+      whereClauses.push(`t.sport = $${params.length}`);
+    }
+
+    let joinTournamentTeams = '';
+    let matchTournamentFilter = '';
+
+    if (tournamentId) {
+      params.push(tournamentId);
+      const tourneyParamIndex = params.length;
+      joinTournamentTeams = `JOIN tournament_teams tt ON tt.team_id = t.id AND tt.tournament_id = $${tourneyParamIndex} AND tt.status != 'removed'`;
+      matchTournamentFilter = `AND m.tournament_id = $${tourneyParamIndex}`;
+    }
+
+    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
     const text = `
       SELECT 
         t.id AS team_id,
@@ -192,14 +265,15 @@ export const MatchModel = {
         (COUNT(*) FILTER (WHERE m.id IS NOT NULL AND COALESCE(s.points, 0) > COALESCE(opponent.points, 0)) * 3 +
          COUNT(*) FILTER (WHERE m.id IS NOT NULL AND COALESCE(s.points, 0) = COALESCE(opponent.points, 0)))::INTEGER AS total_points
       FROM teams t
-      LEFT JOIN matches m ON (m.team_a_id = t.id OR m.team_b_id = t.id) AND m.status = 'completed'
+      ${joinTournamentTeams}
+      LEFT JOIN matches m ON (m.team_a_id = t.id OR m.team_b_id = t.id) AND m.status = 'completed' ${matchTournamentFilter}
       LEFT JOIN scores s ON s.match_id = m.id AND s.team_id = t.id
       LEFT JOIN scores opponent ON opponent.match_id = m.id AND opponent.team_id = CASE WHEN m.team_a_id = t.id THEN m.team_b_id ELSE m.team_a_id END
-      ${sport ? 'WHERE t.sport = $1' : ''}
+      ${whereSql}
       GROUP BY t.id, t.name
       ORDER BY total_points DESC, score_difference DESC, score_for DESC, t.name ASC;
     `;
-    const { rows } = await query(text, sport ? [sport] : []);
+    const { rows } = await query(text, params);
 
     return rows.map((row, index) => ({
       rank: index + 1,

@@ -113,3 +113,11 @@ export const actionRateLimit = ({ windowMs = 60 * 60 * 1000, max = 10 } = {}) =>
     }
     next();
   };
+
+/**
+ * Tournament creation rate limit — prevents players from spamming tournament creation.
+ */
+export const tournamentCreationRateLimit = actionRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10
+});

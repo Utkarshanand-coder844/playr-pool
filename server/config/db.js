@@ -7,8 +7,10 @@ const { Pool } = pg;
 let pool = null;
 let isPgConnected = false;
 
+export const DEFAULT_TOURNAMENT_ID = '00000000-0000-0000-0000-000000000001';
+
 // Fallback in-memory database store if PostgreSQL server is not currently reachable
-const memoryStore = {
+export const memoryStore = {
   users: [],
   teams: [],
   team_members: [],
@@ -31,9 +33,70 @@ const memoryStore = {
   direct_messages: [],
   payments: [],
   processed_webhooks: [],
+  tournaments: [],
+  tournament_admins: [],
+  tournament_teams: [],
   settings: {
     tournament_started: false
   }
+};
+
+export const ensureDefaultTournamentInMemory = () => {
+  let defaultTourney = memoryStore.tournaments.find(t => t.id === DEFAULT_TOURNAMENT_ID);
+  if (!defaultTourney) {
+    const adminUser = memoryStore.users.find(u => u.role === 'admin') || memoryStore.users[0] || { id: '00000000-0000-0000-0000-000000000000' };
+    defaultTourney = {
+      id: DEFAULT_TOURNAMENT_ID,
+      name: 'Default Tournament',
+      description: 'Campus tournament covering legacy fixtures and sports',
+      campus: 'Main Campus',
+      sports: ['Football', 'Cricket', 'Basketball', 'Badminton', 'Volleyball', 'Table Tennis'],
+      status: 'live',
+      locked: Boolean(memoryStore.settings?.tournament_started),
+      registration_opens_at: null,
+      registration_closes_at: null,
+      created_by: adminUser.id,
+      verified: true,
+      created_at: new Date().toISOString()
+    };
+    memoryStore.tournaments.push(defaultTourney);
+  }
+
+  // Ensure Default Tournament admin exists for global admins
+  const admins = memoryStore.users.filter(u => u.role === 'admin');
+  admins.forEach(admin => {
+    if (!memoryStore.tournament_admins.some(ta => ta.tournament_id === DEFAULT_TOURNAMENT_ID && ta.user_id === admin.id)) {
+      memoryStore.tournament_admins.push({
+        id: crypto.randomUUID(),
+        tournament_id: DEFAULT_TOURNAMENT_ID,
+        user_id: admin.id,
+        role: 'owner',
+        granted_by: null,
+        created_at: new Date().toISOString()
+      });
+    }
+  });
+
+  // Attach all existing matches, brackets, announcements, registration_deadlines without tournament_id
+  memoryStore.matches.forEach(m => { if (!m.tournament_id) m.tournament_id = DEFAULT_TOURNAMENT_ID; });
+  memoryStore.knockout_brackets.forEach(b => { if (!b.tournament_id) b.tournament_id = DEFAULT_TOURNAMENT_ID; });
+  memoryStore.announcements.forEach(a => { if (!a.tournament_id) a.tournament_id = DEFAULT_TOURNAMENT_ID; });
+  memoryStore.registration_deadlines.forEach(r => { if (!r.tournament_id) r.tournament_id = DEFAULT_TOURNAMENT_ID; });
+
+  // Attach all existing teams to Default Tournament
+  memoryStore.teams.forEach(team => {
+    if (!memoryStore.tournament_teams.some(tt => tt.tournament_id === DEFAULT_TOURNAMENT_ID && tt.team_id === team.id)) {
+      memoryStore.tournament_teams.push({
+        id: crypto.randomUUID(),
+        tournament_id: DEFAULT_TOURNAMENT_ID,
+        team_id: team.id,
+        status: 'approved',
+        created_at: new Date().toISOString()
+      });
+    }
+  });
+
+  return defaultTourney;
 };
 
 if (process.env.DATABASE_URL) {
@@ -393,6 +456,68 @@ export const initDb = async () => {
       );
       CREATE INDEX IF NOT EXISTS idx_player_match_points_player ON player_match_points(player_id);
       CREATE INDEX IF NOT EXISTS idx_player_match_points_sport ON player_match_points(sport);
+
+      CREATE TABLE IF NOT EXISTS tournaments (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(150) NOT NULL,
+          description TEXT,
+          campus VARCHAR(100) NOT NULL DEFAULT 'Main Campus',
+          sports TEXT[] NOT NULL DEFAULT '{}',
+          status VARCHAR(20) NOT NULL DEFAULT 'draft',
+          locked BOOLEAN NOT NULL DEFAULT FALSE,
+          registration_opens_at TIMESTAMPTZ,
+          registration_closes_at TIMESTAMPTZ,
+          created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          verified BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_tournaments_campus ON tournaments(campus);
+      CREATE INDEX IF NOT EXISTS idx_tournaments_status ON tournaments(status);
+      CREATE INDEX IF NOT EXISTS idx_tournaments_created_by ON tournaments(created_by);
+
+      CREATE TABLE IF NOT EXISTS tournament_admins (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role VARCHAR(20) NOT NULL DEFAULT 'admin',
+          granted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT unique_tournament_admin UNIQUE (tournament_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_tournament_admins_user ON tournament_admins(user_id);
+      CREATE INDEX IF NOT EXISTS idx_tournament_admins_tournament ON tournament_admins(tournament_id);
+
+      CREATE TABLE IF NOT EXISTS tournament_teams (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+          team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT unique_tournament_team UNIQUE (tournament_id, team_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_tournament_teams_tournament ON tournament_teams(tournament_id);
+      CREATE INDEX IF NOT EXISTS idx_tournament_teams_team ON tournament_teams(team_id);
+
+      ALTER TABLE matches ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+      CREATE INDEX IF NOT EXISTS idx_matches_tournament_id ON matches(tournament_id);
+
+      ALTER TABLE knockout_brackets ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+      CREATE INDEX IF NOT EXISTS idx_knockout_brackets_tournament_id ON knockout_brackets(tournament_id);
+
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+      CREATE INDEX IF NOT EXISTS idx_announcements_tournament_id ON announcements(tournament_id);
+
+      ALTER TABLE registration_deadlines ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+      CREATE INDEX IF NOT EXISTS idx_registration_deadlines_tournament_id ON registration_deadlines(tournament_id);
+
+      ALTER TABLE knockout_brackets DROP CONSTRAINT IF EXISTS unique_bracket_slot;
+      DROP INDEX IF EXISTS idx_unique_bracket_tourney_slot;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_bracket_tourney_slot ON knockout_brackets (
+          COALESCE(tournament_id, '00000000-0000-0000-0000-000000000001'::uuid),
+          sport,
+          round_number,
+          slot_number
+      );
     `);
     client.release();
     console.log('✅ PostgreSQL all tournament tables verified/ready.');
@@ -401,6 +526,7 @@ export const initDb = async () => {
     if (process.env.NODE_ENV === 'production') throw new Error(`PostgreSQL connection unavailable: ${err.message}`);
     console.warn(`⚠️  PostgreSQL connection unavailable (${err.message}).`);
     console.log('ℹ️  Seamlessly running with fast in-memory store so authentication & frontend work immediately.');
+    ensureDefaultTournamentInMemory();
   }
 };
 
@@ -430,6 +556,453 @@ export const query = async (text, params = []) => {
 
   // Fallback memory store query emulation
   const normalizedText = text.trim().toLowerCase();
+  ensureDefaultTournamentInMemory();
+
+  // --- TOURNAMENTS ---
+  if (normalizedText.includes('insert into tournaments')) {
+    let id, name, description, campus, sports, status, locked, registration_opens_at, registration_closes_at, created_by, verified;
+    if (params.length === 11) {
+      [id, name, description, campus, sports, status, locked, registration_opens_at, registration_closes_at, created_by, verified] = params;
+    } else {
+      [name, description, campus, sports, status, locked, registration_opens_at, registration_closes_at, created_by, verified] = params;
+      id = crypto.randomUUID();
+    }
+    const tourney = {
+      id: id || crypto.randomUUID(),
+      name: (name || '').trim(),
+      description: description ? description.trim() : null,
+      campus: campus || 'Main Campus',
+      sports: Array.isArray(sports) ? sports : [],
+      status: status || 'draft',
+      locked: Boolean(locked),
+      registration_opens_at: registration_opens_at || null,
+      registration_closes_at: registration_closes_at || null,
+      created_by,
+      verified: Boolean(verified),
+      created_at: new Date().toISOString()
+    };
+    memoryStore.tournaments.push(tourney);
+    return { rows: [{ ...tourney }] };
+  }
+
+  if (normalizedText.includes('from tournaments')) {
+    const enrichTourney = (t) => {
+      const creator = memoryStore.users.find(u => u.id === t.created_by);
+      const adminCount = memoryStore.tournament_admins.filter(ta => ta.tournament_id === t.id).length;
+      const teamCount = memoryStore.tournament_teams.filter(tt => tt.tournament_id === t.id && tt.status !== 'removed').length;
+      return {
+        ...t,
+        creator_name: creator?.name || 'Administrator',
+        admin_count: adminCount,
+        team_count: teamCount
+      };
+    };
+
+    if (normalizedText.includes('count(*)::integer') && normalizedText.includes('status <>') || (normalizedText.includes('count(*)::integer') && normalizedText.includes("status !="))) {
+      const [userId] = params;
+      const count = memoryStore.tournaments.filter(t => t.created_by === userId && t.status !== 'completed').length;
+      return { rows: [{ count }] };
+    }
+
+    if (normalizedText.includes('where t.id = $1') || normalizedText.includes('where id = $1')) {
+      const id = params[0];
+      const found = memoryStore.tournaments.find(t => t.id === id);
+      return { rows: found ? [enrichTourney(found)] : [] };
+    }
+
+    if (normalizedText.includes('created_by = $1 or') || normalizedText.includes('t.created_by = $1 or') || normalizedText.includes('user_id = $1')) {
+      const userId = params[0];
+      const myTourneys = memoryStore.tournaments.filter(t =>
+        t.created_by === userId || memoryStore.tournament_admins.some(ta => ta.tournament_id === t.id && ta.user_id === userId)
+      ).map(t => {
+        const adminRecord = memoryStore.tournament_admins.find(ta => ta.tournament_id === t.id && ta.user_id === userId);
+        return {
+          ...enrichTourney(t),
+          my_role: t.created_by === userId ? 'owner' : (adminRecord?.role || 'admin')
+        };
+      });
+      return { rows: myTourneys };
+    }
+
+    let list = memoryStore.tournaments.map(enrichTourney);
+    if (params[0]) {
+      const preferredCampus = params[0];
+      list.sort((a, b) => {
+        const aCampus = a.campus === preferredCampus;
+        const bCampus = b.campus === preferredCampus;
+        if (aCampus !== bCampus) return aCampus ? -1 : 1;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+    } else {
+      list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+    return { rows: list };
+  }
+
+  if (normalizedText.includes('update tournaments')) {
+    if (normalizedText.includes('set locked = $1')) {
+      const [locked, id] = params;
+      const t = memoryStore.tournaments.find(item => item.id === id);
+      if (t) {
+        t.locked = Boolean(locked);
+        return { rows: [{ ...t }] };
+      }
+      return { rows: [] };
+    }
+    if (normalizedText.includes('set verified = $1')) {
+      const [verified, id] = params;
+      const t = memoryStore.tournaments.find(item => item.id === id);
+      if (t) {
+        t.verified = Boolean(verified);
+        return { rows: [{ ...t }] };
+      }
+      return { rows: [] };
+    }
+    const [name, description, campus, sports, status, registration_opens_at, registration_closes_at, id] = params;
+    const t = memoryStore.tournaments.find(item => item.id === id);
+    if (t) {
+      if (name !== undefined) t.name = (name || '').trim();
+      if (description !== undefined) t.description = description ? description.trim() : null;
+      if (campus !== undefined) t.campus = campus;
+      if (sports !== undefined) t.sports = Array.isArray(sports) ? sports : t.sports;
+      if (status !== undefined) t.status = status;
+      if (registration_opens_at !== undefined) t.registration_opens_at = registration_opens_at;
+      if (registration_closes_at !== undefined) t.registration_closes_at = registration_closes_at;
+      return { rows: [{ ...t }] };
+    }
+    return { rows: [] };
+  }
+
+  if (normalizedText.includes('delete from tournaments')) {
+    const id = params[0];
+    const idx = memoryStore.tournaments.findIndex(t => t.id === id);
+    if (idx !== -1) {
+      const [deleted] = memoryStore.tournaments.splice(idx, 1);
+      memoryStore.tournament_admins = memoryStore.tournament_admins.filter(ta => ta.tournament_id !== id);
+      memoryStore.tournament_teams = memoryStore.tournament_teams.filter(tt => tt.tournament_id !== id);
+      return { rows: [{ ...deleted }] };
+    }
+    return { rows: [] };
+  }
+
+  // --- TOURNAMENT ADMINS ---
+  if (normalizedText.includes('delete from tournament_admins')) {
+    const [tId, uId] = params;
+    const idx = memoryStore.tournament_admins.findIndex(ta => ta.tournament_id === tId && ta.user_id === uId);
+    if (idx !== -1) {
+      const [deleted] = memoryStore.tournament_admins.splice(idx, 1);
+      return { rows: [{ ...deleted }] };
+    }
+    return { rows: [] };
+  }
+
+  if (normalizedText.includes('insert into tournament_admins')) {
+    let tournament_id, user_id, role, granted_by;
+    if (params.length >= 4) {
+      [tournament_id, user_id, role, granted_by] = params;
+    } else {
+      [tournament_id, user_id] = params;
+      role = normalizedText.includes("'owner'") ? 'owner' : (params[2] || 'admin');
+      granted_by = params[3] || user_id;
+    }
+    const existing = memoryStore.tournament_admins.find(ta => ta.tournament_id === tournament_id && ta.user_id === user_id);
+    if (existing) {
+      if (normalizedText.includes('do update')) {
+        existing.role = role || existing.role;
+        return { rows: [{ ...existing }] };
+      }
+      if (normalizedText.includes('do nothing')) return { rows: [{ ...existing }] };
+      const err = new Error('User is already an admin of this tournament');
+      err.code = '23505';
+      throw err;
+    }
+    const adminEntry = {
+      id: crypto.randomUUID(),
+      tournament_id,
+      user_id,
+      role: role || 'admin',
+      granted_by: granted_by || null,
+      created_at: new Date().toISOString()
+    };
+    memoryStore.tournament_admins.push(adminEntry);
+    return { rows: [{ ...adminEntry }] };
+  }
+
+  // --- ELIGIBLE ADMINS (CTE query) ---
+  if (normalizedText.includes('entered_users')) {
+    const tId = params[0];
+    const enteredTeams = memoryStore.tournament_teams.filter(tt => tt.tournament_id === tId && tt.status !== 'removed');
+    const enteredTeamIds = new Set(enteredTeams.map(tt => tt.team_id));
+    const adminUserIds = new Set(memoryStore.tournament_admins.filter(ta => ta.tournament_id === tId).map(ta => ta.user_id));
+
+    const eligible = [];
+    const seenUserIds = new Set();
+
+    for (const teamId of enteredTeamIds) {
+      const team = memoryStore.teams.find(t => t.id === teamId);
+      if (team && team.owner_user_id && !adminUserIds.has(team.owner_user_id) && !seenUserIds.has(team.owner_user_id)) {
+        seenUserIds.add(team.owner_user_id);
+        const u = memoryStore.users.find(user => user.id === team.owner_user_id);
+        eligible.push({
+          user_id: team.owner_user_id,
+          id: team.owner_user_id,
+          team_name: team.name,
+          team_role: 'Captain / Owner',
+          name: u?.name || 'Unknown',
+          college_id: u?.college_id || '',
+          email: u?.email || '',
+          department: u?.department || '',
+          campus: u?.campus || ''
+        });
+      }
+
+      const members = memoryStore.team_members.filter(tm => tm.team_id === teamId);
+      for (const m of members) {
+        if (m.member_user_id && !adminUserIds.has(m.member_user_id) && !seenUserIds.has(m.member_user_id)) {
+          seenUserIds.add(m.member_user_id);
+          const u = memoryStore.users.find(user => user.id === m.member_user_id);
+          eligible.push({
+            user_id: m.member_user_id,
+            id: m.member_user_id,
+            team_name: team?.name || '',
+            team_role: m.position || 'Player',
+            name: u?.name || 'Unknown',
+            college_id: u?.college_id || '',
+            email: u?.email || '',
+            department: u?.department || '',
+            campus: u?.campus || ''
+          });
+        }
+      }
+    }
+    return { rows: eligible };
+  }
+
+  if (normalizedText.includes('from tournament_admins')) {
+    if (normalizedText.includes('where tournament_id = $1 and user_id = $2') || normalizedText.includes('where ta.tournament_id = $1 and ta.user_id = $2')) {
+      const [tId, uId] = params;
+      const found = memoryStore.tournament_admins.find(ta => ta.tournament_id === tId && ta.user_id === uId);
+      return { rows: found ? [{ ...found }] : [] };
+    }
+    if (normalizedText.includes('where tournament_id = $1') || normalizedText.includes('where ta.tournament_id = $1')) {
+      const tId = params[0];
+      const list = memoryStore.tournament_admins.filter(ta => ta.tournament_id === tId).map(ta => {
+        const u = memoryStore.users.find(user => user.id === ta.user_id);
+        const granter = memoryStore.users.find(user => user.id === ta.granted_by);
+        return {
+          ...ta,
+          name: u?.name || 'Unknown',
+          college_id: u?.college_id || '',
+          email: u?.email || '',
+          department: u?.department || '',
+          campus: u?.campus || 'Main Campus',
+          granted_by_name: granter?.name || null
+        };
+      });
+      return { rows: list };
+    }
+    return { rows: memoryStore.tournament_admins.map(ta => ({ ...ta })) };
+  }
+
+  // --- TOURNAMENT TEAMS DELETION ---
+  if (normalizedText.includes('delete from tournament_teams')) {
+    const [tId, tmId] = params;
+    const idx = memoryStore.tournament_teams.findIndex(tt => tt.tournament_id === tId && tt.team_id === tmId);
+    if (idx !== -1) {
+      const [deleted] = memoryStore.tournament_teams.splice(idx, 1);
+      return { rows: [{ ...deleted }] };
+    }
+    return { rows: [] };
+  }
+
+  // --- TOURNAMENT TEAMS ---
+  if (normalizedText.includes('insert into tournament_teams')) {
+    const [tournament_id, team_id, status] = params;
+    const existing = memoryStore.tournament_teams.find(tt => tt.tournament_id === tournament_id && tt.team_id === team_id);
+    if (existing) {
+      if (normalizedText.includes('do update')) {
+        existing.status = status || existing.status;
+        return { rows: [{ ...existing }] };
+      }
+      if (normalizedText.includes('do nothing')) return { rows: [{ ...existing }] };
+      const err = new Error('Team is already entered in this tournament');
+      err.code = '23505';
+      throw err;
+    }
+    const entry = {
+      id: crypto.randomUUID(),
+      tournament_id,
+      team_id,
+      status: status || 'pending',
+      created_at: new Date().toISOString()
+    };
+    memoryStore.tournament_teams.push(entry);
+    return { rows: [{ ...entry }] };
+  }
+
+  if (normalizedText.includes('from tournament_teams')) {
+    // Specific check for user eligibility
+    if (normalizedText.includes('t.owner_user_id = $2') || (normalizedText.includes('owner_user_id') && params.length >= 2)) {
+      const [tId, uId] = params;
+      const enteredTeams = memoryStore.tournament_teams.filter(tt => tt.tournament_id === tId && tt.status !== 'removed');
+      const enteredTeamIds = new Set(enteredTeams.map(tt => tt.team_id));
+      const match = memoryStore.teams.some(t => enteredTeamIds.has(t.id) && t.owner_user_id === uId);
+      return { rows: match ? [{ 1: 1 }] : [] };
+    }
+    if (normalizedText.includes('tm.member_user_id = $2') || (normalizedText.includes('member_user_id') && params.length >= 2)) {
+      const [tId, uId] = params;
+      const enteredTeams = memoryStore.tournament_teams.filter(tt => tt.tournament_id === tId && tt.status !== 'removed');
+      const enteredTeamIds = new Set(enteredTeams.map(tt => tt.team_id));
+      const match = memoryStore.team_members.some(tm => enteredTeamIds.has(tm.team_id) && tm.member_user_id === uId);
+      return { rows: match ? [{ 1: 1 }] : [] };
+    }
+
+    if (normalizedText.includes('where tournament_id = $1 and team_id = $2') || normalizedText.includes('where tt.tournament_id = $1 and tt.team_id = $2')) {
+      const [tId, tmId] = params;
+      const found = memoryStore.tournament_teams.find(tt => tt.tournament_id === tId && tt.team_id === tmId);
+      return { rows: found ? [{ ...found }] : [] };
+    }
+    if (normalizedText.includes('where tournament_id = $1') || normalizedText.includes('where tt.tournament_id = $1')) {
+      const tId = params[0];
+      const list = memoryStore.tournament_teams.filter(tt => tt.tournament_id === tId).map(tt => {
+        const team = memoryStore.teams.find(t => t.id === tt.team_id);
+        const owner = memoryStore.users.find(u => u.id === team?.owner_user_id);
+        const members = memoryStore.team_members.filter(m => m.team_id === tt.team_id).map(m => {
+          const u = memoryStore.users.find(user => user.id === m.member_user_id);
+          return {
+            ...m,
+            college_id: u?.college_id || null,
+            email: u?.email || null,
+            campus: u?.campus || null
+          };
+        });
+        return {
+          ...tt,
+          team_name: team?.name || 'Unknown Team',
+          sport: team?.sport || 'Football',
+          campus: team?.campus || 'Main Campus',
+          owner_user_id: team?.owner_user_id,
+          owner_name: owner?.name || null,
+          owner_college_id: owner?.college_id || null,
+          owner_email: owner?.email || null,
+          members
+        };
+      });
+      return { rows: list };
+    }
+    return { rows: memoryStore.tournament_teams.map(tt => ({ ...tt })) };
+  }
+
+  if (normalizedText.includes('update tournament_teams')) {
+    const [status, tId, tmId] = params;
+    const entry = memoryStore.tournament_teams.find(tt => tt.tournament_id === tId && tt.team_id === tmId);
+    if (entry) {
+      entry.status = status;
+      return { rows: [{ ...entry }] };
+    }
+    return { rows: [] };
+  }
+
+  // --- PLAYER SPORT PROFILES ---
+  if (normalizedText.includes('insert into player_sport_profiles')) {
+    const [userId, sport, primary_role, batting_hand, bowling_style, position, playing_style, handedness, preferred_foot, event_category, extra_attributes] = params;
+    let existing = memoryStore.player_sport_profiles.find(p => p.user_id === userId && p.sport === sport);
+    const updated = {
+      id: existing?.id || crypto.randomUUID(),
+      user_id: userId,
+      sport,
+      primary_role: primary_role || null,
+      batting_hand: batting_hand || null,
+      bowling_style: bowling_style || null,
+      position: position || null,
+      playing_style: playing_style || null,
+      handedness: handedness || null,
+      preferred_foot: preferred_foot || null,
+      event_category: event_category || null,
+      extra_attributes: typeof extra_attributes === 'string' ? JSON.parse(extra_attributes) : (extra_attributes || {}),
+      updated_at: new Date().toISOString()
+    };
+    if (existing) {
+      Object.assign(existing, updated);
+    } else {
+      memoryStore.player_sport_profiles.push(updated);
+    }
+    return { rows: [{ ...updated }] };
+  }
+
+  if (normalizedText.includes('from player_sport_profiles')) {
+    if (normalizedText.includes('where user_id = $1 and sport = $2')) {
+      const [userId, sport] = params;
+      const found = memoryStore.player_sport_profiles.find(p => p.user_id === userId && p.sport === sport);
+      return { rows: found ? [{ ...found }] : [] };
+    }
+    if (normalizedText.includes('where user_id = $1')) {
+      const [userId] = params;
+      const list = memoryStore.player_sport_profiles.filter(p => p.user_id === userId);
+      return { rows: list.map(p => ({ ...p })) };
+    }
+    if (normalizedText.includes('where psp.sport = $1')) {
+      const [sport, rolePattern, posPattern, bowlPattern, batPattern] = params;
+      const clean = (pat) => pat ? pat.replace(/%/g, '').toLowerCase() : null;
+      const r = clean(rolePattern);
+      const pos = clean(posPattern);
+      const bowl = clean(bowlPattern);
+      const bat = clean(batPattern);
+
+      const matched = memoryStore.player_sport_profiles.filter(p => {
+        if (p.sport !== sport) return false;
+        if (r && (!p.primary_role || !p.primary_role.toLowerCase().includes(r))) return false;
+        if (pos && (!p.position || !p.position.toLowerCase().includes(pos))) return false;
+        if (bowl && (!p.bowling_style || !p.bowling_style.toLowerCase().includes(bowl))) return false;
+        if (bat && (!p.batting_hand || !p.batting_hand.toLowerCase().includes(bat))) return false;
+        return true;
+      });
+
+      const joined = matched.map(psp => {
+        const u = memoryStore.users.find(user => user.id === psp.user_id);
+        return {
+          ...psp,
+          id: u?.id || psp.user_id,
+          name: u?.name || 'Unknown',
+          college_id: u?.college_id || '',
+          department: u?.department || '',
+          year: u?.year || '',
+          campus: u?.campus || 'Main Campus',
+          email: u?.email || '',
+          phone: u?.phone || ''
+        };
+      });
+      return { rows: joined };
+    }
+    if (normalizedText.includes('psp.primary_role ilike $1') || normalizedText.includes('primary_role ilike $1')) {
+      const term = (params[0] || '').replace(/%/g, '').toLowerCase();
+      const matched = memoryStore.player_sport_profiles.filter(p => {
+        return (
+          (p.primary_role && p.primary_role.toLowerCase().includes(term)) ||
+          (p.position && p.position.toLowerCase().includes(term)) ||
+          (p.bowling_style && p.bowling_style.toLowerCase().includes(term)) ||
+          (p.batting_hand && p.batting_hand.toLowerCase().includes(term)) ||
+          (p.playing_style && p.playing_style.toLowerCase().includes(term)) ||
+          (p.handedness && p.handedness.toLowerCase().includes(term)) ||
+          (p.event_category && p.event_category.toLowerCase().includes(term)) ||
+          (p.preferred_foot && p.preferred_foot.toLowerCase().includes(term))
+        );
+      });
+      const joined = matched.map(psp => {
+        const u = memoryStore.users.find(user => user.id === psp.user_id);
+        return {
+          ...psp,
+          id: u?.id || psp.user_id,
+          name: u?.name || 'Unknown',
+          college_id: u?.college_id || '',
+          department: u?.department || '',
+          campus: u?.campus || 'Main Campus'
+        };
+      });
+      return { rows: joined };
+    }
+    return { rows: memoryStore.player_sport_profiles.map(p => ({ ...p })) };
+  }
 
   // --- TOURNAMENT SETTINGS ---
   if (normalizedText.includes('from tournament_settings')) {
@@ -441,13 +1014,17 @@ export const query = async (text, params = []) => {
   // --- REGISTRATION DEADLINES ---
   if (normalizedText.includes('from registration_deadlines')) {
     const sport = params[0];
-    const rows = sport ? memoryStore.registration_deadlines.filter(item => item.sport === sport) : memoryStore.registration_deadlines;
+    let rows = sport ? memoryStore.registration_deadlines.filter(item => item.sport === sport) : memoryStore.registration_deadlines;
+    if (normalizedText.includes('tournament_id = $2') || normalizedText.includes('tournament_id = $1')) {
+      const tourneyId = params[1] || params[0];
+      if (tourneyId) rows = rows.filter(item => item.tournament_id === tourneyId);
+    }
     return { rows: rows.map(item => ({ ...item })) };
   }
   if (normalizedText.includes('insert into registration_deadlines')) {
-    const [sport, opens_at, closes_at] = params;
-    const existing = memoryStore.registration_deadlines.find(item => item.sport === sport);
-    const deadline = { sport, opens_at: opens_at || null, closes_at: closes_at || null, updated_at: new Date().toISOString() };
+    const [sport, opens_at, closes_at, tourney_id] = params;
+    const existing = memoryStore.registration_deadlines.find(item => item.sport === sport && (!tourney_id || item.tournament_id === tourney_id));
+    const deadline = { sport, opens_at: opens_at || null, closes_at: closes_at || null, tournament_id: tourney_id || DEFAULT_TOURNAMENT_ID, updated_at: new Date().toISOString() };
     if (existing) Object.assign(existing, deadline); else memoryStore.registration_deadlines.push(deadline);
     return { rows: [{ ...(existing || deadline) }] };
   }
@@ -1177,8 +1754,8 @@ export const query = async (text, params = []) => {
 
   // --- MATCHES ---
   if (normalizedText.includes('insert into matches')) {
-    // params: [name, match_date, status, sport, team_a_id, team_b_id]
-    const [name, match_date, status, sport, team_a_id, team_b_id] = params;
+    // params: [name, match_date, status, sport, team_a_id, team_b_id, tournament_id]
+    const [name, match_date, status, sport, team_a_id, team_b_id, tournament_id] = params;
     const newMatch = {
       id: crypto.randomUUID(),
       name,
@@ -1187,6 +1764,7 @@ export const query = async (text, params = []) => {
       sport: sport || 'Football',
       team_a_id: team_a_id || null,
       team_b_id: team_b_id || null,
+      tournament_id: tournament_id || DEFAULT_TOURNAMENT_ID,
       created_at: new Date().toISOString()
     };
     memoryStore.matches.push(newMatch);
@@ -1226,6 +1804,7 @@ export const query = async (text, params = []) => {
   if (normalizedText.includes('from matches')) {
     const enrichMatch = (match) => ({
       ...match,
+      tournament_id: match.tournament_id || DEFAULT_TOURNAMENT_ID,
       team_a_name: memoryStore.teams.find(team => team.id === match.team_a_id)?.name || null,
       team_b_name: memoryStore.teams.find(team => team.id === match.team_b_id)?.name || null
     });
@@ -1234,7 +1813,12 @@ export const query = async (text, params = []) => {
       const match = memoryStore.matches.find(m => m.id === id);
       return { rows: match ? [enrichMatch(match)] : [] };
     }
-    return { rows: memoryStore.matches.map(enrichMatch) };
+    let list = memoryStore.matches.map(enrichMatch);
+    if (normalizedText.includes('tournament_id =') || normalizedText.includes('m.tournament_id =')) {
+      const tId = params.find(p => typeof p === 'string' && /^[0-9a-f-]{36}$/i.test(p));
+      if (tId) list = list.filter(m => m.tournament_id === tId);
+    }
+    return { rows: list };
   }
 
   // --- SCORES ---

@@ -18,12 +18,12 @@ import {
   getAuditLog
   , createAnnouncement, updateAnnouncement, deleteAnnouncement
 } from '../controllers/adminController.js';
-import { authenticateToken, requireAdmin } from '../middleware/authMiddleware.js';
+import { authenticateToken, requireTournamentAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// All routes in this file require valid admin JWT authentication
-router.use(authenticateToken, requireAdmin);
+// All routes in this file require tournament admin permissions (scoped to the tournament) or super admin
+router.use(authenticateToken, requireTournamentAdmin);
 
 // Tournament Locking
 router.post('/lock-teams', lockTeams);
