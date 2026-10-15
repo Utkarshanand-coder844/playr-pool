@@ -369,10 +369,12 @@ CREATE TABLE IF NOT EXISTS tournament_teams (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
     team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'removed')),
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'removed', 'invited')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_tournament_team UNIQUE (tournament_id, team_id)
 );
+ALTER TABLE tournament_teams DROP CONSTRAINT IF EXISTS tournament_teams_status_check;
+ALTER TABLE tournament_teams ADD CONSTRAINT tournament_teams_status_check CHECK (status IN ('pending', 'approved', 'removed', 'invited'));
 CREATE INDEX IF NOT EXISTS idx_tournament_teams_tournament ON tournament_teams(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_tournament_teams_team ON tournament_teams(team_id);
 

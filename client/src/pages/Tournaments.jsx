@@ -5,7 +5,7 @@ import { getAuthHeaders } from '../utils/authFetch';
 const API = '/api/tournaments';
 
 // ─────────────────────────────────────────────────
-// Shared inline styles to match the existing codebase's premium dark aesthetic
+// Shared inline styles matching the dark/neon aesthetic
 // ─────────────────────────────────────────────────
 const styles = {
   page: { maxWidth: 1200, margin: '0 auto', padding: '2rem 1rem' },
@@ -21,15 +21,13 @@ const styles = {
   btnPrimary: { background: 'linear-gradient(135deg, var(--primary), var(--accent, #38bdf8))', color: '#fff' },
   btnSecondary: { background: 'var(--card-bg, #1e293b)', color: 'var(--text-primary)', border: '1px solid var(--border, #334155)' },
   btnDanger: { background: '#ef4444', color: '#fff' },
+  btnSuccess: { background: '#22c55e', color: '#fff' },
   btnSm: { padding: '6px 14px', fontSize: '.8rem', borderRadius: 8 },
   input: { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border, #334155)', background: 'var(--input-bg, #0f172a)', color: 'var(--text-primary)', fontSize: '.875rem', outline: 'none', transition: 'border-color .15s' },
   label: { display: 'block', fontSize: '.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 },
-  modal: { position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(4px)' },
-  modalContent: { background: 'var(--card-bg, #1e293b)', borderRadius: 20, padding: '2rem', maxWidth: 560, width: '90vw', maxHeight: '85vh', overflowY: 'auto', border: '1px solid var(--border, #334155)', boxShadow: '0 20px 60px rgba(0,0,0,.5)' },
   stat: { textAlign: 'center' },
   statValue: { fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)' },
   statLabel: { fontSize: '.7rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.5px' },
-  divider: { border: 'none', borderTop: '1px solid var(--border, #334155)', margin: '1rem 0' },
   tag: { display: 'inline-block', fontSize: '.7rem', padding: '2px 8px', borderRadius: 6, background: 'rgba(99,102,241,.15)', color: '#818cf8', marginRight: 4, marginBottom: 4 },
   emptyState: { textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-secondary)' },
   roleOwner: { background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff' },
@@ -42,9 +40,10 @@ const styles = {
 // ─────────────────────────────────────────────────
 export const Tournaments = ({ onNavigate }) => {
   const { user, token, isAuthenticated } = useAuth();
-  const [tab, setTab] = useState('browse');       // browse | mine | create
+  const [tab, setTab] = useState('browse');       // browse | mine | invitations | create
   const [tournaments, setTournaments] = useState([]);
   const [myTournaments, setMyTournaments] = useState([]);
+  const [myTeamTournaments, setMyTeamTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -56,12 +55,16 @@ export const Tournaments = ({ onNavigate }) => {
   const [tournamentTeams, setTournamentTeams] = useState([]);
   const [tournamentAdmins, setTournamentAdmins] = useState([]);
   const [eligibleAdmins, setEligibleAdmins] = useState([]);
+  const [availableTeams, setAvailableTeams] = useState([]);
+  const [selectedInviteTeamId, setSelectedInviteTeamId] = useState('');
+  const [invitingAll, setInvitingAll] = useState(false);
+  const [deletingTournament, setDeletingTournament] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
 
   // ── Create form state ──
   const [form, setForm] = useState({
     name: '', description: '', campus: user?.campus || '', sports: '', status: 'draft',
-    registration_opens_at: '', registration_closes_at: ''
+    registration_opens_at: '', registration_closes_at: '', invite_all: true
   });
   const [creating, setCreating] = useState(false);
 
@@ -85,10 +88,32 @@ export const Tournaments = ({ onNavigate }) => {
     } catch { /* ignore */ }
   }, [token]);
 
+  const fetchMyInvitations = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/my-invitations`, { headers: getAuthHeaders(token) });
+      const data = await res.json();
+      if (data.success) setMyTeamTournaments(data.tournaments || []);
+    } catch { /* ignore */ }
+  }, [token]);
+
+  const fetchAvailableTeams = useCallback(async (tourneyId) => {
+    if (!token || !tourneyId) return;
+    try {
+      const res = await fetch(`${API}/${tourneyId}/available-teams`, { headers: getAuthHeaders(token) });
+      const data = await res.json();
+      if (data.success) setAvailableTeams(data.teams || []);
+    } catch { /* ignore */ }
+  }, [token]);
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchPublic(), isAuthenticated ? fetchMine() : Promise.resolve()]).finally(() => setLoading(false));
-  }, [fetchPublic, fetchMine, isAuthenticated]);
+    Promise.all([
+      fetchPublic(),
+      isAuthenticated ? fetchMine() : Promise.resolve(),
+      isAuthenticated ? fetchMyInvitations() : Promise.resolve()
+    ]).finally(() => setLoading(false));
+  }, [fetchPublic, fetchMine, fetchMyInvitations, isAuthenticated]);
 
   // ── Create tournament ──
   const handleCreate = async (e) => {
@@ -104,11 +129,12 @@ export const Tournaments = ({ onNavigate }) => {
         body: JSON.stringify({ ...form, sports: sportsArray })
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Failed');
-      setSuccess(data.message || 'Tournament created!');
-      setForm({ name: '', description: '', campus: user?.campus || '', sports: '', status: 'draft', registration_opens_at: '', registration_closes_at: '' });
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to create tournament');
+      setSuccess(data.message || 'Tournament created successfully!');
+      setForm({ name: '', description: '', campus: user?.campus || '', sports: '', status: 'draft', registration_opens_at: '', registration_closes_at: '', invite_all: true });
       fetchPublic();
       fetchMine();
+      fetchMyInvitations();
       setTab('mine');
     } catch (err) {
       setError(err.message);
@@ -133,8 +159,21 @@ export const Tournaments = ({ onNavigate }) => {
         const adminsData = await adminsRes.json();
         setTournamentAdmins(adminsData.success ? adminsData.admins : []);
       }
+      if (token) {
+        fetchAvailableTeams(tournament.id);
+      }
     } catch { /* ignore */ }
     setDetailLoading(false);
+  };
+
+  const openDetailById = async (tournamentId) => {
+    try {
+      const res = await fetch(`${API}/${tournamentId}`, token ? { headers: getAuthHeaders(token) } : {});
+      const data = await res.json();
+      if (data.success && data.tournament) {
+        openDetail(data.tournament);
+      }
+    } catch { /* ignore */ }
   };
 
   const fetchEligible = async (tournamentId) => {
@@ -154,7 +193,7 @@ export const Tournaments = ({ onNavigate }) => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed');
-      setSuccess('Player promoted to admin!');
+      setSuccess('Player promoted to tournament administrator!');
       openDetail(selectedTournament);
       fetchEligible(tournamentId);
     } catch (err) { setError(err.message); }
@@ -168,7 +207,7 @@ export const Tournaments = ({ onNavigate }) => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed');
-      setSuccess('Admin removed.');
+      setSuccess('Administrator removed.');
       openDetail(selectedTournament);
     } catch (err) { setError(err.message); }
   };
@@ -182,9 +221,97 @@ export const Tournaments = ({ onNavigate }) => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed');
-      setSuccess(`Team status → ${status}`);
+      setSuccess(`Team status updated to '${status}'`);
       openDetail(selectedTournament);
     } catch (err) { setError(err.message); }
+  };
+
+  // ── Delete Tournament by Creator/Owner ──
+  const handleDeleteTournament = async (tournamentId, name) => {
+    if (!window.confirm(`Are you sure you want to permanently delete the tournament "${name}"?\n\nThis will remove all tournament fixtures, live scoring records, team entries, and announcements. This action cannot be undone.`)) {
+      return;
+    }
+    setDeletingTournament(true);
+    setError(''); setSuccess('');
+    try {
+      const res = await fetch(`${API}/${tournamentId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to delete tournament');
+      setSuccess(`Tournament "${name}" has been deleted.`);
+      setSelectedTournament(null);
+      fetchPublic();
+      fetchMine();
+      fetchMyInvitations();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingTournament(false);
+    }
+  };
+
+  // ── Invite All Teams ──
+  const handleInviteAll = async (tournamentId) => {
+    setInvitingAll(true);
+    setError(''); setSuccess('');
+    try {
+      const res = await fetch(`${API}/${tournamentId}/invite-teams`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ inviteAll: true })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to invite teams');
+      setSuccess(data.message || 'All eligible teams have been invited!');
+      openDetail(selectedTournament);
+      fetchAvailableTeams(tournamentId);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setInvitingAll(false);
+    }
+  };
+
+  // ── Invite Specific Team ──
+  const handleInviteSpecificTeam = async (tournamentId, teamId) => {
+    if (!teamId) return;
+    setError(''); setSuccess('');
+    try {
+      const res = await fetch(`${API}/${tournamentId}/invite-teams`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ teamIds: [teamId] })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to invite team');
+      setSuccess('Team invitation sent successfully!');
+      setSelectedInviteTeamId('');
+      openDetail(selectedTournament);
+      fetchAvailableTeams(tournamentId);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // ── Respond to Invitation (Team Captain) ──
+  const handleRespondInvite = async (tournamentId, teamId, action) => {
+    setError(''); setSuccess('');
+    try {
+      const res = await fetch(`${API}/${tournamentId}/respond-invite`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ teamId, action })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to respond');
+      setSuccess(action === 'accept' ? 'Tournament invitation accepted! Your team is now officially entered.' : 'Tournament invitation declined.');
+      fetchMyInvitations();
+      fetchPublic();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const canManage = (t) => {
@@ -194,13 +321,13 @@ export const Tournaments = ({ onNavigate }) => {
   };
 
   // ──────────────────────────────────
-  // Render
+  // Render Detail View
   // ──────────────────────────────────
-
-  // Detail modal
   if (selectedTournament) {
     const t = selectedTournament;
     const isManager = canManage(t);
+    const isOwner = t.my_role === 'owner' || user?.role === 'admin';
+
     return (
       <div style={styles.page}>
         {error && <div style={{ ...styles.alert, ...styles.alertError }}>{error}</div>}
@@ -211,10 +338,10 @@ export const Tournaments = ({ onNavigate }) => {
         </button>
 
         <div style={styles.card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem', flexWrap: 'wrap' }}>
             <h1 style={{ ...styles.heading, fontSize: '1.5rem', margin: 0 }}>{t.name}</h1>
             <span style={{ ...styles.badge, background: styles.statusColors[t.status] || '#64748b', color: '#fff' }}>{t.status}</span>
-            {t.verified && <span style={{ ...styles.badge, ...styles.verifiedBadge }}>✓ Verified</span>}
+            {t.verified && <span style={{ ...styles.badge, ...styles.verifiedBadge }}>✓ Verified Badge</span>}
             {t.locked && <span style={{ ...styles.badge, background: '#ef4444', color: '#fff' }}>🔒 Locked</span>}
           </div>
           {t.description && <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>{t.description}</p>}
@@ -241,10 +368,19 @@ export const Tournaments = ({ onNavigate }) => {
           )}
 
           {isManager && (
-            <div style={{ display: 'flex', gap: 8, marginTop: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 10, marginTop: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <button style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }} onClick={() => onNavigate('admin-dashboard', t.id)}>
                 ⚙️ Manage Dashboard
               </button>
+              {isOwner && (
+                <button
+                  style={{ ...styles.btn, ...styles.btnDanger, ...styles.btnSm }}
+                  onClick={() => handleDeleteTournament(t.id, t.name)}
+                  disabled={deletingTournament}
+                >
+                  {deletingTournament ? 'Deleting…' : '🗑️ Delete Tournament'}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -253,39 +389,96 @@ export const Tournaments = ({ onNavigate }) => {
         <div style={{ display: 'flex', gap: 8, marginTop: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
           {['teams', isManager && 'admins', isManager && 'promote'].filter(Boolean).map(dt => (
             <button key={dt} style={{ ...styles.btn, ...(detailTab === dt ? styles.btnPrimary : styles.btnSecondary), ...styles.btnSm }} onClick={() => { setDetailTab(dt); if (dt === 'promote') fetchEligible(t.id); }}>
-              {dt === 'teams' ? '🏆 Teams' : dt === 'admins' ? '👥 Admins' : '⬆️ Promote'}
+              {dt === 'teams' ? '🏆 Teams & Entries' : dt === 'admins' ? '👥 Admins' : '⬆️ Promote Player'}
             </button>
           ))}
         </div>
 
         {detailLoading ? (
-          <div style={styles.emptyState}>Loading…</div>
+          <div style={styles.emptyState}>Loading details…</div>
         ) : detailTab === 'teams' ? (
-          <div style={styles.grid}>
-            {tournamentTeams.length === 0 ? (
-              <div style={styles.emptyState}>No teams entered yet.</div>
-            ) : tournamentTeams.map(team => (
-              <div key={team.team_id} style={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <strong style={{ color: 'var(--text-primary)' }}>{team.team_name}</strong>
-                    <span style={{ ...styles.tag, marginLeft: 8 }}>{team.sport}</span>
-                  </div>
-                  <span style={{ ...styles.badge, background: team.status === 'approved' ? '#22c55e' : team.status === 'removed' ? '#ef4444' : '#f59e0b', color: '#fff' }}>
-                    {team.status}
-                  </span>
+          <div>
+            {/* Team Invitation Action Bar for Managers */}
+            {isManager && (
+              <div style={{
+                display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+                marginBottom: '1.25rem', padding: '12px 16px', background: 'rgba(15, 23, 42, 0.7)',
+                borderRadius: 14, border: '1px solid var(--border, #334155)'
+              }}>
+                <button
+                  style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}
+                  onClick={() => handleInviteAll(t.id)}
+                  disabled={invitingAll}
+                >
+                  📢 {invitingAll ? 'Inviting Teams…' : 'Invite All Campus Teams'}
+                </button>
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, minWidth: 260 }}>
+                  <select
+                    value={selectedInviteTeamId}
+                    onChange={(e) => setSelectedInviteTeamId(e.target.value)}
+                    style={{ ...styles.input, padding: '6px 12px', fontSize: '.85rem' }}
+                  >
+                    <option value="">Select specific team to invite…</option>
+                    {availableTeams.map(at => (
+                      <option key={at.id} value={at.id}>{at.name} ({at.sport} • {at.campus})</option>
+                    ))}
+                  </select>
+                  <button
+                    style={{ ...styles.btn, ...styles.btnSecondary, ...styles.btnSm, whiteSpace: 'nowrap' }}
+                    onClick={() => handleInviteSpecificTeam(t.id, selectedInviteTeamId)}
+                    disabled={!selectedInviteTeamId}
+                  >
+                    Send Invite
+                  </button>
                 </div>
-                <div style={{ fontSize: '.8rem', color: 'var(--text-secondary)', marginTop: 6 }}>
-                  Captain: {team.owner_name || 'Unknown'} • {team.members?.length || 0} members
-                </div>
-                {isManager && (
-                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                    {team.status !== 'approved' && <button style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }} onClick={() => updateTeamStatus(t.id, team.team_id, 'approved')}>✓ Approve</button>}
-                    {team.status !== 'removed' && <button style={{ ...styles.btn, ...styles.btnDanger, ...styles.btnSm }} onClick={() => updateTeamStatus(t.id, team.team_id, 'removed')}>✗ Remove</button>}
-                  </div>
-                )}
               </div>
-            ))}
+            )}
+
+            {tournamentTeams.length === 0 ? (
+              <div style={styles.emptyState}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '.5rem' }}>🛡️</div>
+                <h3>No Teams In This Tournament Yet</h3>
+                <p>Use the invite buttons above to invite campus teams, or let captains enter directly.</p>
+              </div>
+            ) : (
+              <div style={styles.grid}>
+                {tournamentTeams.map(team => (
+                  <div key={team.team_id} style={styles.card}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong style={{ color: 'var(--text-primary)' }}>{team.team_name}</strong>
+                        <span style={{ ...styles.tag, marginLeft: 8 }}>{team.sport}</span>
+                      </div>
+                      <span style={{
+                        ...styles.badge,
+                        background: team.status === 'approved' ? '#22c55e' : team.status === 'invited' ? '#8b5cf6' : team.status === 'removed' ? '#ef4444' : '#f59e0b',
+                        color: '#fff'
+                      }}>
+                        {team.status === 'invited' ? '✉️ Invited' : team.status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '.8rem', color: 'var(--text-secondary)', marginTop: 6 }}>
+                      Captain: {team.owner_name || 'Captain'} • {team.members?.length || 0} members
+                    </div>
+                    {isManager && (
+                      <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                        {team.status !== 'approved' && (
+                          <button style={{ ...styles.btn, ...styles.btnSuccess, ...styles.btnSm }} onClick={() => updateTeamStatus(t.id, team.team_id, 'approved')}>
+                            ✓ Approve
+                          </button>
+                        )}
+                        {team.status !== 'removed' && (
+                          <button style={{ ...styles.btn, ...styles.btnDanger, ...styles.btnSm }} onClick={() => updateTeamStatus(t.id, team.team_id, 'removed')}>
+                            {team.status === 'invited' ? 'Cancel Invite' : '✗ Remove'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : detailTab === 'admins' ? (
           <div style={styles.grid}>
@@ -301,7 +494,7 @@ export const Tournaments = ({ onNavigate }) => {
                   </span>
                 </div>
                 {admin.granted_by_name && <div style={{ fontSize: '.7rem', color: 'var(--text-secondary)', marginTop: 4 }}>Promoted by {admin.granted_by_name}</div>}
-                {admin.role !== 'owner' && t.my_role === 'owner' && (
+                {admin.role !== 'owner' && isOwner && (
                   <button style={{ ...styles.btn, ...styles.btnDanger, ...styles.btnSm, marginTop: 8 }} onClick={() => removeAdmin(t.id, admin.user_id)}>
                     Remove Admin
                   </button>
@@ -313,7 +506,7 @@ export const Tournaments = ({ onNavigate }) => {
           <div>
             <h3 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>Eligible Players (from entered teams)</h3>
             {eligibleAdmins.length === 0 ? (
-              <div style={styles.emptyState}>No eligible players found. Players must be on the roster of a team entered in this tournament.</div>
+              <div style={styles.emptyState}>No eligible players found. Players must be on the roster or owner of a team entered in this tournament.</div>
             ) : (
               <div style={styles.grid}>
                 {eligibleAdmins.map(player => (
@@ -334,19 +527,39 @@ export const Tournaments = ({ onNavigate }) => {
     );
   }
 
+  // ──────────────────────────────────
+  // Main Page View (Tabs)
+  // ──────────────────────────────────
+  const pendingInvitesCount = myTeamTournaments.filter(m => m.entry_status === 'invited').length;
+
   return (
     <div style={styles.page}>
       <h1 style={styles.heading}>🏆 Tournaments</h1>
-      <p style={styles.sub}>Browse campus tournaments, create your own, or manage ones you administer.</p>
+      <p style={styles.sub}>Browse campus tournaments, respond to invitations, or create your own championship.</p>
 
       {error && <div style={{ ...styles.alert, ...styles.alertError }}>{error}</div>}
       {success && <div style={{ ...styles.alert, ...styles.alertSuccess }}>{success}</div>}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <button style={{ ...styles.btn, ...(tab === 'browse' ? styles.btnPrimary : styles.btnSecondary) }} onClick={() => setTab('browse')}>🌐 Browse</button>
-        {isAuthenticated && <button style={{ ...styles.btn, ...(tab === 'mine' ? styles.btnPrimary : styles.btnSecondary) }} onClick={() => setTab('mine')}>📋 My Tournaments</button>}
-        {isAuthenticated && <button style={{ ...styles.btn, ...(tab === 'create' ? styles.btnPrimary : styles.btnSecondary) }} onClick={() => setTab('create')}>➕ Create</button>}
+        <button style={{ ...styles.btn, ...(tab === 'browse' ? styles.btnPrimary : styles.btnSecondary) }} onClick={() => setTab('browse')}>
+          🌐 Browse
+        </button>
+        {isAuthenticated && (
+          <button style={{ ...styles.btn, ...(tab === 'invitations' ? styles.btnPrimary : styles.btnSecondary) }} onClick={() => setTab('invitations')}>
+            📩 My Team's Tournaments {pendingInvitesCount > 0 && <span style={{ ...styles.badge, background: '#ef4444', color: '#fff', marginLeft: 6 }}>{pendingInvitesCount} New</span>}
+          </button>
+        )}
+        {isAuthenticated && (
+          <button style={{ ...styles.btn, ...(tab === 'mine' ? styles.btnPrimary : styles.btnSecondary) }} onClick={() => setTab('mine')}>
+            ⚡ Managed Tournaments ({myTournaments.length})
+          </button>
+        )}
+        {isAuthenticated && (
+          <button style={{ ...styles.btn, ...(tab === 'create' ? styles.btnPrimary : styles.btnSecondary) }} onClick={() => setTab('create')}>
+            ➕ Create Tournament
+          </button>
+        )}
       </div>
 
       {/* Browse Tab */}
@@ -365,6 +578,7 @@ export const Tournaments = ({ onNavigate }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span style={{ ...styles.badge, background: styles.statusColors[t.status] || '#64748b', color: '#fff' }}>{t.status}</span>
                   {t.verified && <span style={{ ...styles.badge, ...styles.verifiedBadge }}>✓ Verified</span>}
+                  {t.locked && <span style={{ ...styles.badge, background: '#ef4444', color: '#fff' }}>🔒 Locked</span>}
                 </div>
                 <h3 style={{ margin: '0 0 4px', color: 'var(--text-primary)', fontSize: '1.1rem' }}>{t.name}</h3>
                 <div style={{ fontSize: '.8rem', color: 'var(--text-secondary)', marginBottom: 8 }}>🏫 {t.campus} • 👤 {t.creator_name || 'Admin'}</div>
@@ -379,12 +593,95 @@ export const Tournaments = ({ onNavigate }) => {
         )
       )}
 
+      {/* Invitations & Participations Tab */}
+      {tab === 'invitations' && (
+        myTeamTournaments.length === 0 ? (
+          <div style={styles.emptyState}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📩</div>
+            <h3>No Tournament Invitations</h3>
+            <p>None of your teams have active tournament invitations or entries yet. When an organizer invites your team, details will appear here.</p>
+          </div>
+        ) : (
+          <div style={styles.grid}>
+            {myTeamTournaments.map((item, idx) => (
+              <div key={`${item.tournament_id}-${item.team_id}-${idx}`} style={styles.card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{
+                    ...styles.badge,
+                    background: item.entry_status === 'approved' ? '#22c55e' : item.entry_status === 'invited' ? '#8b5cf6' : '#f59e0b',
+                    color: '#fff'
+                  }}>
+                    {item.entry_status === 'invited' ? '✉️ Invited' : item.entry_status === 'approved' ? '✓ Entered' : '⏳ Pending'}
+                  </span>
+                  <span style={{ fontSize: '.75rem', color: 'var(--text-secondary)' }}>
+                    🏫 {item.tournament_campus}
+                  </span>
+                </div>
+
+                <h3 style={{ margin: '0 0 4px', color: 'var(--text-primary)', fontSize: '1.15rem' }}>{item.tournament_name}</h3>
+                <div style={{ fontSize: '.8rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                  Organizer: <strong>{item.creator_name}</strong>
+                </div>
+
+                {item.description && (
+                  <p style={{ fontSize: '.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 8 }}>
+                    {item.description}
+                  </p>
+                )}
+
+                <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '8px 12px', borderRadius: 10, margin: '8px 0', border: '1px solid var(--border, #334155)' }}>
+                  <div style={{ fontSize: '.75rem', color: 'var(--text-secondary)' }}>Your Participating Team:</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '.9rem' }}>
+                    {item.team_name} <span style={styles.tag}>{item.team_sport}</span>
+                  </div>
+                  <div style={{ fontSize: '.7rem', color: item.is_team_owner ? '#38bdf8' : 'var(--text-muted)' }}>
+                    {item.is_team_owner ? '👑 You are the Team Captain' : '👤 You are on the Team Roster'}
+                  </div>
+                </div>
+
+                {item.entry_status === 'invited' && (
+                  <div style={{ marginTop: 10 }}>
+                    {item.is_team_owner ? (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          style={{ ...styles.btn, ...styles.btnSuccess, ...styles.btnSm, flex: 1, justifyContent: 'center' }}
+                          onClick={() => handleRespondInvite(item.tournament_id, item.team_id, 'accept')}
+                        >
+                          ✓ Accept & Join
+                        </button>
+                        <button
+                          style={{ ...styles.btn, ...styles.btnDanger, ...styles.btnSm }}
+                          onClick={() => handleRespondInvite(item.tournament_id, item.team_id, 'decline')}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '.75rem', color: '#a78bfa', marginTop: 4 }}>
+                        Awaiting your captain's decision to accept the invitation.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  style={{ ...styles.btn, ...styles.btnSecondary, ...styles.btnSm, width: '100%', justifyContent: 'center', marginTop: 10 }}
+                  onClick={() => openDetailById(item.tournament_id)}
+                >
+                  👁️ View Full Tournament Info
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
       {/* My Tournaments Tab */}
       {tab === 'mine' && (
         loading ? <div style={styles.emptyState}>Loading…</div> : myTournaments.length === 0 ? (
           <div style={styles.emptyState}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
-            <h3>No Tournaments</h3>
+            <h3>No Managed Tournaments</h3>
             <p>You haven't created or been promoted to admin on any tournament yet.</p>
             <button style={{ ...styles.btn, ...styles.btnPrimary, marginTop: '1rem' }} onClick={() => setTab('create')}>➕ Create One</button>
           </div>
@@ -403,9 +700,19 @@ export const Tournaments = ({ onNavigate }) => {
                 </div>
                 <h3 style={{ margin: '0 0 4px', color: 'var(--text-primary)', fontSize: '1.1rem' }}>{t.name}</h3>
                 <div style={{ fontSize: '.8rem', color: 'var(--text-secondary)' }}>🏫 {t.campus} • {t.team_count || 0} teams</div>
-                <button style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm, marginTop: 12 }} onClick={(e) => { e.stopPropagation(); onNavigate('admin-dashboard', t.id); }}>
-                  ⚙️ Manage
-                </button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }} onClick={(e) => { e.stopPropagation(); onNavigate('admin-dashboard', t.id); }}>
+                    ⚙️ Manage
+                  </button>
+                  {t.my_role === 'owner' && (
+                    <button
+                      style={{ ...styles.btn, ...styles.btnDanger, ...styles.btnSm }}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteTournament(t.id, t.name); }}
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -453,6 +760,21 @@ export const Tournaments = ({ onNavigate }) => {
                 <input style={styles.input} type="datetime-local" value={form.registration_closes_at} onChange={e => setForm(f => ({ ...f, registration_closes_at: e.target.value }))} />
               </div>
             </div>
+            <div style={{ marginBottom: '1.25rem', padding: '12px 14px', background: 'rgba(56, 189, 248, 0.08)', borderRadius: 10, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', margin: 0, color: 'var(--text-primary)', fontWeight: 600, fontSize: '.9rem' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.invite_all)}
+                  onChange={e => setForm(f => ({ ...f, invite_all: e.target.checked }))}
+                  style={{ width: 18, height: 18, accentColor: '#38bdf8' }}
+                />
+                <span>📢 Invite all campus teams automatically</span>
+              </label>
+              <div style={{ fontSize: '.75rem', color: 'var(--text-secondary)', marginLeft: 28, marginTop: 4, lineHeight: 1.4 }}>
+                Before creating team brackets, automatically send tournament invitations to all existing teams matching this tournament's campus and sports.
+              </div>
+            </div>
+
             <button type="submit" disabled={creating} style={{ ...styles.btn, ...styles.btnPrimary, width: '100%', justifyContent: 'center', opacity: creating ? .6 : 1 }}>
               {creating ? 'Creating…' : '🏆 Create Tournament'}
             </button>

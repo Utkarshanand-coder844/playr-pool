@@ -315,6 +315,78 @@ async function runTournamentVerification() {
     const roleAfterRemoval = await TournamentModel.getAdmin(tournament.id, memberPlayer.id);
     assert(roleAfterRemoval === null, 'Removed user no longer has tournament admin role');
 
+    // ─────────────────────────────────────────────────────────────
+    // Test 9: Team Invitation Flow & Player Tournament Visibility
+    // ─────────────────────────────────────────────────────────────
+    console.log('\n📌 Test 9: Team invitation flow & invited player tournament info visibility');
+    const teamC = await TeamModel.createTeam({
+      name: `Invited Squad ${timestamp}`,
+      owner_user_id: outsidePlayer.id,
+      sport: 'Football',
+      campus: 'North Campus'
+    });
+    assert(teamC && teamC.id, 'Created Team C owned by outsidePlayer');
+
+    // Invite teamC to tournament
+    const inviteResults = await TournamentModel.inviteTeams({
+      tournamentId: tournament.id,
+      teamIds: [teamC.id]
+    });
+    assert(inviteResults && inviteResults.length === 1, 'Successfully invited Team C');
+    assert(inviteResults[0].status === 'invited', 'Team C entry status is "invited"');
+
+    // Invited player can see info about the tournament they are in
+    const outsideTournaments = await TournamentModel.getTournamentsForUserTeams(outsidePlayer.id);
+    assert(outsideTournaments.length > 0, 'Invited player can see their team tournaments');
+    const myTourney = outsideTournaments.find(t => t.tournament_id === tournament.id && t.team_id === teamC.id);
+    assert(Boolean(myTourney), 'Invited player sees the specific tournament they were invited to');
+    assert(myTourney?.tournament_name === tournament.name, 'Tournament name is clearly visible to invited player');
+    assert(myTourney?.tournament_campus === tournament.campus, 'Tournament campus is visible to invited player');
+    assert(myTourney?.entry_status === 'invited', 'Entry status reflects "invited"');
+    assert(myTourney?.is_team_owner === true, 'Team captaincy flag correctly set');
+
+    // Team captain accepts invitation
+    const acceptRes = await TournamentModel.respondInvite({
+      tournamentId: tournament.id,
+      teamId: teamC.id,
+      action: 'accept'
+    });
+    assert(acceptRes && acceptRes.status === 'approved', 'Captain accepted invitation -> status becomes "approved"');
+
+    // ─────────────────────────────────────────────────────────────
+    // Test 10: Delete Created Tournament by Creator/Owner
+    // ─────────────────────────────────────────────────────────────
+    console.log('\n📌 Test 10: Delete tournament by creator/owner with cascading isolation');
+    // Non-owner cannot delete tournament
+    let nonOwnerBlocked = false;
+    await requireTournamentOwner(
+      { params: { id: tournament.id }, user: { id: outsidePlayer.id, role: 'player' }, headers: {} },
+      { status: (code) => ({ json: () => { if (code === 403) nonOwnerBlocked = true; } }) },
+      () => {}
+    );
+    assert(nonOwnerBlocked, 'Non-owner is blocked from deleting tournament (403)');
+
+    // Creator passes requireTournamentOwner
+    let ownerCanDelete = false;
+    await requireTournamentOwner(
+      { params: { id: tournament.id }, user: { id: ownerUser.id, role: 'player' }, headers: {} },
+      { status: () => ({ json: () => {} }) },
+      () => { ownerCanDelete = true; }
+    );
+    assert(ownerCanDelete, 'Creator/owner is authorized to delete tournament');
+
+    // Execute tournament deletion
+    const deletedTourney = await TournamentModel.delete(tournament.id);
+    assert(deletedTourney && (deletedTourney.id === tournament.id || deletedTourney.name), 'Tournament deleted by owner');
+
+    // Verification that tournament no longer exists
+    const findAfterDelete = await TournamentModel.findById(tournament.id);
+    assert(findAfterDelete === null, 'Tournament is permanently gone (findById returns null)');
+
+    // Verification that matches from deleted tournament are cleaned up
+    const matchesAfterDelete = await MatchModel.getAllMatches(tournament.id);
+    assert(matchesAfterDelete.length === 0, 'Associated matches are cascaded and cleared');
+
     console.log(`\n========================================`);
     console.log(`Verification Complete: ${passed} PASSED, ${failed} FAILED`);
     console.log(`========================================`);

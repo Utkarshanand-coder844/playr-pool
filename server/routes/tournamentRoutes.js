@@ -20,6 +20,7 @@ const router = express.Router();
 // Public / Player browse endpoints
 router.get('/', optionalAuth, TournamentController.getTournaments);
 router.get('/mine', authenticateToken, TournamentController.getMyTournaments);
+router.get('/my-invitations', authenticateToken, TournamentController.getMyTeamTournaments);
 router.get('/:id', optionalAuth, TournamentController.getTournamentById);
 
 // Tournament creation (any logged-in player)
@@ -29,6 +30,14 @@ router.post(
   tournamentCreationRateLimit,
   validateCreateTournament,
   TournamentController.createTournament
+);
+
+// Delete tournament (creator/owner or platform super admin only)
+router.delete(
+  '/:id',
+  authenticateToken,
+  requireTournamentOwner,
+  TournamentController.deleteTournament
 );
 
 // Tournament configuration (tournament admin/owner or super admin)
@@ -60,6 +69,29 @@ router.put(
   authenticateToken,
   requireAdmin,
   TournamentController.verifyTournament
+);
+
+// Get available teams to invite
+router.get(
+  '/:id/available-teams',
+  authenticateToken,
+  requireTournamentAdmin,
+  TournamentController.getAvailableTeamsToInvite
+);
+
+// Invite teams to tournament (tournament admin/owner)
+router.post(
+  '/:id/invite-teams',
+  authenticateToken,
+  requireTournamentAdmin,
+  TournamentController.inviteTeams
+);
+
+// Accept or decline team invitation (team captain)
+router.post(
+  '/:id/respond-invite',
+  authenticateToken,
+  TournamentController.respondInvite
 );
 
 // Teams in tournament

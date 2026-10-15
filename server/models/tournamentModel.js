@@ -348,5 +348,70 @@ export const TournamentModel = {
     `;
     const { rows } = await query(text, [tournamentId]);
     return rows;
+  },
+
+  /**
+   * Get all tournaments where any of the user's teams are invited or participating.
+   * Returns tournament details + team info + user's role on that team (captain / player)
+   */
+  async getTournamentsForUserTeams(userId) {
+    const text = `
+      SELECT DISTINCT ON (tt.tournament_id, tt.team_id)
+        t.id as tournament_id, t.name as tournament_name, t.description, t.campus as tournament_campus,
+        t.sports, t.status as tournament_status, t.locked, t.verified,
+        t.registration_opens_at, t.registration_closes_at, t.created_at as tournament_created_at,
+        creator.name as creator_name,
+        tt.id as entry_id, tt.team_id, tt.status as entry_status, tt.created_at as entry_date,
+        tm.name as team_name, tm.sport as team_sport, tm.owner_user_id,
+        CASE WHEN tm.owner_user_id = $1 THEN true ELSE false END as is_team_owner
+      FROM tournament_teams tt
+      JOIN tournaments t ON tt.tournament_id = t.id
+      JOIN teams tm ON tt.team_id = tm.id
+      LEFT JOIN users creator ON t.created_by = creator.id
+      WHERE tt.status != 'removed'
+        AND (
+          tm.owner_user_id = $1
+          OR EXISTS (
+            SELECT 1 FROM team_members mem
+            WHERE mem.team_id = tm.id AND mem.member_user_id = $1
+          )
+        )
+      ORDER BY tt.tournament_id, tt.team_id, tt.created_at DESC;
+    `;
+    const { rows } = await query(text, [userId]);
+    return rows;
+  },
+
+  /**
+   * Invite multiple teams to a tournament
+   */
+  async inviteTeams({ tournamentId, teamIds }) {
+    const results = [];
+    for (const teamId of teamIds) {
+      const text = `
+        INSERT INTO tournament_teams (tournament_id, team_id, status)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (tournament_id, team_id) DO UPDATE SET status = EXCLUDED.status
+        RETURNING id, tournament_id, team_id, status;
+      `;
+      const { rows } = await query(text, [tournamentId, teamId, 'invited']);
+      if (rows[0]) results.push(rows[0]);
+    }
+    return results;
+  },
+
+  /**
+   * Respond to tournament team invite (accept -> approved, decline -> removed)
+   */
+  async respondInvite({ tournamentId, teamId, action }) {
+    const newStatus = action === 'accept' ? 'approved' : 'removed';
+    const text = `
+      UPDATE tournament_teams
+      SET status = $1
+      WHERE tournament_id = $2 AND team_id = $3
+      RETURNING id, tournament_id, team_id, status;
+    `;
+    const { rows } = await query(text, [newStatus, tournamentId, teamId]);
+    return rows[0] || null;
   }
 };

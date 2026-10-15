@@ -585,6 +585,21 @@ export const query = async (text, params = []) => {
     return { rows: [{ ...tourney }] };
   }
 
+  if (normalizedText.includes('delete from tournaments')) {
+    const id = params[0];
+    const idx = memoryStore.tournaments.findIndex(t => t.id === id);
+    if (idx !== -1) {
+      const [deleted] = memoryStore.tournaments.splice(idx, 1);
+      memoryStore.tournament_admins = memoryStore.tournament_admins.filter(ta => ta.tournament_id !== id);
+      memoryStore.tournament_teams = memoryStore.tournament_teams.filter(tt => tt.tournament_id !== id);
+      memoryStore.matches = memoryStore.matches.filter(m => m.tournament_id !== id);
+      memoryStore.knockout_brackets = memoryStore.knockout_brackets.filter(b => b.tournament_id !== id);
+      memoryStore.announcements = memoryStore.announcements.filter(a => a.tournament_id !== id);
+      return { rows: [{ ...deleted }] };
+    }
+    return { rows: [] };
+  }
+
   if (normalizedText.includes('from tournaments')) {
     const enrichTourney = (t) => {
       const creator = memoryStore.users.find(u => u.id === t.created_by);
@@ -598,7 +613,7 @@ export const query = async (text, params = []) => {
       };
     };
 
-    if (normalizedText.includes('count(*)::integer') && normalizedText.includes('status <>') || (normalizedText.includes('count(*)::integer') && normalizedText.includes("status !="))) {
+    if (normalizedText.includes('select count(*)::integer as count from tournaments') || normalizedText.includes('count(*)::integer as count')) {
       const [userId] = params;
       const count = memoryStore.tournaments.filter(t => t.created_by === userId && t.status !== 'completed').length;
       return { rows: [{ count }] };
@@ -669,18 +684,6 @@ export const query = async (text, params = []) => {
       if (registration_opens_at !== undefined) t.registration_opens_at = registration_opens_at;
       if (registration_closes_at !== undefined) t.registration_closes_at = registration_closes_at;
       return { rows: [{ ...t }] };
-    }
-    return { rows: [] };
-  }
-
-  if (normalizedText.includes('delete from tournaments')) {
-    const id = params[0];
-    const idx = memoryStore.tournaments.findIndex(t => t.id === id);
-    if (idx !== -1) {
-      const [deleted] = memoryStore.tournaments.splice(idx, 1);
-      memoryStore.tournament_admins = memoryStore.tournament_admins.filter(ta => ta.tournament_id !== id);
-      memoryStore.tournament_teams = memoryStore.tournament_teams.filter(tt => tt.tournament_id !== id);
-      return { rows: [{ ...deleted }] };
     }
     return { rows: [] };
   }
@@ -817,11 +820,16 @@ export const query = async (text, params = []) => {
 
   // --- TOURNAMENT TEAMS ---
   if (normalizedText.includes('insert into tournament_teams')) {
-    const [tournament_id, team_id, status] = params;
+    let [tournament_id, team_id, status] = params;
+    if (!status) {
+      if (normalizedText.includes("'invited'")) status = 'invited';
+      else if (normalizedText.includes("'approved'")) status = 'approved';
+      else status = 'pending';
+    }
     const existing = memoryStore.tournament_teams.find(tt => tt.tournament_id === tournament_id && tt.team_id === team_id);
     if (existing) {
       if (normalizedText.includes('do update')) {
-        existing.status = status || existing.status;
+        existing.status = status;
         return { rows: [{ ...existing }] };
       }
       if (normalizedText.includes('do nothing')) return { rows: [{ ...existing }] };
@@ -841,6 +849,48 @@ export const query = async (text, params = []) => {
   }
 
   if (normalizedText.includes('from tournament_teams')) {
+    // Get tournaments for user teams (participating or invited)
+    if (normalizedText.includes('join tournaments t') || normalizedText.includes('is_team_owner')) {
+      const userId = params[0];
+      const userTeams = memoryStore.teams.filter(t =>
+        t.owner_user_id === userId ||
+        memoryStore.team_members.some(tm => tm.team_id === t.id && tm.member_user_id === userId)
+      );
+      const userTeamIds = new Set(userTeams.map(t => t.id));
+
+      const rows = [];
+      for (const entry of memoryStore.tournament_teams) {
+        if (entry.status === 'removed' || !userTeamIds.has(entry.team_id)) continue;
+        const tournament = memoryStore.tournaments.find(tourney => tourney.id === entry.tournament_id);
+        if (!tournament) continue;
+        const team = userTeams.find(t => t.id === entry.team_id);
+        const creator = memoryStore.users.find(u => u.id === tournament.created_by);
+        rows.push({
+          tournament_id: tournament.id,
+          tournament_name: tournament.name,
+          description: tournament.description,
+          tournament_campus: tournament.campus,
+          sports: tournament.sports,
+          tournament_status: tournament.status,
+          locked: Boolean(tournament.locked),
+          verified: Boolean(tournament.verified),
+          registration_opens_at: tournament.registration_opens_at,
+          registration_closes_at: tournament.registration_closes_at,
+          tournament_created_at: tournament.created_at,
+          creator_name: creator?.name || 'Tournament Admin',
+          entry_id: entry.id,
+          team_id: team.id,
+          entry_status: entry.status,
+          entry_date: entry.created_at,
+          team_name: team.name,
+          team_sport: team.sport,
+          owner_user_id: team.owner_user_id,
+          is_team_owner: team.owner_user_id === userId
+        });
+      }
+      return { rows };
+    }
+
     // Specific check for user eligibility
     if (normalizedText.includes('t.owner_user_id = $2') || (normalizedText.includes('owner_user_id') && params.length >= 2)) {
       const [tId, uId] = params;

@@ -24,6 +24,7 @@ export const MyTeam = ({ onNavigate }) => {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [teamTournaments, setTeamTournaments] = useState([]);
 
   // Admin Removal Poll
   const [pollData, setPollData] = useState(null);   // { vote_summary, has_voted, admin_id }
@@ -141,7 +142,32 @@ export const MyTeam = ({ onNavigate }) => {
     if (res.ok && data.success) setInvites(data.invites || []);
   }, [token]);
 
-  useEffect(() => { fetchInvites(); }, [fetchInvites]);
+  const fetchTeamTournaments = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/tournaments/my-invitations', { headers: getAuthHeaders(token) });
+      const data = await res.json();
+      if (res.ok && data.success) setTeamTournaments(data.tournaments || []);
+    } catch { /* ignore */ }
+  }, [token]);
+
+  useEffect(() => { fetchInvites(); fetchTeamTournaments(); }, [fetchInvites, fetchTeamTournaments]);
+
+  const handleTournamentInviteResponse = async (tournamentId, teamId, action) => {
+    if (!token) return;
+    setError(''); setSuccess('');
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/respond-invite`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ teamId, action })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to respond to tournament invite');
+      setSuccess(action === 'accept' ? 'Tournament invitation accepted! Your team is now officially entered.' : 'Tournament invitation declined.');
+      fetchTeamTournaments();
+    } catch (err) { setError(err.message); }
+  };
 
   const sendInvite = async () => {
     if (!invitePlayerId || !team || !token) return;
@@ -530,6 +556,100 @@ export const MyTeam = ({ onNavigate }) => {
               <span style={{ display: 'flex', gap: '0.5rem' }}><button className="btn btn-primary btn-sm" style={{ width: 'auto' }} onClick={() => respondToInvite(invite.id, 'accepted')}>Accept</button><button className="btn btn-danger btn-sm" onClick={() => respondToInvite(invite.id, 'declined')}>Decline</button></span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* TOURNAMENT INVITATIONS & ENTRIES */}
+      {teamTournaments.length > 0 && (
+        <div className="auth-card" style={{ maxWidth: '100%', marginBottom: '1.25rem', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95))' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
+              🏆 Tournament Entries & Invitations
+              {teamTournaments.filter(t => t.entry_status === 'invited').length > 0 && (
+                <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 9999, background: '#ef4444', color: '#fff', fontWeight: 700 }}>
+                  {teamTournaments.filter(t => t.entry_status === 'invited').length} New Invite
+                </span>
+              )}
+            </h3>
+            {onNavigate && (
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ width: 'auto', fontSize: '0.8rem' }}
+                onClick={() => onNavigate('tournaments')}
+              >
+                Browse All Tournaments →
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+            {teamTournaments.map((tt, idx) => {
+              const isInvited = tt.entry_status === 'invited';
+              const isApproved = tt.entry_status === 'approved';
+              return (
+                <div key={`${tt.tournament_id}-${tt.team_id}-${idx}`} style={{
+                  padding: '0.85rem',
+                  borderRadius: '10px',
+                  background: isInvited ? 'rgba(139, 92, 246, 0.12)' : 'rgba(34, 197, 94, 0.08)',
+                  border: `1px solid ${isInvited ? 'rgba(139, 92, 246, 0.35)' : 'rgba(34, 197, 94, 0.25)'}`
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
+                    <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{tt.tournament_name}</strong>
+                    <span style={{
+                      fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: 9999,
+                      background: isApproved ? '#22c55e' : isInvited ? '#8b5cf6' : '#f59e0b',
+                      color: '#fff'
+                    }}>
+                      {isApproved ? '✓ Entered' : isInvited ? '✉️ Invited' : 'Pending'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                    For Team: <strong>{tt.team_name}</strong> ({tt.team_sport}) • 🏫 {tt.tournament_campus}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                    Organizer: {tt.creator_name} {tt.is_team_owner ? '• 👑 You are Team Captain' : '• 👤 You are on Roster'}
+                  </div>
+
+                  {isInvited && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      {tt.is_team_owner ? (
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ flex: 1, fontSize: '0.75rem', padding: '4px 8px' }}
+                            onClick={() => handleTournamentInviteResponse(tt.tournament_id, tt.team_id, 'accept')}
+                          >
+                            ✓ Accept & Enter
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                            onClick={() => handleTournamentInviteResponse(tt.tournament_id, tt.team_id, 'decline')}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.72rem', color: '#c084fc' }}>
+                          Invited to compete! Waiting for Captain to accept.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {onNavigate && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ width: '100%', fontSize: '0.75rem', padding: '4px 8px', marginTop: '0.4rem', justifyContent: 'center' }}
+                      onClick={() => onNavigate('tournaments')}
+                    >
+                      👁️ View Tournament Details
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

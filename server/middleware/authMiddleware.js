@@ -55,15 +55,15 @@ export const resolveTournamentId = async (req) => {
   if (req.params?.tournamentId) return req.params.tournamentId;
   if (req.params?.tournament_id) return req.params.tournament_id;
 
-  // If on a /api/tournaments/:id route
-  if (req.baseUrl?.includes('/tournaments') && req.params?.id) {
+  // If on a /api/tournaments/:id route or direct id parameter
+  if (req.params?.id && (!req.baseUrl || req.baseUrl.includes('/tournaments') || req.path?.includes('/tournaments'))) {
     return req.params.id;
   }
 
   // 2. Body or query or header
   const direct = req.body?.tournament_id || req.body?.tournamentId ||
                  req.query?.tournament || req.query?.tournament_id ||
-                 req.headers['x-tournament-id'];
+                 req.headers?.['x-tournament-id'];
   if (direct && typeof direct === 'string' && direct.trim()) {
     return direct.trim();
   }

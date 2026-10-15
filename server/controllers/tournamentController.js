@@ -66,17 +66,62 @@ export const TournamentController = {
         verified: user.role === 'admin' && req.body.verified === true
       });
 
+      let invitedCount = 0;
+      if (req.body.invite_all) {
+        try {
+          const { MatchModel } = await import('../models/matchModel.js');
+          const allTeams = await MatchModel.getAllTeams();
+          const eligibleTeams = allTeams.filter(t => {
+            const matchesCampus = !tournamentCampus || !t.campus || t.campus === tournamentCampus;
+            const matchesSport = !Array.isArray(tournament.sports) || tournament.sports.length === 0 || tournament.sports.some(s => s.toLowerCase() === (t.sport || '').toLowerCase());
+            return matchesCampus && matchesSport;
+          });
+
+          if (eligibleTeams.length > 0) {
+            const teamIds = eligibleTeams.map(t => t.id);
+            await TournamentModel.inviteTeams({ tournamentId: tournament.id, teamIds });
+            invitedCount = teamIds.length;
+
+            for (const team of eligibleTeams) {
+              const playerIds = [team.owner_user_id, ...(team.members || []).map(m => m.member_user_id)].filter(Boolean);
+              const distinctPlayerIds = [...new Set(playerIds)];
+              for (const pId of distinctPlayerIds) {
+                try {
+                  await NotificationModel.create({
+                    userId: pId,
+                    type: 'tournament_invite',
+                    title: `🏆 Tournament Invitation: ${tournament.name}`,
+                    message: `Your team "${team.name}" has been invited to compete in ${tournament.name} (${tournament.campus}). Open Tournaments to view details and join.`
+                  });
+                  getIO()?.to(`user:${pId}`).emit('team:notification', {
+                    type: 'tournament_invite',
+                    title: `🏆 Tournament Invitation: ${tournament.name}`,
+                    message: `Your team "${team.name}" has been invited to compete in ${tournament.name} (${tournament.campus}).`
+                  });
+                } catch {}
+              }
+            }
+          }
+        } catch (inviteErr) {
+          console.error('Auto invite error upon creation:', inviteErr);
+        }
+      }
+
       await audit(req, 'create_tournament', tournament.id, {
         tournament_id: tournament.id,
         name: tournament.name,
         campus: tournament.campus,
-        sports: tournament.sports
+        sports: tournament.sports,
+        invited_teams_count: invitedCount
       });
 
       return res.status(201).json({
         success: true,
-        message: 'Tournament created successfully. You are now the tournament owner.',
-        tournament
+        message: invitedCount > 0
+          ? `Tournament created successfully! ${invitedCount} campus team(s) have been invited automatically.`
+          : 'Tournament created successfully. You are now the tournament owner.',
+        tournament,
+        invited_teams_count: invitedCount
       });
     } catch (err) {
       console.error('Create tournament error:', err);
@@ -573,6 +618,209 @@ export const TournamentController = {
     } catch (err) {
       console.error('Remove tournament admin error:', err);
       return res.status(500).json({ success: false, message: 'Unable to remove administrator' });
+    }
+  },
+
+  /**
+   * DELETE /api/tournaments/:id
+   * Only the tournament creator/owner or super admin can delete the tournament.
+   */
+  async deleteTournament(req, res) {
+    try {
+      const tournamentId = req.params.id;
+      const tournament = await TournamentModel.findById(tournamentId);
+      if (!tournament) return res.status(404).json({ success: false, message: 'Tournament not found' });
+
+      const deleted = await TournamentModel.delete(tournamentId);
+
+      await audit(req, 'delete_tournament', tournamentId, {
+        tournament_id: tournamentId,
+        name: tournament.name
+      });
+
+      try {
+        const io = getIO();
+        io.emit('tournament:deleted', { tournament_id: tournamentId, name: tournament.name });
+      } catch {}
+
+      return res.json({
+        success: true,
+        message: `Tournament "${tournament.name}" deleted successfully.`,
+        deleted
+      });
+    } catch (err) {
+      console.error('Delete tournament error:', err);
+      return res.status(500).json({ success: false, message: 'Unable to delete tournament' });
+    }
+  },
+
+  /**
+   * GET /api/tournaments/:id/available-teams
+   * List teams eligible to be invited to this tournament
+   */
+  async getAvailableTeamsToInvite(req, res) {
+    try {
+      const tournamentId = req.params.id;
+      const tournament = await TournamentModel.findById(tournamentId);
+      if (!tournament) return res.status(404).json({ success: false, message: 'Tournament not found' });
+
+      const { MatchModel } = await import('../models/matchModel.js');
+      const allTeams = await MatchModel.getAllTeams();
+      const existingEntries = await TournamentModel.getEnteredTeams(tournamentId);
+      const existingTeamIds = new Set(existingEntries.map(e => e.team_id));
+
+      const available = allTeams
+        .filter(t => !existingTeamIds.has(t.id))
+        .filter(t => {
+          if (Array.isArray(tournament.sports) && tournament.sports.length > 0) {
+            return tournament.sports.some(s => s.toLowerCase() === (t.sport || '').toLowerCase());
+          }
+          return true;
+        });
+
+      return res.json({ success: true, teams: available });
+    } catch (err) {
+      console.error('Get available teams error:', err);
+      return res.status(500).json({ success: false, message: 'Unable to load available teams' });
+    }
+  },
+
+  /**
+   * POST /api/tournaments/:id/invite-teams
+   * Invite all teams or specific teams to the tournament
+   */
+  async inviteTeams(req, res) {
+    try {
+      const tournamentId = req.params.id;
+      const tournament = await TournamentModel.findById(tournamentId);
+      if (!tournament) return res.status(404).json({ success: false, message: 'Tournament not found' });
+
+      if (tournament.locked) {
+        return res.status(400).json({ success: false, message: 'This tournament is locked for team entries' });
+      }
+
+      let { teamIds, inviteAll } = req.body;
+
+      if (inviteAll) {
+        const { MatchModel } = await import('../models/matchModel.js');
+        const allTeams = await MatchModel.getAllTeams();
+        const existingEntries = await TournamentModel.getEnteredTeams(tournamentId);
+        const existingTeamIds = new Set(existingEntries.map(e => e.team_id));
+        teamIds = allTeams
+          .filter(t => !existingTeamIds.has(t.id))
+          .filter(t => {
+            if (Array.isArray(tournament.sports) && tournament.sports.length > 0) {
+              return tournament.sports.some(s => s.toLowerCase() === (t.sport || '').toLowerCase());
+            }
+            return true;
+          })
+          .map(t => t.id);
+      }
+
+      if (!Array.isArray(teamIds) || teamIds.length === 0) {
+        return res.status(400).json({ success: false, message: 'No eligible teams selected to invite' });
+      }
+
+      const entries = await TournamentModel.inviteTeams({ tournamentId, teamIds });
+
+      // Notify the captains and roster players of all invited teams
+      for (const teamId of teamIds) {
+        try {
+          const team = await TeamModel.findById(teamId);
+          if (team) {
+            const playerIds = [team.owner_user_id, ...(team.members || []).map(m => m.member_user_id)].filter(Boolean);
+            const distinctPlayerIds = [...new Set(playerIds)];
+
+            for (const pId of distinctPlayerIds) {
+              await NotificationModel.create({
+                userId: pId,
+                type: 'tournament_invite',
+                title: `🏆 Tournament Invitation: ${tournament.name}`,
+                message: `Your team "${team.name}" has been invited to compete in ${tournament.name} (${tournament.campus}). Open Tournaments to view details and join.`
+              });
+              try {
+                getIO().to(`user:${pId}`).emit('team:notification', {
+                  type: 'tournament_invite',
+                  title: `🏆 Tournament Invitation: ${tournament.name}`,
+                  message: `Your team "${team.name}" has been invited to compete in ${tournament.name} (${tournament.campus}).`,
+                  tournament_id: tournamentId
+                });
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+
+      await audit(req, 'invite_tournament_teams', tournamentId, {
+        tournament_id: tournamentId,
+        team_count: teamIds.length
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: `Successfully invited ${teamIds.length} team(s) to the tournament.`,
+        entries
+      });
+    } catch (err) {
+      console.error('Invite teams error:', err);
+      return res.status(500).json({ success: false, message: 'Unable to invite teams' });
+    }
+  },
+
+  /**
+   * GET /api/tournaments/my-invitations
+   * List all tournaments in which caller's teams are invited or participating
+   */
+  async getMyTeamTournaments(req, res) {
+    try {
+      const userId = getUserId(req);
+      const tournaments = await TournamentModel.getTournamentsForUserTeams(userId);
+      return res.json({ success: true, tournaments });
+    } catch (err) {
+      console.error('Get my team tournaments error:', err);
+      return res.status(500).json({ success: false, message: 'Unable to load team tournaments' });
+    }
+  },
+
+  /**
+   * POST /api/tournaments/:id/respond-invite
+   * Accept or decline a tournament invitation
+   */
+  async respondInvite(req, res) {
+    try {
+      const tournamentId = req.params.id;
+      const { teamId, action } = req.body;
+      const userId = getUserId(req);
+
+      if (!['accept', 'decline'].includes(action)) {
+        return res.status(400).json({ success: false, message: "Action must be 'accept' or 'decline'" });
+      }
+
+      const team = await TeamModel.findById(teamId);
+      if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
+
+      // Only team captain/owner can accept or decline for the team
+      if (team.owner_user_id !== userId && req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only the team captain can accept or decline tournament invitations' });
+      }
+
+      const entry = await TournamentModel.respondInvite({ tournamentId, teamId, action });
+      if (!entry) return res.status(404).json({ success: false, message: 'Tournament invitation entry not found' });
+
+      await audit(req, 'respond_tournament_invite', tournamentId, {
+        tournament_id: tournamentId,
+        team_id: teamId,
+        action
+      });
+
+      return res.json({
+        success: true,
+        message: action === 'accept' ? 'Tournament invitation accepted! Your team is now entered.' : 'Tournament invitation declined.',
+        entry
+      });
+    } catch (err) {
+      console.error('Respond invite error:', err);
+      return res.status(500).json({ success: false, message: 'Unable to respond to invitation' });
     }
   }
 };
