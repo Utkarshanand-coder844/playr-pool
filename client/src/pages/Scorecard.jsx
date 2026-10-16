@@ -274,7 +274,13 @@ function MatchPlayerLeaderboard({ matchId }) {
       .finally(() => setLoading(false));
   }, [matchId]);
 
-  if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading...</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem' }}>
+      <div className="skeleton" style={{ height: 60 }} />
+      <div className="skeleton" style={{ height: 44 }} />
+      <div className="skeleton" style={{ height: 44 }} />
+    </div>
+  );
   if (!players.length) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem', fontStyle: 'italic' }}>No player data yet — admin must credit actions to real players.</div>;
 
   return (
@@ -366,8 +372,10 @@ export function Scorecard({ matchId, onNavigate }) {
   });
 
   if (loading) return (
-    <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--accent-cyan)' }}>
-      <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>🏏</div>Loading scorecard...
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem' }}>
+      <div className="skeleton" style={{ height: 80 }} />
+      <div className="skeleton" style={{ height: 200 }} />
+      <div className="skeleton" style={{ height: 120 }} />
     </div>
   );
 
@@ -391,7 +399,7 @@ export function Scorecard({ matchId, onNavigate }) {
               ← Back to Matches
             </button>
           )}
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f4f4f5', margin: 0 }}>📋 Scorecard</h1>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>📋 Scorecard</h1>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
             {scorecard.sport}{lastUpdated && ` · Updated ${lastUpdated.toLocaleTimeString()}`}
             {scorecard.status === 'LIVE' && <span style={{ marginLeft: 8, padding: '1px 8px', background: '#f43f5e', borderRadius: 100, fontSize: '0.65rem', fontWeight: 800, color: '#fff' }}>● LIVE</span>}

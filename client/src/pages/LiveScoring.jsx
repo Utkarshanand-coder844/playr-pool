@@ -65,15 +65,15 @@ function CricketScoreboard({ match, liveState, isLive }) {
         {[oncreaseR, oncreaseL].filter(Boolean).map((b, i) => (
           <div key={b?.id || i} style={{ padding: '0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px solid ${b?.id === liveState.striker?.id ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.06)'}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: '#71717a', letterSpacing: '0.08em' }}>
+              <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
                 {b?.id === liveState.striker?.id ? '⚡ STRIKER' : 'NON-STRIKER'}
               </span>
             </div>
-            <div style={{ fontWeight: 700, color: '#f4f4f5', fontSize: '0.92rem' }}>{b?.name}</div>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.92rem' }}>{b?.name}</div>
             <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontSize: '1.05rem', fontWeight: 800 }}>
               {b?.runs}({b?.balls})
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#71717a' }}>4s: {b?.fours} · 6s: {b?.sixes}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>4s: {b?.fours} · 6s: {b?.sixes}</div>
           </div>
         ))}
       </div>
@@ -82,8 +82,8 @@ function CricketScoreboard({ match, liveState, isLive }) {
       {bowler && (
         <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>BOWLING</div>
-            <div style={{ fontWeight: 700, color: '#f4f4f5' }}>{bowler.name}</div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>BOWLING</div>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{bowler.name}</div>
           </div>
           <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.92rem', color: 'var(--accent-cyan)', fontWeight: 700 }}>
             {bowler.oversFormatted}-{bowler.maidens}-{bowler.runs}-{bowler.wickets}
@@ -1121,7 +1121,7 @@ export function LiveScoring({ onNavigate }) {
       `}</style>
 
       <div style={{ marginBottom: 24, width: '100%', boxSizing: 'border-box' }}>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(1.5rem, 5vw, 2.4rem)', fontWeight: 700, color: '#f4f4f5', marginBottom: 4, wordBreak: 'break-word' }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(1.5rem, 5vw, 2.4rem)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, wordBreak: 'break-word' }}>
           🏟️ <em>Live Scoring</em>
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Real-time match scores, event-sourced for accuracy</p>
@@ -1133,7 +1133,7 @@ export function LiveScoring({ onNavigate }) {
           <button key={val} onClick={() => setFilter(val)} style={{
             padding: '0.45rem 1rem', borderRadius: 100, fontSize: '0.82rem', fontWeight: 600,
             border: `1px solid ${filter === val ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.08)'}`,
-            background: filter === val ? 'rgba(255,255,255,0.1)' : 'transparent', color: filter === val ? '#f4f4f5' : '#71717a',
+            background: filter === val ? 'rgba(255,255,255,0.1)' : 'transparent', color: filter === val ? 'var(--text-primary)' : 'var(--text-muted)',
             cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
           }}>{label}</button>
         ))}
@@ -1197,10 +1197,10 @@ export function LiveScoring({ onNavigate }) {
               <div className="live-card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 16 }}>
                   <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontSize: '0.68rem', color: '#71717a', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>
                       {selectedMatch.sport?.toUpperCase()} · {selectedMatch.name}
                     </div>
-                    <div style={{ fontWeight: 700, color: '#f4f4f5', fontSize: 'clamp(0.95rem, 4vw, 1.15rem)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 'clamp(0.95rem, 4vw, 1.15rem)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {selectedMatch.team_a_name} vs {selectedMatch.team_b_name}
                     </div>
                   </div>
@@ -1244,9 +1244,13 @@ export function LiveScoring({ onNavigate }) {
         // ── MATCH LIST ──
         <div style={{ width: '100%', boxSizing: 'border-box' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', color: '#71717a', padding: '3rem' }}>Loading matches…</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div className="skeleton" style={{ height: 90 }} />
+              <div className="skeleton" style={{ height: 90 }} />
+              <div className="skeleton" style={{ height: 90 }} />
+            </div>
           ) : filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#71717a', padding: '3rem', background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem', background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)' }}>
               No matches found for this filter
             </div>
           ) : (

@@ -185,7 +185,7 @@ export function PlayerInsights({ playerId: propPlayerId, onNavigate }) {
     return (
       <div className="dashboard-container" style={{ maxWidth: 800, textAlign: 'center', padding: '4rem 1rem' }}>
         <div style={{ fontSize: '3rem', marginBottom: 16 }}>👤</div>
-        <h2 style={{ color: '#f4f4f5' }}>Player Insights</h2>
+        <h2 style={{ color: 'var(--text-primary)' }}>Player Insights</h2>
         <p style={{ color: 'var(--text-muted)' }}>Please log in to view your personal insights.</p>
         {onNavigate && <button onClick={() => onNavigate('login')} className="btn btn-primary" style={{ marginTop: '1rem', width: 'auto' }}>Sign In</button>}
       </div>
@@ -221,7 +221,7 @@ export function PlayerInsights({ playerId: propPlayerId, onNavigate }) {
               ← Back to Profile
             </button>
           )}
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f4f4f5', margin: 0 }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
             {isOwnProfile ? '📊 My Insights' : '📊 Player Insights'}
           </h1>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
