@@ -204,8 +204,8 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2rem;
-  height: 56px;
+  padding: 0 2.5rem;
+  height: 72px;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
@@ -214,8 +214,8 @@ a:hover {
   display: flex;
   align-items: stretch;
   gap: 0;
-  padding: 0 1.5rem;
-  height: 58px;
+  padding: 0 2rem;
+  height: 76px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -246,8 +246,8 @@ a:hover {
 }
 
 .brand-icon {
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: 1px solid var(--border-medium);
   background: #15171d;
@@ -274,8 +274,8 @@ a:hover {
 
 .brand-name {
   font-family: var(--font-heading);
-  font-size: 1.35rem;
-  font-weight: 500;
+  font-size: 1.75rem;
+  font-weight: 600;
   letter-spacing: -0.03em;
   color: #ffffff;
 }
@@ -302,17 +302,17 @@ a:hover {
 
 .nav-link-item {
   font-family: var(--font-sans);
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-muted);
   background: transparent;
   border: none;
-  padding: 0 1.4rem;
+  padding: 0 1.8rem;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   cursor: pointer;
   position: relative;
   white-space: nowrap;
@@ -320,11 +320,11 @@ a:hover {
   letter-spacing: 0.01em;
 }
 .nav-link-item .nl-icon {
-  font-size: 1.35rem;
+  font-size: 1.6rem;
   line-height: 1;
 }
 .nav-link-item .nl-label {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1561,20 +1561,21 @@ body { font-size: 1rem; }
 }
 .brand-name {
   font-family: var(--font-heading);
-  font-weight: 800;
+  font-weight: 900;
   font-style: italic;
-  font-size: 1.45rem;
+  font-size: 1.9rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 .nav-link-item {
   font-family: var(--font-heading);
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
-.nav-link-item .nl-icon { font-size: 1.1rem; }
+.nav-link-item .nl-icon { font-size: 1.6rem; }
+.nav-link-item .nl-label { font-size: 0.95rem; }
 .nav-link-item:hover { color: #fff; }
 .nav-link-item.active { color: var(--lime); }
 .nav-link-item.active::after { background: var(--lime); transform: scaleX(1); }
