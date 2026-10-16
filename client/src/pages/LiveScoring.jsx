@@ -1134,7 +1134,7 @@ export function LiveScoring({ onNavigate }) {
             padding: '0.65rem 1.25rem', borderRadius: 100, fontSize: '1.05rem', fontWeight: 700,
             fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', textTransform: 'uppercase',
             border: `1px solid ${filter === val ? 'var(--lime)' : 'rgba(255,255,255,0.12)'}`,
-            background: filter === val ? 'rgba(198, 244, 50, 0.15)' : 'rgba(255,255,255,0.03)', color: filter === val ? 'var(--lime)' : 'var(--text-muted)',
+            background: filter === val ? 'rgba(255, 122, 24, 0.15)' : 'rgba(255,255,255,0.03)', color: filter === val ? 'var(--lime)' : 'var(--text-muted)',
             cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.2s ease'
           }}>{label}</button>
         ))}
