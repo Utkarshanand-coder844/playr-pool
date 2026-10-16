@@ -12,7 +12,7 @@ import {
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { Navbar } from './components/Navbar';
-import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
+import { ProtectedRoute, AdminRoute, SuperAdminRoute } from './components/ProtectedRoute';
 import { ScoreToast } from './components/ScoreToast';
 import { CampusClashLoader } from './components/CampusClashLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -375,9 +375,10 @@ function MainLayout() {
               <Route
                 path="/admin"
                 element={
-                  <AdminRoute onNavigate={handleNavigate}>
+                  {/* Super-admin only: platform-wide desk */}
+                  <SuperAdminRoute onNavigate={handleNavigate}>
                     <AdminDashboard onNavigate={handleNavigate} />
-                  </AdminRoute>
+                  </SuperAdminRoute>
                 }
               />
               <Route

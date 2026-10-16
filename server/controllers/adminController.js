@@ -624,6 +624,16 @@ export const getBracket = async (req, res) => {
 };
 
 export const getAuditLog = async (req, res) => {
-  try { return res.json({ success: true, entries: await AuditLogModel.getRecent(Math.min(Number(req.query.limit) || 100, 250)) }); }
-  catch (error) { return res.status(500).json({ success: false, message: 'Unable to load audit log' }); }
+  try {
+    const limit = Math.min(Number(req.query.limit) || 100, 250);
+    const isSuperAdmin = req.user?.role === 'admin';
+    // Non-super-admins only see audit entries scoped to their tournament
+    if (!isSuperAdmin && req.tournamentId) {
+      const entries = await AuditLogModel.getRecentByTournament(req.tournamentId, limit);
+      return res.json({ success: true, entries });
+    }
+    return res.json({ success: true, entries: await AuditLogModel.getRecent(limit) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Unable to load audit log' });
+  }
 };

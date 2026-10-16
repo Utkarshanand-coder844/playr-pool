@@ -11,5 +11,13 @@ export const AuditLogModel = {
     const { rows } = await query(`SELECT l.id, l.action, l.entity_type, l.entity_id, l.details, l.created_at, u.name AS admin_name
       FROM admin_audit_log l JOIN users u ON u.id = l.admin_user_id ORDER BY l.created_at DESC LIMIT $1;`, [limit]);
     return rows;
+  },
+  async getRecentByTournament(tournamentId, limit = 100) {
+    // Filter by tournament_id stored in the details JSONB field
+    const { rows } = await query(`SELECT l.id, l.action, l.entity_type, l.entity_id, l.details, l.created_at, u.name AS admin_name
+      FROM admin_audit_log l JOIN users u ON u.id = l.admin_user_id
+      WHERE l.details->>'tournament_id' = $1
+      ORDER BY l.created_at DESC LIMIT $2;`, [tournamentId, limit]);
+    return rows;
   }
 };

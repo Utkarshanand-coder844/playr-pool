@@ -873,9 +873,9 @@ export const AdminDashboard = ({ onNavigate, tournamentId: propTournamentId }) =
       <div className="id-card-hero">
         <div className="id-card-header">
           <div className="id-badge" style={{ borderColor: '#f43f5e', color: '#fda4af' }}>
-            <span>🛡️ OFFICIAL TOURNAMENT CONTROL DESK</span>
+            <span>🛡️ {isSuperAdmin ? 'OFFICIAL TOURNAMENT CONTROL DESK' : 'TOURNAMENT ADMIN PANEL'}</span>
           </div>
-          <span className="role-pill admin">ADMIN CONSOLE</span>
+          <span className="role-pill admin">{isSuperAdmin ? 'ADMIN CONSOLE' : 'TOURNAMENT ADMIN'}</span>
         </div>
 
         <div className="profile-info">
@@ -883,12 +883,14 @@ export const AdminDashboard = ({ onNavigate, tournamentId: propTournamentId }) =
           <p style={{ color: 'var(--text-secondary)' }}>
             Schedule fixtures, toggle match statuses (Upcoming / Live / Completed), and update points live.
           </p>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => exportCsv('players', players)}>Export players CSV</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => exportCsv('teams', teams)}>Export teams CSV</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => exportCsv('fixtures', matches)}>Export fixtures CSV</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => exportCsv('scores', scores)}>Export scores CSV</button>
-          </div>
+          {isSuperAdmin && (
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => exportCsv('players', players)}>Export players CSV</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => exportCsv('teams', teams)}>Export teams CSV</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => exportCsv('fixtures', matches)}>Export fixtures CSV</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => exportCsv('scores', scores)}>Export scores CSV</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -953,37 +955,46 @@ export const AdminDashboard = ({ onNavigate, tournamentId: propTournamentId }) =
       </div>
 
       <div className="auth-card" style={{ maxWidth: '100%' }}>
-        <h3 style={{ marginBottom: '0.4rem' }}>🛡️ My sports administration</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>Add the sports you manage. Players will find your contact information in the Sports Admins directory.</p>
-        <form onSubmit={handleAssignMySport} style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <select
-            className="form-select no-icon"
-            style={{ maxWidth: '220px' }}
-            value={SPORT_LIST.includes(adminSport) ? adminSport : adminSport ? '__custom__' : ''}
-            onChange={(e) => {
-              if (e.target.value === '__custom__') setAdminSport('');
-              else setAdminSport(e.target.value);
-            }}
-          >
-            <option value="">Choose standard sport...</option>
-            {SPORT_LIST.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-            <option value="__custom__">Other / Custom Sport...</option>
-          </select>
-          {(!SPORT_LIST.includes(adminSport) || adminSport === '') && (
-            <input
-              className="form-input no-icon"
-              style={{ maxWidth: '240px' }}
-              value={adminSport}
-              onChange={(e) => setAdminSport(e.target.value)}
-              placeholder="Enter custom sport"
-              maxLength="60"
-            />
-          )}
-          <button className="btn btn-primary btn-sm" type="submit">Add sport</button>
-        </form>
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginTop: '0.85rem' }}>{(Array.isArray(sportsAdmins) ? sportsAdmins : []).filter(item => item && user && item.admin_id === (user.id || user.userId)).map(item => <span key={item.id} className="role-pill admin">{item.sport} <button type="button" onClick={() => handleRemoveMySport(item.sport)} aria-label={`Remove ${item.sport}`} style={{ marginLeft: '0.35rem', border: 0, cursor: 'pointer', background: 'transparent', color: 'inherit' }}>×</button></span>)}</div>
+        <h3 style={{ marginBottom: '0.4rem' }}>{isSuperAdmin ? '🛡️ My sports administration' : '📋 My Tournament'}</h3>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          {isSuperAdmin
+            ? 'Add the sports you manage. Players will find your contact information in the Sports Admins directory.'
+            : 'You are managing this tournament as an administrator.'}
+        </p>
+        {/* Sports admin section: super-admin only */}
+        {isSuperAdmin && (
+          <form onSubmit={handleAssignMySport} style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <select
+              className="form-select no-icon"
+              style={{ maxWidth: '220px' }}
+              value={SPORT_LIST.includes(adminSport) ? adminSport : adminSport ? '__custom__' : ''}
+              onChange={(e) => {
+                if (e.target.value === '__custom__') setAdminSport('');
+                else setAdminSport(e.target.value);
+              }}
+            >
+              <option value="">Choose standard sport...</option>
+              {SPORT_LIST.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+              <option value="__custom__">Other / Custom Sport...</option>
+            </select>
+            {(!SPORT_LIST.includes(adminSport) || adminSport === '') && (
+              <input
+                className="form-input no-icon"
+                style={{ maxWidth: '240px' }}
+                value={adminSport}
+                onChange={(e) => setAdminSport(e.target.value)}
+                placeholder="Enter custom sport"
+                maxLength="60"
+              />
+            )}
+            <button className="btn btn-primary btn-sm" type="submit">Add sport</button>
+          </form>
+        )}
+        {isSuperAdmin && (
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginTop: '0.85rem' }}>{(Array.isArray(sportsAdmins) ? sportsAdmins : []).filter(item => item && user && item.admin_id === (user.id || user.userId)).map(item => <span key={item.id} className="role-pill admin">{item.sport} <button type="button" onClick={() => handleRemoveMySport(item.sport)} aria-label={`Remove ${item.sport}`} style={{ marginLeft: '0.35rem', border: 0, cursor: 'pointer', background: 'transparent', color: 'inherit' }}>×</button></span>)}</div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -1715,19 +1726,21 @@ export const AdminDashboard = ({ onNavigate, tournamentId: propTournamentId }) =
         </div>
       </div>
 
-      {/* REGISTERED ATHLETES & SPORT ROLE DIRECTORY */}
-      <AdminAthleteDirectory
-        filteredPlayers={filteredPlayers}
-        playerSearchQuery={playerSearchQuery}
-        setPlayerSearchQuery={setPlayerSearchQuery}
-        playerSportFilter={playerSportFilter}
-        setPlayerSportFilter={setPlayerSportFilter}
-        playerRoleFilter={playerRoleFilter}
-        setPlayerRoleFilter={setPlayerRoleFilter}
-        availableRolesForFilter={availableRolesForFilter}
-        exportCsv={exportCsv}
-        onNavigate={onNavigate}
-      />
+      {/* REGISTERED ATHLETES & SPORT ROLE DIRECTORY — Super Admin only */}
+      {isSuperAdmin && (
+        <AdminAthleteDirectory
+          filteredPlayers={filteredPlayers}
+          playerSearchQuery={playerSearchQuery}
+          setPlayerSearchQuery={setPlayerSearchQuery}
+          playerSportFilter={playerSportFilter}
+          setPlayerSportFilter={setPlayerSportFilter}
+          playerRoleFilter={playerRoleFilter}
+          setPlayerRoleFilter={setPlayerRoleFilter}
+          availableRolesForFilter={availableRolesForFilter}
+          exportCsv={exportCsv}
+          onNavigate={onNavigate}
+        />
+      )}
 
       <div style={{ marginTop: '1.75rem' }}>
         <h3 style={{ marginBottom: '0.8rem', fontSize: '1.2rem', color: 'var(--text-secondary)' }}>ADMIN AUDIT LOG</h3>

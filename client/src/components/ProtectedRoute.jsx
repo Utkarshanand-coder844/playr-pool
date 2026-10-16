@@ -114,3 +114,49 @@ export const AdminRoute = ({ children, onNavigate }) => {
 
   return children;
 };
+
+/**
+ * SuperAdminRoute
+ * Strictly requires role === 'admin' (platform super-admin).
+ * Tournament admins are directed to use /tournaments/:id/admin instead.
+ */
+export const SuperAdminRoute = ({ children, onNavigate }) => {
+  const { isAuthenticated, user } = useAuth();
+
+  if (!isAuthenticated) {
+    return (
+      <div className="auth-card" style={{ textAlign: 'center' }}>
+        <h2>Authentication Required</h2>
+        <p style={{ margin: '1rem 0', color: 'var(--text-secondary)' }}>
+          Please sign in with your College ID to view this section.
+        </p>
+        <button className="btn btn-primary" onClick={() => onNavigate('login')}>
+          Go to Sign In
+        </button>
+      </div>
+    );
+  }
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="auth-card" style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚫</div>
+        <h2 style={{ color: 'var(--danger, #ef4444)' }}>Super-Admin Access Only</h2>
+        <p style={{ margin: '1rem 0', color: 'var(--text-secondary)' }}>
+          This platform-wide admin desk is reserved for platform super-administrators.
+        </p>
+        <p style={{ margin: '0.5rem 0 1.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+          If you manage a tournament, use <strong>Tournaments → Your Tournament → Manage Dashboard</strong> to access your tournament admin panel.
+        </p>
+        <button className="btn btn-primary" onClick={() => onNavigate('tournaments')}>
+          Go to My Tournaments
+        </button>
+        <button className="btn btn-secondary" style={{ marginLeft: '0.5rem' }} onClick={() => onNavigate('dashboard')}>
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  return children;
+};

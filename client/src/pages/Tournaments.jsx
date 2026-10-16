@@ -57,6 +57,7 @@ export const Tournaments = ({ onNavigate }) => {
   const [eligibleAdmins, setEligibleAdmins] = useState([]);
   const [availableTeams, setAvailableTeams] = useState([]);
   const [selectedInviteTeamId, setSelectedInviteTeamId] = useState('');
+  const [inviteSportFilter, setInviteSportFilter] = useState('All');
   const [invitingAll, setInvitingAll] = useState(false);
   const [deletingTournament, setDeletingTournament] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -399,41 +400,83 @@ export const Tournaments = ({ onNavigate }) => {
         ) : detailTab === 'teams' ? (
           <div>
             {/* Team Invitation Action Bar for Managers */}
-            {isManager && (
-              <div style={{
-                display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
-                marginBottom: '1.25rem', padding: '12px 16px', background: 'rgba(15, 23, 42, 0.7)',
-                borderRadius: 14, border: '1px solid var(--border, #334155)'
-              }}>
-                <button
-                  style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}
-                  onClick={() => handleInviteAll(t.id)}
-                  disabled={invitingAll}
-                >
-                  📢 {invitingAll ? 'Inviting Teams…' : 'Invite All Campus Teams'}
-                </button>
-
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, minWidth: 260 }}>
-                  <select
-                    value={selectedInviteTeamId}
-                    onChange={(e) => setSelectedInviteTeamId(e.target.value)}
-                    style={{ ...styles.input, padding: '6px 12px', fontSize: '.85rem' }}
-                  >
-                    <option value="">Select specific team to invite…</option>
-                    {availableTeams.map(at => (
-                      <option key={at.id} value={at.id}>{at.name} ({at.sport} • {at.campus})</option>
-                    ))}
-                  </select>
-                  <button
-                    style={{ ...styles.btn, ...styles.btnSecondary, ...styles.btnSm, whiteSpace: 'nowrap' }}
-                    onClick={() => handleInviteSpecificTeam(t.id, selectedInviteTeamId)}
-                    disabled={!selectedInviteTeamId}
-                  >
-                    Send Invite
-                  </button>
+            {isManager && (() => {
+              // Derive unique sports from available teams for the filter
+              const availableSports = ['All', ...new Set(availableTeams.map(at => at.sport).filter(Boolean))].sort((a, b) => a === 'All' ? -1 : a.localeCompare(b));
+              const filteredAvailableTeams = inviteSportFilter === 'All'
+                ? availableTeams
+                : availableTeams.filter(at => at.sport === inviteSportFilter);
+              return (
+                <div style={{
+                  marginBottom: '1.25rem', padding: '14px 16px', background: 'rgba(15, 23, 42, 0.7)',
+                  borderRadius: 14, border: '1px solid var(--border, #334155)'
+                }}>
+                  {/* Top row: Invite All + Sport Filter */}
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                    <button
+                      style={{ ...styles.btn, ...styles.btnPrimary, ...styles.btnSm }}
+                      onClick={() => handleInviteAll(t.id)}
+                      disabled={invitingAll}
+                    >
+                      📢 {invitingAll ? 'Inviting Teams…' : 'Invite All Campus Teams'}
+                    </button>
+                    {/* Sport segregation filter */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.5px' }}>Filter by Sport:</span>
+                      {availableSports.map(sp => (
+                        <button
+                          key={sp}
+                          style={{
+                            ...styles.btn, ...styles.btnSm,
+                            padding: '4px 10px',
+                            background: inviteSportFilter === sp
+                              ? 'linear-gradient(135deg, var(--primary), var(--accent, #38bdf8))'
+                              : 'rgba(255,255,255,0.07)',
+                            color: inviteSportFilter === sp ? '#fff' : 'var(--text-secondary)',
+                            border: inviteSportFilter === sp ? 'none' : '1px solid var(--border, #334155)',
+                            borderRadius: 20,
+                            fontSize: '.72rem',
+                            fontWeight: 600
+                          }}
+                          onClick={() => { setInviteSportFilter(sp); setSelectedInviteTeamId(''); }}
+                        >
+                          {sp === 'All' ? '⚽ All Sports' : sp}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Bottom row: specific team picker */}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <select
+                      value={selectedInviteTeamId}
+                      onChange={(e) => setSelectedInviteTeamId(e.target.value)}
+                      style={{ ...styles.input, padding: '6px 12px', fontSize: '.85rem', flex: 1 }}
+                    >
+                      <option value="">
+                        {filteredAvailableTeams.length === 0
+                          ? `No teams available${inviteSportFilter !== 'All' ? ` for ${inviteSportFilter}` : ''}`
+                          : `Select team to invite${inviteSportFilter !== 'All' ? ` (${inviteSportFilter})` : ''}…`}
+                      </option>
+                      {filteredAvailableTeams.map(at => (
+                        <option key={at.id} value={at.id}>{at.name} ({at.sport} • {at.campus})</option>
+                      ))}
+                    </select>
+                    <button
+                      style={{ ...styles.btn, ...styles.btnSecondary, ...styles.btnSm, whiteSpace: 'nowrap' }}
+                      onClick={() => handleInviteSpecificTeam(t.id, selectedInviteTeamId)}
+                      disabled={!selectedInviteTeamId}
+                    >
+                      ✉️ Send Invite
+                    </button>
+                  </div>
+                  {filteredAvailableTeams.length > 0 && (
+                    <div style={{ fontSize: '.72rem', color: 'var(--text-secondary)', marginTop: 6 }}>
+                      {filteredAvailableTeams.length} team{filteredAvailableTeams.length !== 1 ? 's' : ''} available{inviteSportFilter !== 'All' ? ` in ${inviteSportFilter}` : ''}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {tournamentTeams.length === 0 ? (
               <div style={styles.emptyState}>

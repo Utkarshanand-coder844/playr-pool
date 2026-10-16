@@ -724,30 +724,29 @@ export const TournamentController = {
 
       const entries = await TournamentModel.inviteTeams({ tournamentId, teamIds });
 
-      // Notify the captains and roster players of all invited teams
+      // Notify ONLY the team captain (owner) with actionable accept/decline request
       for (const teamId of teamIds) {
         try {
           const team = await TeamModel.findById(teamId);
-          if (team) {
-            const playerIds = [team.owner_user_id, ...(team.members || []).map(m => m.member_user_id)].filter(Boolean);
-            const distinctPlayerIds = [...new Set(playerIds)];
-
-            for (const pId of distinctPlayerIds) {
-              await NotificationModel.create({
-                userId: pId,
+          if (team && team.owner_user_id) {
+            const captainId = team.owner_user_id;
+            // Actionable notification sent only to team captain
+            await NotificationModel.create({
+              userId: captainId,
+              type: 'tournament_invite',
+              title: `🏆 Team Invitation Request: ${tournament.name}`,
+              message: `Your team "${team.name}" (${team.sport}) has been invited to compete in "${tournament.name}" (${tournament.campus}). As team captain, please accept or decline this invitation in the Tournaments section.`
+            });
+            try {
+              getIO().to(`user:${captainId}`).emit('team:notification', {
                 type: 'tournament_invite',
-                title: `🏆 Tournament Invitation: ${tournament.name}`,
-                message: `Your team "${team.name}" has been invited to compete in ${tournament.name} (${tournament.campus}). Open Tournaments to view details and join.`
+                title: `🏆 Team Invitation Request: ${tournament.name}`,
+                message: `Your team "${team.name}" has been invited to "${tournament.name}". Open Tournaments → Invitations to accept or decline.`,
+                tournament_id: tournamentId,
+                team_id: teamId,
+                action_required: true
               });
-              try {
-                getIO().to(`user:${pId}`).emit('team:notification', {
-                  type: 'tournament_invite',
-                  title: `🏆 Tournament Invitation: ${tournament.name}`,
-                  message: `Your team "${team.name}" has been invited to compete in ${tournament.name} (${tournament.campus}).`,
-                  tournament_id: tournamentId
-                });
-              } catch {}
-            }
+            } catch {}
           }
         } catch {}
       }
