@@ -4,6 +4,7 @@ import { UserModel } from '../models/userModel.js';
 import { AuditLogModel } from '../models/auditLogModel.js';
 import { NotificationModel } from '../models/notificationModel.js';
 import { getIO } from '../config/socket.js';
+import { sendTournamentInviteEmail } from '../config/email.js';
 
 const getUserId = (req) => req.user?.id || req.user?.userId;
 
@@ -724,19 +725,22 @@ export const TournamentController = {
 
       const entries = await TournamentModel.inviteTeams({ tournamentId, teamIds });
 
-      // Notify ONLY the team captain (owner) with actionable accept/decline request
+      // Notify ONLY the team captain (owner) with in-app + email notification
       for (const teamId of teamIds) {
         try {
           const team = await TeamModel.findById(teamId);
           if (team && team.owner_user_id) {
             const captainId = team.owner_user_id;
-            // Actionable notification sent only to team captain
+
+            // 1. In-app notification
             await NotificationModel.create({
               userId: captainId,
               type: 'tournament_invite',
               title: `🏆 Team Invitation Request: ${tournament.name}`,
               message: `Your team "${team.name}" (${team.sport}) has been invited to compete in "${tournament.name}" (${tournament.campus}). As team captain, please accept or decline this invitation in the Tournaments section.`
             });
+
+            // 2. Real-time socket push
             try {
               getIO().to(`user:${captainId}`).emit('team:notification', {
                 type: 'tournament_invite',
@@ -747,6 +751,24 @@ export const TournamentController = {
                 action_required: true
               });
             } catch {}
+
+            // 3. Email to captain's registered address (non-fatal)
+            try {
+              const captain = await UserModel.findById(captainId);
+              if (captain?.email) {
+                await sendTournamentInviteEmail({
+                  captainEmail: captain.email,
+                  captainName: captain.name,
+                  teamName: team.name,
+                  sport: team.sport || 'Sports',
+                  tournamentName: tournament.name,
+                  campus: tournament.campus,
+                  frontendUrl: process.env.FRONTEND_URL
+                });
+              }
+            } catch (emailErr) {
+              console.warn(`[invite] Email to captain ${captainId} failed (non-fatal):`, emailErr.message);
+            }
           }
         } catch {}
       }

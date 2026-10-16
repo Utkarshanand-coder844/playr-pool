@@ -8,7 +8,7 @@ const rootDir = path.resolve(__dirname, '..');
 
 console.log('🔒 Starting Comprehensive Security Audit...\n');
 
-let issues = [];
+const issues = [];
 
 // 1. Scan for SQL Injection patterns (template literals with variable interpolation in query)
 console.log('1️⃣ Scanning for SQL query parameterization...');
