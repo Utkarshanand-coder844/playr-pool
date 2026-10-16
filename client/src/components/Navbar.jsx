@@ -118,82 +118,224 @@ export const Navbar = ({ currentView, onViewChange }) => {
   return (
     <>
       <header className="navbar">
-        {/* Brand Area */}
-        <div className="nav-brand-area">
-          <div className="brand-logo" onClick={() => handleNav(isAuthenticated ? 'dashboard' : 'schedule')} style={{ cursor: 'pointer' }}>
+
+        {/* ── TOP BAR: Brand + Auth / User cluster ── */}
+        <div className="nav-top-bar">
+          {/* Brand Area */}
+          <div className="nav-brand-area">
+            <div className="brand-logo" onClick={() => handleNav(isAuthenticated ? 'dashboard' : 'schedule')} style={{ cursor: 'pointer' }}>
+              <button
+                type="button"
+                className="brand-icon"
+                onClick={(e) => { e.stopPropagation(); setIsAboutOpen(true); }}
+                aria-haspopup="dialog"
+                aria-expanded={isAboutOpen}
+                aria-label="Open information about Playr-Pool"
+              >
+                <img src="/logo.jpg" alt="Playr-Pool Logo" />
+              </button>
+              <span className="brand-name">
+                Playr<em>-Pool</em>
+              </span>
+              <span className="brand-badge">SPORTS</span>
+            </div>
+          </div>
+
+          {/* Desktop Auth / User Cluster */}
+          <div className="nav-actions desktop-only">
+            {isAuthenticated && user ? (
+              <div className="nav-user-cluster">
+                <button
+                  type="button"
+                  className={`nav-icon-btn ${currentView === 'feedback' || currentView === 'community' ? 'active' : ''}`}
+                  onClick={() => handleNav('feedback')}
+                  aria-label="Community Wall & Feedback"
+                  title="Community Wall & Feedback"
+                >
+                  💬
+                </button>
+
+                <button
+                  type="button"
+                  className={`nav-icon-btn ${currentView === 'notifications' ? 'active' : ''}`}
+                  onClick={() => handleNav('notifications')}
+                  aria-label="Notifications"
+                  title="Notifications"
+                >
+                  🔔
+                  {unreadNotificationCount > 0 && <span className="nav-badge-dot" />}
+                </button>
+
+                <button
+                  type="button"
+                  className={`nav-user-pill ${currentView === 'dashboard' ? 'active' : ''}`}
+                  onClick={() => handleNav('dashboard')}
+                >
+                  <div className="user-mini-avatar">
+                    {user.profile_photo ? (
+                      <img src={user.profile_photo} alt={user.name} />
+                    ) : (
+                      user.name ? user.name[0].toUpperCase() : 'U'
+                    )}
+                  </div>
+                  <span className="user-pill-name">{user.name?.split(' ')[0]}</span>
+                  <span className={`role-pill ${user.role}`}>{user.role}</span>
+                </button>
+
+                {user.role === 'admin' && (
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${currentView === 'admin-dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => handleNav('admin-dashboard')}
+                  >
+                    ⚙️ Admin Desk
+                  </button>
+                )}
+                {user.role !== 'admin' && (
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${currentView === 'admin-dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => handleNav('tournaments')}
+                    title="Manage your tournaments"
+                  >
+                    🏆 Tournaments
+                  </button>
+                )}
+
+                <button 
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    logout();
+                    handleNav('login');
+                  }}
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <div className="nav-auth-buttons" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <button
+                  type="button"
+                  className={`nav-icon-btn ${currentView === 'feedback' || currentView === 'community' ? 'active' : ''}`}
+                  onClick={() => handleNav('feedback')}
+                  aria-label="Community Wall & Feedback"
+                  title="Community Wall & Feedback"
+                >
+                  💬
+                </button>
+                <button 
+                  type="button"
+                  className={`btn btn-sm ${currentView === 'login' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => handleNav('login')}
+                >
+                  Log In
+                </button>
+                <button 
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  onClick={() => handleNav('signup')}
+                >
+                  Register
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Header Controls */}
+          <div className="nav-mobile-controls">
             <button
               type="button"
-              className="brand-icon"
-              onClick={(e) => { e.stopPropagation(); setIsAboutOpen(true); }}
-              aria-haspopup="dialog"
-              aria-expanded={isAboutOpen}
-              aria-label="Open information about Playr-Pool"
+              className={`mobile-dots-btn ${isMobileMenuOpen ? 'open' : ''}`}
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle navigation menu"
+              aria-expanded={isMobileMenuOpen}
+              title="Navigation Menu"
             >
-              <img src="/logo.jpg" alt="Playr-Pool Logo" />
+              {isMobileMenuOpen ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="12" cy="5" r="2.2" />
+                  <circle cx="12" cy="12" r="2.2" />
+                  <circle cx="12" cy="19" r="2.2" />
+                </svg>
+              )}
+              {(unreadNotificationCount > 0 || unreadMessageCount > 0) && (
+                <span className="nav-badge-dot" />
+              )}
             </button>
-            <span className="brand-name">
-              Playr<em>-Pool</em>
-            </span>
-            <span className="brand-badge">SPORTS</span>
           </div>
         </div>
 
-        {/* Desktop Navigation Links */}
-        <nav className="nav-desktop-links" aria-label="Main Navigation">
+        {/* ── NAV RAIL: Spacious icon+label tabs ── */}
+        <nav className="nav-rail nav-desktop-links" aria-label="Main Navigation">
           <button
             type="button"
             className={`nav-link-item ${currentView === 'schedule' ? 'active' : ''}`}
             onClick={() => handleNav('schedule')}
           >
-            Matches
+            <span className="nl-icon">📅</span>
+            <span className="nl-label">Matches</span>
           </button>
           <button
             type="button"
             className={`nav-link-item ${currentView === 'scorehub' ? 'active' : ''}`}
             onClick={() => handleNav('scorehub')}
           >
-            ScoreHub
+            <span className="nl-icon">🏆</span>
+            <span className="nl-label">ScoreHub</span>
           </button>
           <button
             type="button"
             className={`nav-link-item ${currentView === 'leaderboard' ? 'active' : ''}`}
             onClick={() => handleNav('leaderboard')}
           >
-            Leaderboard
+            <span className="nl-icon">📊</span>
+            <span className="nl-label">Rankings</span>
           </button>
           <button
             type="button"
             className={`nav-link-item ${currentView === 'events' ? 'active' : ''}`}
             onClick={() => handleNav('events')}
           >
-            Events
+            <span className="nl-icon">📣</span>
+            <span className="nl-label">Events</span>
           </button>
-          {isAuthenticated && (
-            <button
-              type="button"
-              className={`nav-link-item ${currentView === 'tournaments' ? 'active' : ''}`}
-              onClick={() => handleNav('tournaments')}
-            >
-              Tournaments
-            </button>
-          )}
           <button
             type="button"
             className={`nav-link-item ${currentView === 'live-scoring' ? 'active' : ''}`}
             onClick={() => handleNav('live-scoring')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+            style={{ display: 'inline-flex' }}
           >
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f43f5e', display: 'inline-block', animation: 'liveDot 1.4s ease-in-out infinite' }} />
-            Live
+            <span className="nl-icon" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f43f5e', display: 'inline-block', animation: 'liveDot 1.4s ease-in-out infinite' }} />
+            </span>
+            <span className="nl-label">Live</span>
           </button>
           {isAuthenticated && (
             <>
               <button
                 type="button"
+                className={`nav-link-item ${currentView === 'tournaments' ? 'active' : ''}`}
+                onClick={() => handleNav('tournaments')}
+              >
+                <span className="nl-icon">🥇</span>
+                <span className="nl-label">Tournaments</span>
+              </button>
+              <button
+                type="button"
                 className={`nav-link-item ${currentView === 'my-team' ? 'active' : ''}`}
                 onClick={() => handleNav('my-team')}
               >
-                My Team {pendingInviteCount > 0 && <span className="nav-counter-pill">{pendingInviteCount}</span>}
+                <span className="nl-icon" style={{ position: 'relative' }}>
+                  ⚽
+                  {pendingInviteCount > 0 && <span className="nav-badge-dot" style={{ width: 6, height: 6, top: -2, right: -6 }} />}
+                </span>
+                <span className="nl-label">My Team {pendingInviteCount > 0 && <span className="nav-counter-pill">{pendingInviteCount}</span>}</span>
               </button>
               <button
                 type="button"
@@ -203,154 +345,29 @@ export const Navbar = ({ currentView, onViewChange }) => {
                   setUnreadMessageCount(0);
                 }}
               >
-                Messages {unreadMessageCount > 0 && <span className="nav-counter-pill highlight">{unreadMessageCount}</span>}
+                <span className="nl-icon">💬</span>
+                <span className="nl-label">Messages {unreadMessageCount > 0 && <span className="nav-counter-pill highlight">{unreadMessageCount}</span>}</span>
               </button>
               <button
                 type="button"
                 className={`nav-link-item ${currentView === 'discover' ? 'active' : ''}`}
                 onClick={() => handleNav('discover')}
               >
-                Discover
+                <span className="nl-icon">🔎</span>
+                <span className="nl-label">Discover</span>
               </button>
               <button
                 type="button"
                 className={`nav-link-item ${currentView === 'sports-admins' ? 'active' : ''}`}
                 onClick={() => handleNav('sports-admins')}
               >
-                Admins
+                <span className="nl-icon">🛡️</span>
+                <span className="nl-label">Admins</span>
               </button>
             </>
           )}
         </nav>
 
-        {/* Desktop Actions & User Controls */}
-        <div className="nav-actions desktop-only">
-          {isAuthenticated && user ? (
-            <div className="nav-user-cluster">
-              <button
-                type="button"
-                className={`nav-icon-btn ${currentView === 'feedback' || currentView === 'community' ? 'active' : ''}`}
-                onClick={() => handleNav('feedback')}
-                aria-label="Community Wall & Feedback"
-                title="Community Wall & Feedback"
-              >
-                💬
-              </button>
-
-              <button
-                type="button"
-                className={`nav-icon-btn ${currentView === 'notifications' ? 'active' : ''}`}
-                onClick={() => handleNav('notifications')}
-                aria-label="Notifications"
-                title="Notifications"
-              >
-                🔔
-                {unreadNotificationCount > 0 && <span className="nav-badge-dot" />}
-              </button>
-
-              <button
-                type="button"
-                className={`nav-user-pill ${currentView === 'dashboard' ? 'active' : ''}`}
-                onClick={() => handleNav('dashboard')}
-              >
-                <div className="user-mini-avatar">
-                  {user.profile_photo ? (
-                    <img src={user.profile_photo} alt={user.name} />
-                  ) : (
-                    user.name ? user.name[0].toUpperCase() : 'U'
-                  )}
-                </div>
-                <span className="user-pill-name">{user.name?.split(' ')[0]}</span>
-                <span className={`role-pill ${user.role}`}>{user.role}</span>
-              </button>
-
-              {user.role === 'admin' && (
-                <button
-                  type="button"
-                  className={`btn btn-sm ${currentView === 'admin-dashboard' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => handleNav('admin-dashboard')}
-                >
-                  ⚙️ Admin Desk
-                </button>
-              )}
-              {user.role !== 'admin' && (
-                <button
-                  type="button"
-                  className={`btn btn-sm ${currentView === 'admin-dashboard' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => handleNav('tournaments')}
-                  title="Manage your tournaments"
-                >
-                  🏆 Tournaments
-                </button>
-              )}
-
-              <button 
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  logout();
-                  handleNav('login');
-                }}
-              >
-                Sign Out
-              </button>
-            </div>
-          ) : (
-            <div className="nav-auth-buttons" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <button
-                type="button"
-                className={`nav-icon-btn ${currentView === 'feedback' || currentView === 'community' ? 'active' : ''}`}
-                onClick={() => handleNav('feedback')}
-                aria-label="Community Wall & Feedback"
-                title="Community Wall & Feedback"
-              >
-                💬
-              </button>
-              <button 
-                type="button"
-                className={`btn btn-sm ${currentView === 'login' ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => handleNav('login')}
-              >
-                Log In
-              </button>
-              <button 
-                type="button"
-                className="btn btn-sm btn-primary"
-                onClick={() => handleNav('signup')}
-              >
-                Register
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Mobile Header Controls: Clean Three Dots Menu */}
-        <div className="nav-mobile-controls">
-          <button
-            type="button"
-            className={`mobile-dots-btn ${isMobileMenuOpen ? 'open' : ''}`}
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label="Toggle navigation menu"
-            aria-expanded={isMobileMenuOpen}
-            title="Navigation Menu"
-          >
-            {isMobileMenuOpen ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <circle cx="12" cy="5" r="2.2" />
-                <circle cx="12" cy="12" r="2.2" />
-                <circle cx="12" cy="19" r="2.2" />
-              </svg>
-            )}
-            {(unreadNotificationCount > 0 || unreadMessageCount > 0) && (
-              <span className="nav-badge-dot" />
-            )}
-          </button>
-        </div>
       </header>
 
       {/* Griffin-Style Full Mobile Drawer */}
