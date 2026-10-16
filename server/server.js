@@ -16,6 +16,7 @@ import playerSportRoutes from './routes/playerSportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import liveScoringRoutes from './routes/liveScoringRoutes.js';
 import tournamentRoutes from './routes/tournamentRoutes.js';
+import experienceRoutes from './routes/experienceRoutes.js';
 import { initDb } from './config/db.js';
 import { initSocket } from './config/socket.js';
 import { corsOptions } from './config/cors.js';
@@ -119,6 +120,7 @@ app.use('/api/player-sports', playerSportRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/live-scoring', liveScoringRoutes);
 app.use('/api/tournaments', tournamentRoutes);
+app.use('/api/experiences', experienceRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

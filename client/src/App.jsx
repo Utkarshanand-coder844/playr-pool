@@ -63,6 +63,9 @@ const Tournaments = lazy(() =>
 const EditProfile = lazy(() =>
   import('./pages/EditProfile').then((m) => ({ default: m.EditProfile }))
 );
+const PlayerExperiences = lazy(() =>
+  import('./pages/PlayerExperiences').then((m) => ({ default: m.PlayerExperiences }))
+);
 
 // Fallback spinner while route chunk loads
 function PageFallback() {
@@ -212,6 +215,10 @@ function MainLayout() {
       case 'player-insights':
         navigate(params ? `/player-insights/${params}` : '/player-insights');
         break;
+      case 'experiences':
+      case 'reviews':
+        navigate('/experiences');
+        break;
       default:
         navigate(`/${view}`);
     }
@@ -256,6 +263,14 @@ function MainLayout() {
               />
               <Route path="/scorehub" element={<ScoreHub />} />
               <Route path="/events" element={<Events />} />
+              <Route
+                path="/experiences"
+                element={<PlayerExperiences onNavigate={handleNavigate} />}
+              />
+              <Route
+                path="/reviews"
+                element={<PlayerExperiences onNavigate={handleNavigate} />}
+              />
               <Route
                 path="/live-scoring"
                 element={<LiveScoring onNavigate={handleNavigate} />}
@@ -371,11 +386,10 @@ function MainLayout() {
                 }
               />
 
-              {/* Admin Routes */}
+              {/* Admin Routes: Super-admin only platform-wide desk */}
               <Route
                 path="/admin"
                 element={
-                  {/* Super-admin only: platform-wide desk */}
                   <SuperAdminRoute onNavigate={handleNavigate}>
                     <AdminDashboard onNavigate={handleNavigate} />
                   </SuperAdminRoute>

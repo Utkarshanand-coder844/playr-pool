@@ -168,6 +168,13 @@ export const Navbar = ({ currentView, onViewChange }) => {
           >
             Events
           </button>
+          <button
+            type="button"
+            className={`nav-link-item ${currentView === 'experiences' || currentView === 'reviews' ? 'active' : ''}`}
+            onClick={() => handleNav('experiences')}
+          >
+            Reviews &amp; Tips
+          </button>
           {isAuthenticated && (
             <button
               type="button"
@@ -410,6 +417,14 @@ export const Navbar = ({ currentView, onViewChange }) => {
                 >
                   <span className="mobile-item-icon">📣</span>
                   <span className="mobile-item-label">Official Tournament Events</span>
+                </button>
+                <button
+                  type="button"
+                  className={`mobile-nav-item ${currentView === 'experiences' || currentView === 'reviews' ? 'active' : ''}`}
+                  onClick={() => handleNav('experiences')}
+                >
+                  <span className="mobile-item-icon">💡</span>
+                  <span className="mobile-item-label">Player Reviews &amp; Advice</span>
                 </button>
                 <button
                   type="button"
