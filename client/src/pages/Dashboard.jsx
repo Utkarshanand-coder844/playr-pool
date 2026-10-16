@@ -152,7 +152,7 @@ export const Dashboard = ({ onNavigate }) => {
           </div>
           <div className="detail-item">
             <div className="detail-label">Email Contact</div>
-            <div className="detail-value" style={{ fontSize: '0.95rem' }}>{user.email}</div>
+            <div className="detail-value">{user.email}</div>
           </div>
           <div className="detail-item">
             <div className="detail-label">Phone</div>
@@ -164,7 +164,7 @@ export const Dashboard = ({ onNavigate }) => {
           </div>
           <div className="detail-item">
             <div className="detail-label">Session Token Storage</div>
-            <div className="detail-value" style={{ color: 'var(--accent-cyan)', fontSize: '0.9rem' }}>
+            <div className="detail-value" style={{ color: 'var(--accent-cyan)' }}>
               In-Memory Context (Safe)
             </div>
           </div>
@@ -192,13 +192,13 @@ export const Dashboard = ({ onNavigate }) => {
               {chosenSports.length > 0 ? (
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {chosenSports.map((sp) => (
-                    <span key={sp} className="role-pill player" style={{ fontSize: '0.85rem' }}>
+                    <span key={sp} className="role-pill player" style={{ fontSize: '1rem' }}>
                       {sp}
                     </span>
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                <div style={{ fontSize: '1rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
                   No sports chosen yet.{' '}
                   {onNavigate && (
                     <button
@@ -228,7 +228,7 @@ export const Dashboard = ({ onNavigate }) => {
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {adminSports.map((sp) => (
-                      <span key={sp} className="role-pill admin" style={{ fontSize: '0.85rem' }}>
+                      <span key={sp} className="role-pill admin" style={{ fontSize: '1rem' }}>
                         {sp}
                       </span>
                     ))}
@@ -241,11 +241,11 @@ export const Dashboard = ({ onNavigate }) => {
 
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button 
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary"
             onClick={() => onNavigate('edit-profile')}
             style={{ width: 'auto' }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.3rem', verticalAlign: 'middle' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.3rem', verticalAlign: 'middle' }}>
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
@@ -253,11 +253,11 @@ export const Dashboard = ({ onNavigate }) => {
           </button>
 
           <button 
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary"
             onClick={handleRefreshProfile}
             disabled={refreshing}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M23 4v6h-6M1 20v-6h6" />
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
@@ -265,10 +265,10 @@ export const Dashboard = ({ onNavigate }) => {
           </button>
 
           <button 
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary"
             onClick={testAdminRoute}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
@@ -277,7 +277,7 @@ export const Dashboard = ({ onNavigate }) => {
 
           {onNavigate && (
             <button
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary"
               onClick={() => onNavigate('player-insights', user.id)}
               style={{
                 borderColor: 'rgba(56, 189, 248, 0.4)',
@@ -299,7 +299,7 @@ export const Dashboard = ({ onNavigate }) => {
 
       {/* Quick Action Preview for Subsequent Tournament Prompts */}
       <div>
-        <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--text-secondary)' }}>
+        <h3 style={{ marginBottom: '1.25rem', fontSize: '1.6rem', color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
           TOURNAMENT WORKSPACE
         </h3>
         <div className="actions-row">
@@ -312,8 +312,8 @@ export const Dashboard = ({ onNavigate }) => {
               <p>Form a squad with your classmates, assign team positions, or view your current roster.</p>
             </div>
             <button 
-              className="btn btn-primary btn-sm" 
-              style={{ width: '100%' }}
+              className="btn btn-primary" 
+              style={{ width: '100%', fontSize: '1.15rem', padding: '0.8rem 1.25rem' }}
               onClick={() => onNavigate && onNavigate('my-team')}
             >
               Go to My Team →
@@ -329,8 +329,8 @@ export const Dashboard = ({ onNavigate }) => {
               <p>Real-time match scores updated live by tournament referees and admins.</p>
             </div>
             <button 
-              className="btn btn-primary btn-sm" 
-              style={{ width: '100%' }}
+              className="btn btn-primary" 
+              style={{ width: '100%', fontSize: '1.15rem', padding: '0.8rem 1.25rem' }}
               onClick={() => onNavigate && onNavigate(user.role === 'admin' ? 'admin-dashboard' : 'leaderboard')}
             >
               {user.role === 'admin' ? 'Go to Admin Desk →' : 'View Live Scores →'}
@@ -346,8 +346,8 @@ export const Dashboard = ({ onNavigate }) => {
               <p>League points tables, fixtures, knockout rounds, and championship standings.</p>
             </div>
             <button 
-              className="btn btn-primary btn-sm" 
-              style={{ width: '100%' }}
+              className="btn btn-primary" 
+              style={{ width: '100%', fontSize: '1.15rem', padding: '0.8rem 1.25rem' }}
               onClick={() => onNavigate && onNavigate('scorehub')}
             >
               Open ScoreHub →
@@ -363,8 +363,8 @@ export const Dashboard = ({ onNavigate }) => {
               <p>Track your individual match performance, fantasy points, form trend, and tournament milestones.</p>
             </div>
             <button 
-              className="btn btn-primary btn-sm" 
-              style={{ width: '100%' }}
+              className="btn btn-primary" 
+              style={{ width: '100%', fontSize: '1.15rem', padding: '0.8rem 1.25rem' }}
               onClick={() => onNavigate && onNavigate('player-insights', user.id)}
             >
               View My Insights →
@@ -375,18 +375,18 @@ export const Dashboard = ({ onNavigate }) => {
 
       {/* Danger Zone: Permanent Account Deletion */}
       <div style={{ marginTop: '2.5rem', borderTop: '1px solid rgba(255, 77, 77, 0.2)', paddingTop: '1.5rem' }}>
-        <div style={{ background: 'rgba(255, 68, 68, 0.05)', border: '1px solid rgba(255, 68, 68, 0.25)', borderRadius: '12px', padding: '1.25rem' }}>
-          <h4 style={{ color: '#ff4d4d', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem' }}>
+        <div style={{ background: 'rgba(255, 68, 68, 0.05)', border: '1px solid rgba(255, 68, 68, 0.25)', borderRadius: '12px', padding: '1.6rem' }}>
+          <h4 style={{ color: '#ff4d4d', margin: '0 0 0.75rem 0', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.45rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             ⚠️ Danger Zone — Permanent Account Deletion
           </h4>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: '1.5', margin: '0 0 1rem 0' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', lineHeight: '1.6', margin: '0 0 1.25rem 0' }}>
             <strong>Note:</strong> To simply leave your session on this computer, use <strong>Sign Out</strong> in the top menu. <br />
             Clicking <strong>Permanently Delete Account</strong> below will completely erase your player profile, team memberships, sports data, and chat history from the tournament database forever.
           </p>
           <button 
-            className="btn btn-danger btn-sm"
+            className="btn btn-danger"
             onClick={() => setShowDeleteModal(true)}
-            style={{ width: 'auto' }}
+            style={{ width: 'auto', fontSize: '1.15rem', padding: '0.8rem 1.6rem' }}
           >
             🗑️ Permanently Delete My Account
           </button>

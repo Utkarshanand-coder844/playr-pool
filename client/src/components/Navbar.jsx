@@ -14,11 +14,24 @@ export const Navbar = ({ currentView, onViewChange }) => {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [messageToast, setMessageToast] = useState(null);
+  const [openCategory, setOpenCategory] = useState(null);
 
   const handleNav = (view, params = null) => {
     setIsMobileMenuOpen(false);
+    setOpenCategory(null);
     onViewChange(view, params);
   };
+
+  useEffect(() => {
+    if (!openCategory) return undefined;
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.nav-cat-dropdown-wrap')) {
+        setOpenCategory(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [openCategory]);
 
   useEffect(() => {
     if (!isAboutOpen) return undefined;
@@ -119,8 +132,21 @@ export const Navbar = ({ currentView, onViewChange }) => {
     <>
       <header className="navbar">
 
-        {/* ── TOP BAR: Brand + Auth / User cluster ── */}
+        {/* ── TOP BAR: Brand + Categories + Auth / User cluster ── */}
         <div className="nav-top-bar">
+          {/* Animated Sports Background (Strictly contained in the Topbar) */}
+          <div className="topbar-sports-bg" aria-hidden="true">
+            <div className="topbar-light-sweep" />
+            <div className="topbar-pitch-lines" />
+            <span className="floating-sport-item sport-item-1">⚽</span>
+            <span className="floating-sport-item sport-item-2">🏏</span>
+            <span className="floating-sport-item sport-item-3">🏀</span>
+            <span className="floating-sport-item sport-item-4">🏸</span>
+            <span className="floating-sport-item sport-item-5">🏐</span>
+            <span className="floating-sport-item sport-item-6">🏆</span>
+            <span className="floating-sport-item sport-item-7">⚡</span>
+          </div>
+
           {/* Brand Area */}
           <div className="nav-brand-area">
             <div className="brand-logo" onClick={() => handleNav(isAuthenticated ? 'dashboard' : 'schedule')} style={{ cursor: 'pointer' }}>
@@ -140,6 +166,218 @@ export const Navbar = ({ currentView, onViewChange }) => {
               <span className="brand-badge">SPORTS</span>
             </div>
           </div>
+
+          {/* Categorized Vertical Dropdowns in the Topbar */}
+          <nav className="nav-categories desktop-only" aria-label="Categorized Navigation">
+            {/* Category: Competitions */}
+            <div className="nav-cat-dropdown-wrap">
+              <button
+                type="button"
+                className={`nav-cat-trigger ${['schedule', 'scorehub', 'leaderboard', 'events', 'feedback', 'community', 'live-scoring', 'tournaments'].includes(currentView) ? 'active' : ''} ${openCategory === 'competitions' ? 'open' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenCategory(openCategory === 'competitions' ? null : 'competitions');
+                }}
+                aria-expanded={openCategory === 'competitions'}
+              >
+                <span className="cat-icon">🏆</span>
+                <span>Competitions</span>
+                <span className="cat-arrow">▾</span>
+              </button>
+
+              {openCategory === 'competitions' && (
+                <div className="nav-cat-menu vertical-menu" onClick={(e) => e.stopPropagation()}>
+                  <div className="cat-menu-header">// COMPETITIONS</div>
+                  <button
+                    type="button"
+                    className={`cat-menu-item ${currentView === 'schedule' ? 'active' : ''}`}
+                    onClick={() => handleNav('schedule')}
+                  >
+                    <span className="item-icon">📅</span>
+                    <span className="item-title">Matches &amp; Schedule</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`cat-menu-item ${currentView === 'scorehub' ? 'active' : ''}`}
+                    onClick={() => handleNav('scorehub')}
+                  >
+                    <span className="item-icon">🏆</span>
+                    <span className="item-title">ScoreHub &amp; Knockouts</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`cat-menu-item ${currentView === 'leaderboard' ? 'active' : ''}`}
+                    onClick={() => handleNav('leaderboard')}
+                  >
+                    <span className="item-icon">📊</span>
+                    <span className="item-title">Standings &amp; Leaderboard</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`cat-menu-item ${currentView === 'events' ? 'active' : ''}`}
+                    onClick={() => handleNav('events')}
+                  >
+                    <span className="item-icon">📣</span>
+                    <span className="item-title">Official Tournament Events</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`cat-menu-item ${currentView === 'feedback' || currentView === 'community' ? 'active' : ''}`}
+                    onClick={() => handleNav('feedback')}
+                  >
+                    <span className="item-icon">💬</span>
+                    <span className="item-title">Community Wall &amp; Feedback</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`cat-menu-item ${currentView === 'live-scoring' ? 'active' : ''}`}
+                    onClick={() => handleNav('live-scoring')}
+                  >
+                    <span className="item-icon">🔴</span>
+                    <span className="item-title">Live Scoring</span>
+                  </button>
+                  {isAuthenticated && (
+                    <button
+                      type="button"
+                      className={`cat-menu-item ${currentView === 'tournaments' ? 'active' : ''}`}
+                      onClick={() => handleNav('tournaments')}
+                    >
+                      <span className="item-icon">🥇</span>
+                      <span className="item-title">Tournaments</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Category: Squads & Athletes */}
+            {isAuthenticated && (
+              <div className="nav-cat-dropdown-wrap">
+                <button
+                  type="button"
+                  className={`nav-cat-trigger ${['my-team', 'chat', 'discover', 'sports-admins'].includes(currentView) ? 'active' : ''} ${openCategory === 'squads' ? 'open' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenCategory(openCategory === 'squads' ? null : 'squads');
+                  }}
+                  aria-expanded={openCategory === 'squads'}
+                >
+                  <span className="cat-icon">⚽</span>
+                  <span>Squads &amp; Athletes</span>
+                  {(pendingInviteCount > 0 || unreadMessageCount > 0) && (
+                    <span className="nav-badge-dot" style={{ position: 'static', width: 8, height: 8 }} />
+                  )}
+                  <span className="cat-arrow">▾</span>
+                </button>
+
+                {openCategory === 'squads' && (
+                  <div className="nav-cat-menu vertical-menu" onClick={(e) => e.stopPropagation()}>
+                    <div className="cat-menu-header">// SQUADS &amp; ATHLETES</div>
+                    <button
+                      type="button"
+                      className={`cat-menu-item ${currentView === 'my-team' ? 'active' : ''}`}
+                      onClick={() => handleNav('my-team')}
+                    >
+                      <span className="item-icon">⚽</span>
+                      <span className="item-title">My Squad &amp; Roster</span>
+                      {pendingInviteCount > 0 && <span className="nav-counter-pill">{pendingInviteCount}</span>}
+                    </button>
+                    <button
+                      type="button"
+                      className={`cat-menu-item ${currentView === 'chat' ? 'active' : ''}`}
+                      onClick={() => {
+                        handleNav('chat');
+                        setUnreadMessageCount(0);
+                      }}
+                    >
+                      <span className="item-icon">💬</span>
+                      <span className="item-title">Direct Athlete Chat</span>
+                      {unreadMessageCount > 0 && <span className="nav-counter-pill highlight">{unreadMessageCount}</span>}
+                    </button>
+                    <button
+                      type="button"
+                      className={`cat-menu-item ${currentView === 'discover' ? 'active' : ''}`}
+                      onClick={() => handleNav('discover')}
+                    >
+                      <span className="item-icon">🔎</span>
+                      <span className="item-title">Discover Athletes &amp; Teams</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`cat-menu-item ${currentView === 'sports-admins' ? 'active' : ''}`}
+                      onClick={() => handleNav('sports-admins')}
+                    >
+                      <span className="item-icon">🛡️</span>
+                      <span className="item-title">Sports Administrators</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Category: Account & Settings */}
+            {isAuthenticated && (
+              <div className="nav-cat-dropdown-wrap">
+                <button
+                  type="button"
+                  className={`nav-cat-trigger ${['dashboard', 'notifications', 'admin-dashboard', 'edit-profile'].includes(currentView) ? 'active' : ''} ${openCategory === 'account' ? 'open' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenCategory(openCategory === 'account' ? null : 'account');
+                  }}
+                  aria-expanded={openCategory === 'account'}
+                >
+                  <span className="cat-icon">⚡</span>
+                  <span>Account &amp; Settings</span>
+                  {unreadNotificationCount > 0 && (
+                    <span className="nav-badge-dot" style={{ position: 'static', width: 8, height: 8 }} />
+                  )}
+                  <span className="cat-arrow">▾</span>
+                </button>
+
+                {openCategory === 'account' && (
+                  <div className="nav-cat-menu vertical-menu" onClick={(e) => e.stopPropagation()}>
+                    <div className="cat-menu-header">// ACCOUNT &amp; SETTINGS</div>
+                    <button
+                      type="button"
+                      className={`cat-menu-item ${currentView === 'dashboard' ? 'active' : ''}`}
+                      onClick={() => handleNav('dashboard')}
+                    >
+                      <span className="item-icon">⚡</span>
+                      <span className="item-title">Verified Athlete Credential</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`cat-menu-item ${currentView === 'notifications' ? 'active' : ''}`}
+                      onClick={() => handleNav('notifications')}
+                    >
+                      <span className="item-icon">🔔</span>
+                      <span className="item-title">Notifications &amp; Alerts</span>
+                      {unreadNotificationCount > 0 && <span className="nav-counter-pill highlight">{unreadNotificationCount}</span>}
+                    </button>
+                    {user?.role === 'admin' && (
+                      <button
+                        type="button"
+                        className={`cat-menu-item ${currentView === 'admin-dashboard' ? 'active' : ''}`}
+                        onClick={() => handleNav('admin-dashboard')}
+                      >
+                        <span className="item-icon">⚙️</span>
+                        <span className="item-title">Super Admin Dashboard</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="cat-menu-item"
+                      onClick={() => setIsAboutOpen(true)}
+                    >
+                      <span className="item-icon">ℹ️</span>
+                      <span className="item-title">About Playr-Pool Platform</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </nav>
 
           {/* Desktop Auth / User Cluster */}
           <div className="nav-actions desktop-only">
@@ -270,104 +508,6 @@ export const Navbar = ({ currentView, onViewChange }) => {
             </button>
           </div>
         </div>
-
-        {/* ── NAV RAIL: Spacious icon+label tabs ── */}
-        <nav className="nav-rail nav-desktop-links" aria-label="Main Navigation">
-          <button
-            type="button"
-            className={`nav-link-item ${currentView === 'schedule' ? 'active' : ''}`}
-            onClick={() => handleNav('schedule')}
-          >
-            <span className="nl-icon">📅</span>
-            <span className="nl-label">Matches</span>
-          </button>
-          <button
-            type="button"
-            className={`nav-link-item ${currentView === 'scorehub' ? 'active' : ''}`}
-            onClick={() => handleNav('scorehub')}
-          >
-            <span className="nl-icon">🏆</span>
-            <span className="nl-label">ScoreHub</span>
-          </button>
-          <button
-            type="button"
-            className={`nav-link-item ${currentView === 'leaderboard' ? 'active' : ''}`}
-            onClick={() => handleNav('leaderboard')}
-          >
-            <span className="nl-icon">📊</span>
-            <span className="nl-label">Rankings</span>
-          </button>
-          <button
-            type="button"
-            className={`nav-link-item ${currentView === 'events' ? 'active' : ''}`}
-            onClick={() => handleNav('events')}
-          >
-            <span className="nl-icon">📣</span>
-            <span className="nl-label">Events</span>
-          </button>
-          <button
-            type="button"
-            className={`nav-link-item ${currentView === 'live-scoring' ? 'active' : ''}`}
-            onClick={() => handleNav('live-scoring')}
-            style={{ display: 'inline-flex' }}
-          >
-            <span className="nl-icon" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f43f5e', display: 'inline-block', animation: 'liveDot 1.4s ease-in-out infinite' }} />
-            </span>
-            <span className="nl-label">Live</span>
-          </button>
-          {isAuthenticated && (
-            <>
-              <button
-                type="button"
-                className={`nav-link-item ${currentView === 'tournaments' ? 'active' : ''}`}
-                onClick={() => handleNav('tournaments')}
-              >
-                <span className="nl-icon">🥇</span>
-                <span className="nl-label">Tournaments</span>
-              </button>
-              <button
-                type="button"
-                className={`nav-link-item ${currentView === 'my-team' ? 'active' : ''}`}
-                onClick={() => handleNav('my-team')}
-              >
-                <span className="nl-icon" style={{ position: 'relative' }}>
-                  ⚽
-                  {pendingInviteCount > 0 && <span className="nav-badge-dot" style={{ width: 6, height: 6, top: -2, right: -6 }} />}
-                </span>
-                <span className="nl-label">My Team {pendingInviteCount > 0 && <span className="nav-counter-pill">{pendingInviteCount}</span>}</span>
-              </button>
-              <button
-                type="button"
-                className={`nav-link-item ${currentView === 'chat' ? 'active' : ''}`}
-                onClick={() => {
-                  handleNav('chat');
-                  setUnreadMessageCount(0);
-                }}
-              >
-                <span className="nl-icon">💬</span>
-                <span className="nl-label">Messages {unreadMessageCount > 0 && <span className="nav-counter-pill highlight">{unreadMessageCount}</span>}</span>
-              </button>
-              <button
-                type="button"
-                className={`nav-link-item ${currentView === 'discover' ? 'active' : ''}`}
-                onClick={() => handleNav('discover')}
-              >
-                <span className="nl-icon">🔎</span>
-                <span className="nl-label">Discover</span>
-              </button>
-              <button
-                type="button"
-                className={`nav-link-item ${currentView === 'sports-admins' ? 'active' : ''}`}
-                onClick={() => handleNav('sports-admins')}
-              >
-                <span className="nl-icon">🛡️</span>
-                <span className="nl-label">Admins</span>
-              </button>
-            </>
-          )}
-        </nav>
-
       </header>
 
       {/* Griffin-Style Full Mobile Drawer */}

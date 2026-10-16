@@ -1019,10 +1019,10 @@ export function LiveScoring({ onNavigate }) {
         @keyframes scoreFlash { 0% { background: rgba(56,189,248,0.2); } 100% { background: transparent; } }
 
         .live-scoring-page {
-          max-width: 1100px;
+          max-width: 1280px;
           width: 100%;
           margin: 0 auto;
-          padding: 1.5rem 1rem;
+          padding: 2rem 1.5rem;
           box-sizing: border-box;
           overflow-x: hidden;
         }
@@ -1120,25 +1120,26 @@ export function LiveScoring({ onNavigate }) {
         }
       `}</style>
 
-      <div style={{ marginBottom: 24, width: '100%', boxSizing: 'border-box' }}>
-        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(1.5rem, 5vw, 2.4rem)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, wordBreak: 'break-word' }}>
+      <div style={{ marginBottom: 28, width: '100%', boxSizing: 'border-box' }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6, wordBreak: 'break-word', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
           🏟️ <em>Live Scoring</em>
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Real-time match scores, event-sourced for accuracy</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', lineHeight: '1.5' }}>Real-time match scores, event-sourced for tournament accuracy</p>
       </div>
 
       {/* Filters */}
       <div className="live-filter-bar">
         {[['all', 'All Matches'], ['live', '🔴 Live'], ['upcoming', 'Upcoming'], ['completed', 'Completed']].map(([val, label]) => (
           <button key={val} onClick={() => setFilter(val)} style={{
-            padding: '0.45rem 1rem', borderRadius: 100, fontSize: '0.82rem', fontWeight: 600,
-            border: `1px solid ${filter === val ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.08)'}`,
-            background: filter === val ? 'rgba(255,255,255,0.1)' : 'transparent', color: filter === val ? 'var(--text-primary)' : 'var(--text-muted)',
-            cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+            padding: '0.65rem 1.25rem', borderRadius: 100, fontSize: '1.05rem', fontWeight: 700,
+            fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', textTransform: 'uppercase',
+            border: `1px solid ${filter === val ? 'var(--lime)' : 'rgba(255,255,255,0.12)'}`,
+            background: filter === val ? 'rgba(198, 244, 50, 0.15)' : 'rgba(255,255,255,0.03)', color: filter === val ? 'var(--lime)' : 'var(--text-muted)',
+            cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.2s ease'
           }}>{label}</button>
         ))}
         <select value={sportFilter} onChange={e => setSportFilter(e.target.value)}
-          style={{ padding: '0.45rem 0.85rem', borderRadius: 100, fontSize: '0.82rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          style={{ padding: '0.65rem 1.25rem', borderRadius: 100, fontSize: '1rem', fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#e4e4e7', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
           {allSports.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
@@ -1250,7 +1251,7 @@ export function LiveScoring({ onNavigate }) {
               <div className="skeleton" style={{ height: 90 }} />
             </div>
           ) : filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem', background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '4rem 2rem', background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)', fontSize: '1.2rem', fontWeight: 500 }}>
               No matches found for this filter
             </div>
           ) : (
