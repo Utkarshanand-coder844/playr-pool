@@ -1,7 +1,12 @@
 import './env.js';
 
 const getConfiguredOrigins = () => {
-  const originStr = [process.env.FRONTEND_ORIGIN, process.env.FRONTEND_URL].filter(Boolean).join(',');
+  const originStr = [
+    process.env.FRONTEND_ORIGIN,
+    process.env.FRONTEND_URL,
+    'https://playr-pool-two.vercel.app',
+    'https://playr-pool.vercel.app'
+  ].filter(Boolean).join(',');
   return originStr
     .split(',')
     .map(origin => origin.trim().replace(/\/$/, ''))

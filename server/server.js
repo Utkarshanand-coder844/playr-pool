@@ -23,8 +23,18 @@ import { corsOptions } from './config/cors.js';
 import { globalRateLimit } from './middleware/rateLimitMiddleware.js';
 import { sanitizeRequest } from './middleware/sanitizeMiddleware.js';
 
+// Provide fallback defaults for frontend origin/URL if not explicitly set in hosting provider
+if (!process.env.FRONTEND_ORIGIN && !process.env.FRONTEND_URL) {
+  process.env.FRONTEND_ORIGIN = 'https://playr-pool-two.vercel.app';
+  process.env.FRONTEND_URL = 'https://playr-pool-two.vercel.app';
+} else if (!process.env.FRONTEND_ORIGIN) {
+  process.env.FRONTEND_ORIGIN = process.env.FRONTEND_URL;
+} else if (!process.env.FRONTEND_URL) {
+  process.env.FRONTEND_URL = process.env.FRONTEND_ORIGIN;
+}
+
 if (process.env.NODE_ENV === 'production') {
-  const missing = ['DATABASE_URL', 'JWT_SECRET', 'ADMIN_SIGNUP_CODE', 'FRONTEND_ORIGIN', 'FRONTEND_URL', 'RESEND_API_KEY', 'PASSWORD_RESET_EMAIL_FROM']
+  const missing = ['DATABASE_URL', 'JWT_SECRET', 'ADMIN_SIGNUP_CODE']
     .filter((name) => !process.env[name]);
   if (missing.length) throw new Error(`Missing required production configuration: ${missing.join(', ')}`);
   if (process.env.JWT_SECRET.length < 32 || process.env.JWT_SECRET === 'super_secret_sports_jwt_key_change_in_production_2026') {
