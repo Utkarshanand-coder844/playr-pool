@@ -10,6 +10,21 @@ export const Dashboard = ({ onNavigate }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [liveMatch, setLiveMatch] = useState(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    fetch('/api/matches')
+      .then(res => res.json())
+      .then(data => {
+        if (isMounted && data.success && Array.isArray(data.matches)) {
+          const live = data.matches.find(m => m.status === 'live');
+          setLiveMatch(live || null);
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   React.useEffect(() => {
     if (user && !user.sports) {
@@ -70,6 +85,33 @@ export const Dashboard = ({ onNavigate }) => {
 
   return (
     <div className="dashboard-container">
+      {/* Live Match Banner if a match is live */}
+      {liveMatch && (
+        <div
+          className="match-board live"
+          data-sport={(liveMatch.sport || 'football').toLowerCase()}
+          onClick={() => onNavigate && onNavigate('live-scoring', liveMatch.id)}
+          style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span className="live-badge">Live</span>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-primary)', textTransform: 'uppercase' }}>
+                  {liveMatch.team_a_name} vs {liveMatch.team_b_name}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {liveMatch.sport || 'Sports Match'} · Click to open live scoreboard
+                </div>
+              </div>
+            </div>
+            <div className="score-big lime" style={{ fontSize: '1.9rem' }}>
+              {liveMatch.team_a_score ?? 0} - {liveMatch.team_b_score ?? 0}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Athlete ID Card Hero */}
       <div className="id-card-hero">
         <div className="id-card-header">

@@ -77,8 +77,14 @@ export const Leaderboard = ({ onNavigate }) => {
 
   if (loading) {
     return (
-      <div className="auth-card" style={{ textAlign: 'center', padding: '3rem' }}>
-        <p style={{ color: 'var(--accent-cyan)' }}>Loading leaderboard...</p>
+      <div className="dashboard-container" style={{ maxWidth: '960px' }}>
+        <div className="skeleton" style={{ height: 90, marginBottom: '1.25rem' }} />
+        <div className="chip-row" style={{ marginBottom: '1.25rem' }}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="skeleton" style={{ width: 90, height: 40, borderRadius: '9999px' }} />
+          ))}
+        </div>
+        <div className="skeleton" style={{ height: 260 }} />
       </div>
     );
   }
@@ -98,20 +104,25 @@ export const Leaderboard = ({ onNavigate }) => {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+      <div className="chip-row" style={{ marginBottom: '1.25rem' }}>
         {['Badminton', 'Table Tennis', 'Cricket', 'Football', 'Other'].map((sport) => (
-          <button key={sport} className={`btn btn-sm ${selectedSport === sport ? 'btn-primary' : 'btn-secondary'}`} style={{ width: 'auto' }} onClick={() => setSelectedSport(sport)}>
+          <button
+            key={sport}
+            type="button"
+            className={`sport-chip ${selectedSport === sport ? 'active' : ''}`}
+            onClick={() => setSelectedSport(sport)}
+          >
             {sport}
           </button>
         ))}
       </div>
       {selectedSport === 'Other' && (
-        <div className="form-group" style={{ maxWidth: '320px' }}>
+        <div className="form-group" style={{ maxWidth: '320px', marginBottom: '1rem' }}>
           <label className="form-label">Custom sport leaderboard</label>
           <input className="form-input no-icon" placeholder="Enter sport name" value={customSport} onChange={(e) => setCustomSport(e.target.value)} />
         </div>
       )}
-      <div className="form-group" style={{ maxWidth: '420px' }}>
+      <div className="form-group" style={{ maxWidth: '420px', marginBottom: '1.5rem' }}>
         <label className="form-label">Search team name</label>
         <input className="form-input no-icon" placeholder="Type a team name" value={teamSearch} onChange={(e) => setTeamSearch(e.target.value)} />
       </div>
@@ -123,58 +134,50 @@ export const Leaderboard = ({ onNavigate }) => {
           <p style={{ color: 'var(--text-muted)' }}>{leaderboard.length ? 'No teams match that search.' : `No ${selectedSport === 'Other' ? customSport || 'custom sport' : selectedSport} teams have scored yet. Check back once matches begin.`}</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          {visibleLeaderboard.map((row) => (
-            <div
-              key={row.team_id}
-              onClick={() => onNavigate && onNavigate('team-profile', row.team_id)}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '48px 1fr auto',
-                alignItems: 'center',
-                gap: '1rem',
-                background: flashedTeams[row.team_id] ? 'rgba(0, 242, 254, 0.15)' : 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                padding: '1rem 1.25rem',
-                transition: 'background 1.2s ease',
-                cursor: 'pointer'
-              }}
-            >
-              <div style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                background: row.rank === 1
-                  ? 'linear-gradient(135deg, #f59e0b, #d97706)'
-                  : row.rank === 2
-                  ? 'linear-gradient(135deg, #94a3b8, #64748b)'
-                  : row.rank === 3
-                  ? 'linear-gradient(135deg, #b45309, #78350f)'
-                  : 'rgba(255,255,255,0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                color: '#fff'
-              }}>
-                {row.rank <= 3 ? ['🥇', '🥈', '🥉'][row.rank - 1] : `#${row.rank}`}
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff' }}>
-                  {row.team_name}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  P {row.played ?? row.matches_recorded} · W {row.wins ?? 0} · D {row.draws ?? 0} · L {row.losses ?? 0} · Diff {row.score_difference > 0 ? '+' : ''}{row.score_difference ?? 0}
-                </div>
-              </div>
-
-              <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--accent-emerald)' }}>
-                {row.total_points} pts
-              </div>
-            </div>
-          ))}
+        <div className="scorehub-table-wrap">
+          <table className="scorehub-table">
+            <thead>
+              <tr>
+                <th style={{ width: 60, textAlign: 'center' }}>Rank</th>
+                <th>Team</th>
+                <th>P</th>
+                <th>W</th>
+                <th>D</th>
+                <th>L</th>
+                <th>Diff</th>
+                <th style={{ textAlign: 'right' }}>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleLeaderboard.map((row) => (
+                <tr
+                  key={row.team_id}
+                  onClick={() => onNavigate && onNavigate('team-profile', row.team_id)}
+                  style={{
+                    cursor: 'pointer',
+                    background: flashedTeams[row.team_id] ? 'var(--lime-soft)' : undefined
+                  }}
+                >
+                  <td style={{ textAlign: 'center', fontWeight: 800 }}>
+                    {row.rank <= 3 ? ['🥇', '🥈', '🥉'][row.rank - 1] : `#${row.rank}`}
+                  </td>
+                  <td>
+                    <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>{row.team_name}</strong>
+                  </td>
+                  <td>{row.played ?? row.matches_recorded}</td>
+                  <td>{row.wins ?? 0}</td>
+                  <td>{row.draws ?? 0}</td>
+                  <td>{row.losses ?? 0}</td>
+                  <td>{row.score_difference > 0 ? `+${row.score_difference}` : (row.score_difference ?? 0)}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <strong style={{ color: 'var(--lime)', fontSize: '1.1rem', fontFamily: 'var(--font-heading)' }}>
+                      {row.total_points}
+                    </strong>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

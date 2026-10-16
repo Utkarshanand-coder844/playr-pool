@@ -147,10 +147,23 @@ export const Schedule = ({ focusMatchId }) => {
     });
   }, [matches, search, sportFilter]);
 
+const getTeamBadge = (name) => {
+  if (!name) return '??';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+};
+
   if (loading) {
     return (
-      <div className="auth-card" style={{ textAlign: 'center', padding: '3rem' }}>
-        <p style={{ color: 'var(--accent-cyan)' }}>Loading schedule...</p>
+      <div className="dashboard-container" style={{ maxWidth: '960px' }}>
+        <div className="skeleton" style={{ height: 90, marginBottom: '1.25rem' }} />
+        <div className="skeleton" style={{ height: 44, marginBottom: '1.25rem' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          <div className="skeleton" style={{ height: 86 }} />
+          <div className="skeleton" style={{ height: 86 }} />
+          <div className="skeleton" style={{ height: 86 }} />
+        </div>
       </div>
     );
   }
@@ -178,14 +191,25 @@ export const Schedule = ({ focusMatchId }) => {
       </div>
 
       {hasAnyMatches && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div className="chip-row" style={{ marginBottom: '0.85rem' }}>
+            {['All', ...new Set(matches.map(m => m.sport).filter(Boolean))].map(sp => (
+              <button
+                key={sp}
+                type="button"
+                className={`sport-chip ${sportFilter === sp ? 'active' : ''}`}
+                onClick={() => setSportFilter(sp)}
+              >
+                {sp}
+              </button>
+            ))}
+          </div>
           <input
             className="form-input no-icon"
             placeholder="Search by team, e.g. 'Titans' or 'Titans vs Warriors'"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select className="form-select no-icon" value={sportFilter} onChange={(e) => setSportFilter(e.target.value)}><option>All</option>{[...new Set(matches.map(match => match.sport).filter(Boolean))].sort().map(item => <option key={item}>{item}</option>)}</select>
         </div>
       )}
 
@@ -209,56 +233,63 @@ export const Schedule = ({ focusMatchId }) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {group.matches.map(m => {
                   const isFocused = focusedId === m.id;
+                  const isLive = group.key === 'live' || m.status === 'live';
                   return (
                     <div
                       key={m.id}
                       ref={isFocused ? focusedRef : null}
                       onClick={() => setFocusedId(prev => prev === m.id ? null : m.id)}
-                      className="schedule-match-card"
+                      className={`match-board ${isLive ? 'live' : ''} schedule-match-card`}
+                      data-sport={(m.sport || 'football').toLowerCase()}
                       style={{
-                        background: isFocused ? 'rgba(0,242,254,0.06)' : 'var(--bg-card)',
-                        border: isFocused ? '1px solid rgba(0,242,254,0.5)' : group.key === 'live' ? '1px solid rgba(239,68,68,0.4)' : '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-md)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '0.75rem',
                         cursor: 'pointer',
-                        transition: 'border-color 0.2s, background 0.2s',
-                        boxShadow: isFocused ? '0 0 18px rgba(0,242,254,0.12)' : 'none',
+                        outline: isFocused ? '2px solid var(--lime)' : 'none',
+                        outlineOffset: 2,
+                        transition: 'all 0.2s ease',
                       }}
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1 }}>
-                        <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff' }}>
-                          {m.team_a_name && m.team_b_name ? `${m.team_a_name} vs ${m.team_b_name}` : m.name}{' '}
-                          <span className="role-pill player">{m.sport || 'Football'}</span>
-                        </span>
-                        {group.showScore && (m.team_a_name && m.team_b_name) && (
-                          <span style={{ fontWeight: 800, fontSize: '1.3rem', color: group.key === 'live' ? '#ef4444' : 'var(--accent-emerald)' }}>
-                            {scoreLabel(m.team_a_score)} <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>-</span> {scoreLabel(m.team_b_score)}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                          {new Date(m.match_date).toLocaleString()}
-                        </span>
-                        <button
-                          type="button"
-                          title="Copy shareable link"
-                          onClick={e => handleCopyLink(m.id, e)}
-                          style={{
-                            background: copiedId === m.id ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)',
-                            border: copiedId === m.id ? '1px solid rgba(16,185,129,0.5)' : '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            color: copiedId === m.id ? 'var(--accent-emerald)' : 'var(--text-muted)',
-                            cursor: 'pointer', fontSize: '0.75rem', padding: '0.25rem 0.55rem',
-                            transition: 'all 0.2s', whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {copiedId === m.id ? '✓ Copied!' : '🔗 Share'}
-                        </button>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: '240px' }}>
+                          {m.team_a_name && (
+                            <span className="team-badge" title={m.team_a_name}>
+                              {getTeamBadge(m.team_a_name)}
+                            </span>
+                          )}
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                              {m.team_a_name && m.team_b_name ? `${m.team_a_name} vs ${m.team_b_name}` : m.name}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+                              {isLive && <span className="live-badge">Live</span>}
+                              <span className="role-pill player">{m.sport || 'Football'}</span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                {new Date(m.match_date).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                          {m.team_b_name && (
+                            <span className="team-badge" title={m.team_b_name}>
+                              {getTeamBadge(m.team_b_name)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: 'auto' }}>
+                          {group.showScore && m.team_a_name && m.team_b_name && (
+                            <div className={`score-big ${isLive ? 'lime' : ''}`} style={{ fontSize: '1.85rem' }}>
+                              {scoreLabel(m.team_a_score)} - {scoreLabel(m.team_b_score)}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            title="Copy shareable link"
+                            onClick={e => handleCopyLink(m.id, e)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '0.3rem 0.65rem', fontSize: '0.78rem' }}
+                          >
+                            {copiedId === m.id ? '✓ Copied!' : '🔗 Share'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

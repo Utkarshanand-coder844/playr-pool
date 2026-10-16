@@ -8,17 +8,7 @@ import { OverDots } from '../features/scoring/components/OverDots';
 // Live Badge
 // ─────────────────────────────────────────────
 function LiveBadge() {
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
-      background: '#f43f5e', borderRadius: 100, fontSize: '0.7rem', fontWeight: 800,
-      color: '#fff', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)',
-      animation: 'livePulse 1.4s ease-in-out infinite'
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />
-      LIVE
-    </span>
-  );
+  return <span className="live-badge">Live</span>;
 }
 
 // ─────────────────────────────────────────────
@@ -44,17 +34,21 @@ function CricketScoreboard({ match, liveState, isLive }) {
         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.12em', marginBottom: 4 }}>
           {activeInnings?.teamName?.toUpperCase()} — INNINGS {liveState.inningsNumber}
         </div>
-        <div style={{ fontSize: '3.5rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f4f4f5', lineHeight: 1 }}>
+        <div className="score-big" style={{ margin: '0.25rem 0' }}>
           {activeInnings?.totalRuns ?? 0}<span style={{ opacity: 0.45, fontSize: '2rem' }}>/{activeInnings?.wickets ?? 0}</span>
         </div>
         <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: 4 }}>
-          ({activeInnings?.oversFormatted ?? '0.0'} ov) · CRR: <strong style={{ color: 'var(--accent-cyan)' }}>{liveState.currentRunRate ?? '0.00'}</strong>
+          ({activeInnings?.oversFormatted ?? '0.0'} ov) · CRR: <strong style={{ color: 'var(--lime)' }}>{liveState.currentRunRate ?? '0.00'}</strong>
         </div>
         {liveState.inningsNumber === 2 && target && (
-          <div style={{ marginTop: 8, padding: '6px 14px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: 8, display: 'inline-block', border: '1px solid rgba(245,158,11,0.3)' }}>
-            <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: '0.88rem' }}>
-              Target: {target} · Need {target - (activeInnings?.totalRuns ?? 0)} more · RRR: {liveState.requiredRunRate ?? '—'}
-            </span>
+          <div style={{ marginTop: 12, width: '100%', maxWidth: 360, marginInline: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', marginBottom: 6, color: 'var(--text-muted)' }}>
+              <span>Target: {target} ({target - (activeInnings?.totalRuns ?? 0)} req)</span>
+              <span>RRR: {liveState.requiredRunRate ?? '—'}</span>
+            </div>
+            <div className="momentum">
+              <span style={{ width: `${Math.min(100, Math.max(5, Math.round(((activeInnings?.totalRuns ?? 0) / target) * 100)))}%` }} />
+            </div>
           </div>
         )}
       </div>
@@ -207,27 +201,37 @@ function GenericScoreboard({ match, liveState }) {
   // All others: Football, Basketball, Kabaddi, Generic
   const teamA = liveState.teamA;
   const teamB = liveState.teamB;
+  const totalScore = (teamA?.score ?? 0) + (teamB?.score ?? 0);
+  const aPercent = totalScore > 0 ? Math.round(((teamA?.score ?? 0) / totalScore) * 100) : 50;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', gap: 8, alignItems: 'center', padding: '1.25rem 0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center' }}>
         <div style={{ overflow: 'hidden' }}>
-          <div style={{ fontSize: '0.72rem', color: '#a1a1aa', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>
             {teamA?.name?.toUpperCase()}
           </div>
-          <div style={{ fontSize: 'clamp(2.4rem, 8vw, 3.2rem)', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f4f4f5', lineHeight: 1 }}>
+          <div className="score-big" style={{ fontSize: 'clamp(2.4rem, 8vw, 3.2rem)' }}>
             {teamA?.score ?? 0}
           </div>
         </div>
-        <div style={{ fontSize: '0.85rem', color: '#71717a', fontFamily: 'var(--font-mono)', padding: '0 4px' }}>VS</div>
+        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', padding: '0 4px', fontWeight: 700 }}>VS</div>
         <div style={{ overflow: 'hidden' }}>
-          <div style={{ fontSize: '0.72rem', color: '#a1a1aa', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>
             {teamB?.name?.toUpperCase()}
           </div>
-          <div style={{ fontSize: 'clamp(2.4rem, 8vw, 3.2rem)', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f4f4f5', lineHeight: 1 }}>
+          <div className="score-big" style={{ fontSize: 'clamp(2.4rem, 8vw, 3.2rem)' }}>
             {teamB?.score ?? 0}
           </div>
         </div>
       </div>
+      {totalScore > 0 && (
+        <div style={{ padding: '0 4px' }}>
+          <div className="momentum" title={`Score distribution: ${aPercent}% - ${100 - aPercent}%`}>
+            <span style={{ width: `${aPercent}%` }} />
+          </div>
+        </div>
+      )}
       {(liveState.period || liveState.quarter || liveState.half) && (
         <div style={{ textAlign: 'center', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-amber)' }}>
           {liveState.period || liveState.quarter || liveState.half}
