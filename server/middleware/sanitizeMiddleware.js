@@ -20,7 +20,7 @@ export function sanitizeString(val) {
   // Don't strip base64 data URLs for user profile photos
   if (val.startsWith('data:image/')) return val;
 
-  let cleaned = val
+  const cleaned = val
     .replace(SCRIPT_REGEX, '')
     .replace(JS_PROTO_REGEX, '')
     .replace(DANGEROUS_TAGS_REGEX, '')

@@ -128,7 +128,11 @@ export const AuthProvider = ({ children }) => {
     if (!res.ok || !data.success) {
       throw new Error(data.message || 'Failed to update profile');
     }
-    // Sync updated user into context + localStorage
+    // Sync refreshed token & updated user into context + localStorage
+    if (data.token) {
+      setToken(data.token);
+      try { localStorage.setItem(TOKEN_KEY, data.token); } catch {}
+    }
     setUser(data.user);
     try { localStorage.setItem(USER_KEY, JSON.stringify(data.user)); } catch {}
     return data.user;

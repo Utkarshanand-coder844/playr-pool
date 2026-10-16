@@ -102,7 +102,7 @@ PORT=5000
 NODE_ENV=development
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
 JWT_SECRET=generate-a-long-random-secret
-ADMIN_SIGNUP_CODE=1234
+ADMIN_SIGNUP_CODE=replace-with-at-least-16-char-code
 FRONTEND_ORIGIN=http://localhost:3000
 FRONTEND_URL=http://localhost:3000
 RESEND_API_KEY=re_xxxxxxxxx
@@ -174,7 +174,7 @@ Real-time events are pushed over Socket.IO, including `match:score`, `match:stat
 ## 🔐 Security Notes
 
 - Admin signup requires a private `ADMIN_SIGNUP_CODE` — never commit this or `server/.env` (already gitignored).
-- Rotate `DATABASE_URL`, `JWT_SECRET`, and `ADMIN_SIGNUP_CODE` before any production deployment; `JWT_SECRET` and `ADMIN_SIGNUP_CODE` are validated for minimum strength when `NODE_ENV=production`.
+- Rotate `DATABASE_URL`, `JWT_SECRET`, and `ADMIN_SIGNUP_CODE` before any production deployment; `JWT_SECRET` (>= 32 chars) and `ADMIN_SIGNUP_CODE` (>= 16 chars) are validated for minimum strength when `NODE_ENV=production`.
 - Sensitive write actions (invites, team removal requests, admin-removal votes) are rate-limited.
 
 ---

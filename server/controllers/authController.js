@@ -10,9 +10,13 @@ import { NotificationModel } from '../models/notificationModel.js';
 import { getIO } from '../config/socket.js';
 import { normalizeSports } from './playerSportController.js';
 import { validateSportProfile } from '../config/sportRoles.js';
+import { invalidateUserCache } from '../middleware/authMiddleware.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('JWT_SECRET must be configured before starting the server.');
+
+// Pre-computed bcrypt dummy hash for constant-time comparison against nonexistent users
+const DUMMY_HASH = '$2a$10$wT8KjK9gMh3x8J2GzK2E1uJkR6q0v1Y1e0zG1v2x3y4z5a6b7c8d9';
 
 const sendResetEmail = async ({ email, name, resetUrl }) => {
   // Resend is deliberately called through its HTTP API so no mail library or
@@ -176,7 +180,7 @@ export const signup = async (req, res) => {
 
     // Generate JWT (expires in 7 days)
     const token = jwt.sign(
-      { userId: newUser.id, id: newUser.id, role: newUser.role },
+      { userId: newUser.id, id: newUser.id, role: newUser.role, token_version: newUser.token_version ?? 0 },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -228,16 +232,13 @@ export const login = async (req, res) => {
 
     // Lookup user by college_id
     const user = await UserModel.findByCollegeId(college_id);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid College ID or password'
-      });
-    }
 
-    // Verify password against bcrypt hash
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
+    // Always run bcrypt compare (against dummy hash if user doesn't exist)
+    // so timing differences do not reveal valid College IDs
+    const hashToCompare = user ? user.password_hash : DUMMY_HASH;
+    const isMatch = await bcrypt.compare(password || '', hashToCompare);
+
+    if (!user || !isMatch) {
       return res.status(401).json({
         success: false,
         message: 'Invalid College ID or password'
@@ -246,13 +247,13 @@ export const login = async (req, res) => {
 
     // Generate JWT (expires in 7 days)
     const token = jwt.sign(
-      { userId: user.id, id: user.id, role: user.role },
+      { userId: user.id, id: user.id, role: user.role, token_version: user.token_version ?? 0 },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     // Do not return password_hash in response
-    const { password_hash, ...safeUser } = user;
+    const { password_hash: _password_hash, ...safeUser } = user;
     const playerSports = await PlayerSportModel.getForUser(user.id);
     let adminSports = [];
     if (user.role === 'admin') {
@@ -291,7 +292,11 @@ export const requestPasswordReset = async (req, res) => {
     await UserModel.savePasswordReset({ userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 60 * 60 * 1000) });
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}?resetToken=${token}`;
     await sendResetEmail({ email: user.email, name: user.name, resetUrl });
-    return res.json({ success: true, message: 'If that college email exists, password-reset instructions have been sent.' });
+    const responsePayload = { success: true, message: 'If that college email exists, password-reset instructions have been sent.' };
+    if (process.env.NODE_ENV !== 'production') {
+      responsePayload.devResetToken = token;
+    }
+    return res.json(responsePayload);
   } catch (error) {
     console.error('Password reset request error:', error);
     return res.status(500).json({ success: false, message: 'Unable to start password reset' });
@@ -301,13 +306,14 @@ export const requestPasswordReset = async (req, res) => {
 export const resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;
-    if (typeof token !== 'string' || !token || typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ success: false, message: 'A valid reset token and a password of at least 6 characters are required.' });
+    if (typeof token !== 'string' || !token || typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ success: false, message: 'A valid reset token and a password of at least 8 characters are required.' });
     }
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await UserModel.resetPassword({ tokenHash, passwordHash });
     if (!user) return res.status(400).json({ success: false, message: 'This reset link is invalid or has expired.' });
+    invalidateUserCache(user.id);
     // Password changes only update credentials; role/admin privileges remain
     // intact. Alert the account without ever exposing the new password.
     if (user.role === 'admin') {
@@ -403,9 +409,17 @@ export const updateProfile = async (req, res) => {
       adminSports = allAdmins.filter(a => a.admin_id === userId).map(a => a.sport);
     }
 
+    invalidateUserCache(userId);
+    const refreshedToken = jwt.sign(
+      { userId: updated.id, id: updated.id, role: updated.role, token_version: updated.token_version ?? 0 },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     return res.json({
       success: true,
       message: 'Profile updated successfully',
+      token: refreshedToken,
       user: {
         ...updated,
         sports: Array.from(new Set([...playerSports, ...adminSports])),

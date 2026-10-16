@@ -154,7 +154,7 @@ export const TournamentController = {
       const userId = getUserId(req);
       const isSuperAdmin = req.user?.role === 'admin';
 
-      let tournaments = await TournamentModel.getForUser(userId);
+      const tournaments = await TournamentModel.getForUser(userId);
 
       // Super admins manage all tournaments
       if (isSuperAdmin) {
@@ -699,7 +699,8 @@ export const TournamentController = {
         return res.status(400).json({ success: false, message: 'This tournament is locked for team entries' });
       }
 
-      let { teamIds, inviteAll } = req.body;
+      let { teamIds } = req.body;
+      const { inviteAll } = req.body;
 
       if (inviteAll) {
         const { MatchModel } = await import('../models/matchModel.js');

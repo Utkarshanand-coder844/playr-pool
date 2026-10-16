@@ -49,7 +49,7 @@ export const Login = ({ onNavigate }) => {
         throw new Error(data.message || 'Login failed. Please verify your credentials.');
       }
 
-      // Store JWT in React Context memory strictly (not in localStorage)
+      // Persist auth session to AuthContext state and localStorage so session survives refreshes
       login(data.token, data.user);
       onNavigate('dashboard');
     } catch (err) {

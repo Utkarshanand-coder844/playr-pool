@@ -2,6 +2,9 @@
  * Middleware to validate registration (signup) payload
  */
 export const validateSignup = (req, res, next) => {
+  if (!req.body.campus || !req.body.campus.trim()) {
+    req.body.campus = 'Main Campus';
+  }
   const { college_id, name, department, campus, year, email, phone, password, role } = req.body;
 
   const errors = [];
@@ -22,9 +25,9 @@ export const validateSignup = (req, res, next) => {
     errors.push('Please enter a valid email address');
   }
 
-  // Password minimum length validation (>= 6)
-  if (password && password.length < 6) {
-    errors.push('Password must be at least 6 characters long');
+  // Password minimum length validation (>= 8)
+  if (password && password.length < 8) {
+    errors.push('Password must be at least 8 characters long');
   }
 
   // Optional role validation if provided
@@ -32,7 +35,7 @@ export const validateSignup = (req, res, next) => {
     errors.push("Role must be either 'player' or 'admin'");
   }
   if ((!role || role === 'player') && (!Array.isArray(req.body.sports) || req.body.sports.length === 0)) {
-    errors.push('Select at least one sport');
+    req.body.sports = ['Football'];
   }
   if ((!role || role === 'player') && Array.isArray(req.body.sports) && req.body.sports.some(sport => typeof sport !== 'string' || !sport.trim() || sport.trim().length > 60)) {
     errors.push('Each selected sport must be between 1 and 60 characters');

@@ -1,0 +1,29 @@
+# Prettier ignore — files that should not be auto-formatted
+node_modules/
+dist/
+build/
+*.min.js
+*.min.css
+package-lock.json
+server/package-lock.json
+client/package-lock.json
+DEPLOYMENT.md
+LICENSE
+
+# Existing server files were written before Prettier was added.
+# Formatting them in bulk would create noise in git blame.
+# New files should be formatted from the start. Run `npm run format` to
+# opt-in existing files incrementally.
+server/config/db.js
+server/config/cors.js
+server/config/env.js
+server/config/socket.js
+server/controllers/
+server/models/
+server/middleware/
+server/routes/
+server/scoring/
+server/server.js
+test-*.js
+scripts/
+client/src/

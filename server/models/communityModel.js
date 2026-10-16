@@ -93,7 +93,7 @@ export const CommunityModel = {
 
     // Also search player sport profiles (roles, positions, bowling styles, etc.)
     // Merge any role-matched players into the players list and deduplicate by id.
-    let mergedPlayers = [...players];
+    const mergedPlayers = [...players];
     if ((!type || type === 'players') && q.trim()) {
       try {
         const roleMatches = await PlayerSportProfileModel.searchByText(q.trim());

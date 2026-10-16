@@ -31,8 +31,6 @@ export const memoryStore = {
   player_sports: [],
   player_sport_profiles: [],
   direct_messages: [],
-  payments: [],
-  processed_webhooks: [],
   tournaments: [],
   tournament_admins: [],
   tournament_teams: [],
@@ -173,11 +171,13 @@ export const initDb = async () => {
           profile_photo TEXT,
           password_reset_token_hash VARCHAR(64),
           password_reset_expires TIMESTAMPTZ,
+          token_version INTEGER NOT NULL DEFAULT 0,
           role VARCHAR(20) DEFAULT 'player' NOT NULL,
           created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
       ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token_hash VARCHAR(64);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS campus VARCHAR(100) NOT NULL DEFAULT 'Main Campus';
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
@@ -421,27 +421,6 @@ export const initDb = async () => {
           admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
           created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS payments (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          order_id VARCHAR(100) UNIQUE NOT NULL,
-          payment_id VARCHAR(100),
-          amount INTEGER NOT NULL,
-          currency VARCHAR(10) NOT NULL DEFAULT 'INR',
-          status VARCHAR(25) NOT NULL DEFAULT 'created',
-          purpose VARCHAR(100) NOT NULL DEFAULT 'tournament_fee',
-          metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-          created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-          updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
-      CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);
-
-      CREATE TABLE IF NOT EXISTS processed_webhooks (
-          event_id VARCHAR(120) PRIMARY KEY,
-          event_type VARCHAR(80) NOT NULL,
-          processed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
-      );
 
       CREATE TABLE IF NOT EXISTS player_match_points (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -639,7 +618,7 @@ export const query = async (text, params = []) => {
       return { rows: myTourneys };
     }
 
-    let list = memoryStore.tournaments.map(enrichTourney);
+    const list = memoryStore.tournaments.map(enrichTourney);
     if (params[0]) {
       const preferredCampus = params[0];
       list.sort((a, b) => {
@@ -820,7 +799,8 @@ export const query = async (text, params = []) => {
 
   // --- TOURNAMENT TEAMS ---
   if (normalizedText.includes('insert into tournament_teams')) {
-    let [tournament_id, team_id, status] = params;
+    const [tournament_id, team_id] = params;
+    let [,, status] = params;
     if (!status) {
       if (normalizedText.includes("'invited'")) status = 'invited';
       else if (normalizedText.includes("'approved'")) status = 'approved';
@@ -956,7 +936,7 @@ export const query = async (text, params = []) => {
   // --- PLAYER SPORT PROFILES ---
   if (normalizedText.includes('insert into player_sport_profiles')) {
     const [userId, sport, primary_role, batting_hand, bowling_style, position, playing_style, handedness, preferred_foot, event_category, extra_attributes] = params;
-    let existing = memoryStore.player_sport_profiles.find(p => p.user_id === userId && p.sport === sport);
+    const existing = memoryStore.player_sport_profiles.find(p => p.user_id === userId && p.sport === sport);
     const updated = {
       id: existing?.id || crypto.randomUUID(),
       user_id: userId,
@@ -1384,21 +1364,24 @@ export const query = async (text, params = []) => {
       if (normalizedText.includes('select id, name, department, year, profile_photo, role, created_at')) {
         return { rows: user ? [{ id: user.id, name: user.name, department: user.department, year: user.year, profile_photo: user.profile_photo || null, role: user.role, created_at: user.created_at }] : [] };
       }
-      if (normalizedText.includes('select id, college_id, name, department, campus, year, email, phone, profile_photo, role, created_at')) {
-        return { rows: user ? [{ id: user.id, college_id: user.college_id, name: user.name, department: user.department, campus: user.campus || 'Main Campus', year: user.year, email: user.email, phone: user.phone, profile_photo: user.profile_photo || null, role: user.role, created_at: user.created_at }] : [] };
+      if (normalizedText.includes('token_version')) {
+        return { rows: user ? [{ id: user.id, college_id: user.college_id, name: user.name, department: user.department, campus: user.campus || 'Main Campus', year: user.year, email: user.email, phone: user.phone, profile_photo: user.profile_photo || null, role: user.role, token_version: user.token_version ?? 0, created_at: user.created_at }] : [] };
       }
-      return { rows: user ? [{ ...user }] : [] };
+      if (normalizedText.includes('select id, college_id, name, department, campus, year, email, phone, profile_photo, role, created_at')) {
+        return { rows: user ? [{ id: user.id, college_id: user.college_id, name: user.name, department: user.department, campus: user.campus || 'Main Campus', year: user.year, email: user.email, phone: user.phone, profile_photo: user.profile_photo || null, role: user.role, token_version: user.token_version ?? 0, created_at: user.created_at }] : [] };
+      }
+      return { rows: user ? [{ token_version: 0, ...user }] : [] };
     }
 
     if ((normalizedText.includes('lower(college_id) =') || normalizedText.includes('college_id =') || normalizedText.includes('college_id=')) && normalizedText.includes('where')) {
       const collegeId = params[0];
       const user = memoryStore.users.find(u => u.college_id.toLowerCase() === (collegeId || '').toLowerCase());
-      return { rows: user ? [{ ...user }] : [] };
+      return { rows: user ? [{ token_version: 0, ...user }] : [] };
     }
     if (normalizedText.includes('lower(email)') && normalizedText.includes('where')) {
       const email = params[0];
       const user = memoryStore.users.find(u => u.email.toLowerCase() === (email || '').toLowerCase());
-      return { rows: user ? [{ ...user }] : [] };
+      return { rows: user ? [{ token_version: 0, ...user }] : [] };
     }
     let users = normalizedText.includes("role = 'player'")
       ? memoryStore.users.filter(user => (user.role === 'player' || (normalizedText.includes('or id = $1') && user.id === params[0])) && (!normalizedText.includes('id <> $1') || user.id !== params[0]))
@@ -1413,7 +1396,61 @@ export const query = async (text, params = []) => {
       );
     }
 
-    return { rows: users.filter(user => !normalizedText.includes('id <> $1') || user.id !== params[0]).map(user => ({ ...user })) };
+    return { rows: users.filter(user => !normalizedText.includes('id <> $1') || user.id !== params[0]).map(user => ({ token_version: 0, ...user })) };
+  }
+
+  if (normalizedText.includes('update users')) {
+    if (normalizedText.includes('password_reset_token_hash = $1')) {
+      const [tokenHash, expiresAt, userId] = params;
+      const user = memoryStore.users.find(u => u.id === userId);
+      if (user) {
+        user.password_reset_token_hash = tokenHash;
+        user.password_reset_expires = expiresAt;
+        return { rows: [{ id: user.id }] };
+      }
+      return { rows: [] };
+    }
+    if (normalizedText.includes('password_hash = $1') && normalizedText.includes('password_reset_token_hash = $2')) {
+      const [passwordHash, tokenHash] = params;
+      const user = memoryStore.users.find(u =>
+        u.password_reset_token_hash === tokenHash &&
+        (!u.password_reset_expires || new Date(u.password_reset_expires) > new Date())
+      );
+      if (user) {
+        user.password_hash = passwordHash;
+        user.password_reset_token_hash = null;
+        user.password_reset_expires = null;
+        user.token_version = (user.token_version || 0) + 1;
+        return { rows: [{ id: user.id, name: user.name, email: user.email, role: user.role, token_version: user.token_version }] };
+      }
+      return { rows: [] };
+    }
+    if (normalizedText.includes('token_version = token_version + 1') && normalizedText.includes('where id = $1')) {
+      const userId = params[0];
+      const user = memoryStore.users.find(u => u.id === userId);
+      if (user) {
+        user.token_version = (user.token_version || 0) + 1;
+        return { rows: [{ token_version: user.token_version }] };
+      }
+      return { rows: [] };
+    }
+    if (normalizedText.includes('set name = $1')) {
+      const [name, department, campus, year, email, phone, profile_photo, id] = params;
+      const user = memoryStore.users.find(u => u.id === id);
+      if (user) {
+        user.name = name;
+        user.department = department;
+        user.campus = campus || 'Main Campus';
+        user.year = year;
+        user.email = email;
+        user.phone = phone;
+        if (profile_photo !== undefined) user.profile_photo = profile_photo;
+        user.token_version = (user.token_version || 0) + 1;
+        return { rows: [{ ...user }] };
+      }
+      return { rows: [] };
+    }
+    return { rows: [] };
   }
 
   if (normalizedText.includes('delete from users')) {
@@ -1536,6 +1573,7 @@ export const query = async (text, params = []) => {
       password_hash,
       profile_photo: profile_photo || null,
       role: role || 'player',
+      token_version: 0,
       created_at: new Date().toISOString()
     };
 
@@ -1984,78 +2022,6 @@ export const query = async (text, params = []) => {
       return { rows: sorted };
     }
     return { rows };
-  }
-
-  // --- PAYMENTS & WEBHOOKS ---
-  if (normalizedText.includes('insert into payments')) {
-    const [user_id, order_id, amount, currency, purpose, metadata] = params;
-    const payment = {
-      id: crypto.randomUUID(),
-      user_id,
-      order_id,
-      amount,
-      currency: currency || 'INR',
-      status: 'created',
-      purpose: purpose || 'tournament_fee',
-      metadata: typeof metadata === 'string' ? JSON.parse(metadata) : (metadata || {}),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    memoryStore.payments.push(payment);
-    return { rows: [{ ...payment }] };
-  }
-
-  if (normalizedText.includes('from payments')) {
-    if (normalizedText.includes('order_id = $1') || normalizedText.includes('order_id=$1')) {
-      const orderId = params[0];
-      const found = memoryStore.payments.find(p => p.order_id === orderId);
-      return { rows: found ? [{ ...found }] : [] };
-    }
-    if (normalizedText.includes('user_id = $1') || normalizedText.includes('user_id=$1')) {
-      const userId = params[0];
-      const list = memoryStore.payments.filter(p => p.user_id === userId);
-      return { rows: list.map(p => ({ ...p })) };
-    }
-  }
-
-  if (normalizedText.includes('update payments')) {
-    if (normalizedText.includes("status = 'paid'") || normalizedText.includes('status = $1')) {
-      const [payment_id, order_id] = params;
-      const found = memoryStore.payments.find(p => p.order_id === order_id);
-      if (found) {
-        found.status = 'paid';
-        found.payment_id = payment_id;
-        found.updated_at = new Date().toISOString();
-        return { rows: [{ ...found }] };
-      }
-      return { rows: [] };
-    }
-    if (normalizedText.includes("status = 'failed'")) {
-      const [reason, order_id] = params;
-      const found = memoryStore.payments.find(p => p.order_id === order_id);
-      if (found) {
-        found.status = 'failed';
-        found.metadata = { ...(found.metadata || {}), failure_reason: reason };
-        found.updated_at = new Date().toISOString();
-        return { rows: [{ ...found }] };
-      }
-      return { rows: [] };
-    }
-  }
-
-  if (normalizedText.includes('from processed_webhooks')) {
-    const eventId = params[0];
-    const exists = memoryStore.processed_webhooks.some(w => w.event_id === eventId);
-    return { rows: exists ? [{ event_id: eventId }] : [] };
-  }
-
-  if (normalizedText.includes('insert into processed_webhooks')) {
-    const [event_id, event_type] = params;
-    const exists = memoryStore.processed_webhooks.some(w => w.event_id === event_id);
-    if (!exists) {
-      memoryStore.processed_webhooks.push({ event_id, event_type, processed_at: new Date().toISOString() });
-    }
-    return { rows: [{ event_id }] };
   }
 
   return { rows: [] };

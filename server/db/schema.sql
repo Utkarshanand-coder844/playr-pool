@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
     profile_photo TEXT,
     password_reset_token_hash VARCHAR(64),
     password_reset_expires TIMESTAMPTZ,
+    token_version INTEGER NOT NULL DEFAULT 0,
     role user_role DEFAULT 'player' NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -51,6 +52,7 @@ ALTER TABLE teams ALTER COLUMN campus SET DEFAULT 'Main Campus';
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token_hash VARCHAR(64);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS campus VARCHAR(100) NOT NULL DEFAULT 'Main Campus';
 ALTER TABLE teams ADD COLUMN IF NOT EXISTS sport VARCHAR(60) NOT NULL DEFAULT 'Football';

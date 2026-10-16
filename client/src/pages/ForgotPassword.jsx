@@ -33,7 +33,7 @@ export const ForgotPassword = ({ onNavigate }) => {
     <form onSubmit={requestReset}><div className="form-group"><label className="form-label">College email</label><input type="email" autoComplete="email" className="form-input no-icon" value={email} onChange={e => setEmail(e.target.value)} required /></div><button className="btn btn-secondary" disabled={busy}>Email reset link</button></form>
     <form onSubmit={confirmReset} style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-subtle)' }}>
       <div className="form-group"><label className="form-label">Reset token</label><input className="form-input no-icon" value={resetToken} onChange={e => setResetToken(e.target.value)} required /></div>
-      <div className="form-group"><label className="form-label">New password</label><input type="password" minLength="6" className="form-input no-icon" value={password} onChange={e => setPassword(e.target.value)} required /></div>
+      <div className="form-group"><label className="form-label">New password (min 8 characters)</label><input type="password" minLength="8" className="form-input no-icon" value={password} onChange={e => setPassword(e.target.value)} required /></div>
       <button className="btn btn-primary" disabled={busy}>{busy ? 'Working…' : 'Set new password'}</button>
     </form>
     <div className="auth-footer"><a href="#login" onClick={e => { e.preventDefault(); onNavigate('login'); }}>Back to sign in</a></div>

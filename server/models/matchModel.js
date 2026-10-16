@@ -230,8 +230,8 @@ export const MatchModel = {
    * @returns {Promise<Array>}
    */
   async getLeaderboard(sport = null, tournamentId = null) {
-    let whereClauses = [];
-    let params = [];
+    const whereClauses = [];
+    const params = [];
 
     if (sport) {
       params.push(sport);

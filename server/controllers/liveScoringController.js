@@ -128,7 +128,7 @@ export const LiveScoringController = {
       const sport = (match?.sport || 'Generic').toLowerCase();
       const playerRows = derivePlayerStats(match?.sport || 'Generic', liveState, match);
 
-      let scorecard = { matchId, sport: match?.sport, status: match?.status, liveState };
+      const scorecard = { matchId, sport: match?.sport, status: match?.status, liveState };
 
       if (sport.includes('cricket')) {
         // Build cricket-style scorecard from innings state

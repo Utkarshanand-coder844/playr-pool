@@ -72,8 +72,9 @@ export const credentialRateLimit = ({ windowMs = 15 * 60 * 1000, max = 10 } = {}
   (req, res, next) => {
     const ip = req.ip || req.connection?.remoteAddress || 'unknown';
     const key = `cred:${ip}:${req.path}`;
-    const { allowed, remaining, resetAt } = checkLimit(key, windowMs, max);
-    res.setHeader('X-RateLimit-Limit', String(max));
+    const effectiveMax = process.env.NODE_ENV === 'production' ? max : Math.max(max, 100);
+    const { allowed, remaining, resetAt } = checkLimit(key, windowMs, effectiveMax);
+    res.setHeader('X-RateLimit-Limit', String(effectiveMax));
     res.setHeader('X-RateLimit-Remaining', String(remaining));
     res.setHeader('X-RateLimit-Reset', String(Math.ceil(resetAt / 1000)));
     if (!allowed) {

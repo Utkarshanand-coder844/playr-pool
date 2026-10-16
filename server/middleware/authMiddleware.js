@@ -1,14 +1,44 @@
 import jwt from 'jsonwebtoken';
 import '../config/env.js';
+import { UserModel } from '../models/userModel.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('JWT_SECRET must be configured before starting the server.');
 
+// In-memory cache for user lookup: userId -> { user, cachedAt }
+const userCache = new Map();
+const USER_CACHE_TTL_MS = 30 * 1000; // 30 seconds
+
+export const invalidateUserCache = (userId) => {
+  if (userId) {
+    userCache.delete(userId);
+  } else {
+    userCache.clear();
+  }
+};
+
+export const getCachedUser = async (userId) => {
+  const now = Date.now();
+  const cached = userCache.get(userId);
+  if (cached && (now - cached.cachedAt < USER_CACHE_TTL_MS)) {
+    return cached.user;
+  }
+  const user = await UserModel.findById(userId);
+  if (user) {
+    userCache.set(userId, { user, cachedAt: now });
+  } else {
+    userCache.delete(userId);
+  }
+  return user;
+};
+
 /**
  * Middleware: authenticateToken
- * Verifies the JWT from the Authorization header and attaches the decoded user to req.user.
+ * Verifies the JWT from the Authorization header, validates token_version against DB,
+ * and attaches the verified DB user (not untrusted JWT role) to req.user.
  */
-export const authenticateToken = (req, res, next) => {
+export const authenticateToken = async (req, res, next) => {
+  // Reject query token explicitly and only look at headers
   const authHeader = req.headers['authorization'] || req.headers['x-authorization'] || req.headers['x-access-token'];
   let token = null;
 
@@ -20,7 +50,7 @@ export const authenticateToken = (req, res, next) => {
     }
   }
 
-
+  // Never accept req.query.token
   if (!token) {
     return res.status(401).json({
       success: false,
@@ -28,23 +58,62 @@ export const authenticateToken = (req, res, next) => {
     });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(403).json({
-        success: false,
-        message: 'Invalid or expired authorization token'
-      });
-    }
+  let decoded;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return res.status(403).json({
+      success: false,
+      message: 'Invalid or expired authorization token'
+    });
+  }
 
-    // Attach decoded user to req.user (normalized id & role)
-    req.user = {
-      id: decoded.id || decoded.userId,
-      userId: decoded.userId || decoded.id,
-      role: decoded.role
-    };
+  const userId = decoded.id || decoded.userId;
+  if (!userId) {
+    return res.status(403).json({
+      success: false,
+      message: 'Invalid token payload'
+    });
+  }
 
-    next();
-  });
+  // Load user from DB (with 30s cache) - do NOT trust role from JWT
+  let dbUser;
+  try {
+    dbUser = await getCachedUser(userId);
+  } catch (dbErr) {
+    console.error('Error fetching user for auth:', dbErr);
+    return res.status(500).json({ success: false, message: 'Internal authorization error' });
+  }
+
+  if (!dbUser) {
+    return res.status(401).json({
+      success: false,
+      message: 'Account not found or deleted'
+    });
+  }
+
+  // Reject token if token_version doesn't match DB
+  const tokenVersionInJwt = decoded.token_version ?? 0;
+  const tokenVersionInDb = dbUser.token_version ?? 0;
+  if (tokenVersionInJwt !== tokenVersionInDb) {
+    return res.status(401).json({
+      success: false,
+      message: 'Token has been revoked or invalidated. Please log in again.'
+    });
+  }
+
+  // Attach verified user from DB
+  req.user = {
+    id: dbUser.id,
+    userId: dbUser.id,
+    college_id: dbUser.college_id,
+    name: dbUser.name,
+    role: dbUser.role, // from DB!
+    campus: dbUser.campus,
+    token_version: dbUser.token_version ?? 0
+  };
+
+  next();
 };
 
 /**
@@ -190,7 +259,7 @@ export const requireTournamentOwner = async (req, res, next) => {
   const userId = req.user.id || req.user.userId;
   const isSuperAdmin = req.user.role === 'admin';
 
-  let tournamentId = await resolveTournamentId(req);
+  const tournamentId = await resolveTournamentId(req);
   if (!tournamentId) {
     return res.status(400).json({
       success: false,
@@ -226,11 +295,11 @@ export const requireTournamentOwner = async (req, res, next) => {
 /**
  * Middleware: optionalAuth
  * Like authenticateToken but does NOT block if no token is supplied.
- * Attaches decoded user to req.user when a valid token is present;
+ * Attaches verified DB user to req.user when a valid token is present;
  * otherwise leaves req.user undefined and calls next().
  * Use on public routes that have extra features when a user is logged in.
  */
-export const optionalAuth = (req, res, next) => {
+export const optionalAuth = async (req, res, next) => {
   const authHeader = req.headers['authorization'] || req.headers['x-authorization'] || req.headers['x-access-token'];
   let token = null;
 
@@ -240,14 +309,26 @@ export const optionalAuth = (req, res, next) => {
 
   if (!token) return next(); // Guest — proceed without blocking
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (!err && decoded) {
-      req.user = {
-        id: decoded.id || decoded.userId,
-        userId: decoded.userId || decoded.id,
-        role: decoded.role
-      };
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.id || decoded.userId;
+    if (userId) {
+      const dbUser = await getCachedUser(userId);
+      if (dbUser && (decoded.token_version ?? 0) === (dbUser.token_version ?? 0)) {
+        req.user = {
+          id: dbUser.id,
+          userId: dbUser.id,
+          college_id: dbUser.college_id,
+          name: dbUser.name,
+          role: dbUser.role, // from DB
+          campus: dbUser.campus,
+          token_version: dbUser.token_version ?? 0
+        };
+      }
     }
-    next(); // Always proceed, even if token is invalid/expired
-  });
+  } catch {
+    // Optional auth ignores invalid tokens
+  }
+
+  next();
 };

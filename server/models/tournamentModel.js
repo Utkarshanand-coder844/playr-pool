@@ -1,4 +1,4 @@
-import { query, DEFAULT_TOURNAMENT_ID } from '../config/db.js';
+import { query } from '../config/db.js';
 
 export const TournamentModel = {
   /**

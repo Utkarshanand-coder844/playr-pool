@@ -139,7 +139,7 @@ async function runTournamentVerification() {
     });
     assert(entry && entry.team_id === teamA.id, 'Team entered tournament with status pending');
 
-    let enteredTeams = await TournamentModel.getEnteredTeams(tournament.id);
+    const enteredTeams = await TournamentModel.getEnteredTeams(tournament.id);
     assert(enteredTeams.length === 1, 'Tournament has 1 entered team');
     assert(enteredTeams[0].status === 'pending', 'Team entry status is pending');
 

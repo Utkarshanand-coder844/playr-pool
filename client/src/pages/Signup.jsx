@@ -98,7 +98,7 @@ export const Signup = ({ onNavigate }) => {
     if (!formData.phone.trim()) { setError('Phone number is required'); return; }
     if (formData.role === 'player' && formData.sports.length === 0) { setError('Select at least one sport.'); return; }
     if (!formData.password) { setError('Password is required'); return; }
-    if (formData.password.length < 6) { setError('Password must be at least 6 characters long'); return; }
+    if (formData.password.length < 8) { setError('Password must be at least 8 characters long'); return; }
     if (formData.password !== formData.confirmPassword) { setError('Passwords do not match'); return; }
 
     setLoading(true);
@@ -308,8 +308,8 @@ export const Signup = ({ onNavigate }) => {
 
           {/* Password */}
           <div className="form-group">
-            <label className="form-label" htmlFor="reg_password">Password (min 6) *</label>
-            <input id="reg_password" name="password" type="password" placeholder="••••••••" className="form-input no-icon" value={formData.password} onChange={handleChange} required />
+            <label className="form-label" htmlFor="reg_password">Password (min 8) *</label>
+            <input id="reg_password" name="password" type="password" placeholder="••••••••" minLength={8} className="form-input no-icon" value={formData.password} onChange={handleChange} required />
           </div>
 
           {/* Confirm Password */}

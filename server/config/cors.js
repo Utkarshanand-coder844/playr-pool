@@ -1,34 +1,31 @@
 import './env.js';
 
-const defaultOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'https://playr-pool-two.vercel.app',
-  'https://campusclash.onrender.com'
-];
-
-const envOrigins = (process.env.FRONTEND_ORIGIN || '')
-  .split(',')
-  .concat((process.env.FRONTEND_URL || '').split(','))
-  .map(origin => origin.trim().replace(/\/$/, ''))
-  .filter(Boolean);
-
-const allowedOriginsSet = new Set([...defaultOrigins, ...envOrigins]);
+const getConfiguredOrigins = () => {
+  const originStr = [process.env.FRONTEND_ORIGIN, process.env.FRONTEND_URL].filter(Boolean).join(',');
+  return originStr
+    .split(',')
+    .map(origin => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+};
 
 export const isOriginAllowed = (origin) => {
   if (!origin) return true; // allow non-browser requests (server-to-server, curl, mobile apps)
   const clean = origin.trim().replace(/\/$/, '');
-  if (allowedOriginsSet.has(clean)) return true;
+  const allowed = getConfiguredOrigins();
+  if (allowed.includes(clean)) return true;
 
-  try {
-    const url = new URL(clean);
-    // Allow local development on localhost or loopback
-    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return true;
-    // Only allow verified preview deployments belonging to playr-pool
-    if (/^playr-pool[a-z0-9-]*\.vercel\.app$/i.test(url.hostname)) return true;
-  } catch {
-    // ignore invalid URL formats
+  // In non-production, allow localhost development
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const url = new URL(clean);
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1') {
+        return true;
+      }
+    } catch {
+      // ignore invalid URL formats
+    }
   }
+
   return false;
 };
 
@@ -37,10 +34,11 @@ export const corsOptions = {
     if (isOriginAllowed(origin)) {
       return callback(null, true);
     }
-    console.warn(`⚠️ CORS: Rejected origin "${origin}". Configured origins:`, rawOrigins);
+    console.warn(`⚠️ CORS: Rejected origin "${origin}". Allowed origins:`, getConfiguredOrigins());
     return callback(new Error('Origin not allowed'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-authorization', 'X-Authorization', 'x-access-token', 'X-Access-Token'],
   credentials: true
 };
+

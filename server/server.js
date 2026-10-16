@@ -14,7 +14,6 @@ import sportsAdminRoutes from './routes/sportsAdminRoutes.js';
 import playerSportRoutes from './routes/playerSportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import liveScoringRoutes from './routes/liveScoringRoutes.js';
-import paymentRoutes from './routes/paymentRoutes.js';
 import tournamentRoutes from './routes/tournamentRoutes.js';
 import { initDb } from './config/db.js';
 import { initSocket } from './config/socket.js';
@@ -29,8 +28,8 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.JWT_SECRET.length < 32 || process.env.JWT_SECRET === 'super_secret_sports_jwt_key_change_in_production_2026') {
     throw new Error('JWT_SECRET must be a unique production secret of at least 32 characters.');
   }
-  if (process.env.ADMIN_SIGNUP_CODE.length < 12) {
-    throw new Error('ADMIN_SIGNUP_CODE must be a strong private production secret.');
+  if (process.env.ADMIN_SIGNUP_CODE.length < 16) {
+    throw new Error('ADMIN_SIGNUP_CODE must be a strong private production secret (minimum 16 characters).');
   }
 }
 
@@ -64,7 +63,7 @@ app.use((req, res, next) => {
     "default-src 'none'; frame-ancestors 'none';"
   );
   // Prevent clients and proxies from caching sensitive API responses
-  if (req.path.startsWith('/api/auth') || req.path.startsWith('/api/admin') || req.path.startsWith('/api/payments')) {
+  if (req.path.startsWith('/api/auth') || req.path.startsWith('/api/admin')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -99,7 +98,6 @@ app.use('/api/sports-admins', sportsAdminRoutes);
 app.use('/api/player-sports', playerSportRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/live-scoring', liveScoringRoutes);
-app.use('/api/payments', paymentRoutes);
 app.use('/api/tournaments', tournamentRoutes);
 
 // Health check endpoint

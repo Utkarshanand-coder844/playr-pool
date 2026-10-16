@@ -7,12 +7,25 @@
     "server": "npm --prefix server run dev",
     "client": "npm --prefix client run dev",
     "start": "node server/server.js",
+    "test": "node test-auth.js && node test-teams.js && node test-scores.js && node test-features-verification.js && node test-tournaments-verification.js",
     "test:auth": "node test-auth.js",
     "test:teams": "node test-teams.js",
     "test:scores": "node test-scores.js",
     "test:features": "node test-features-verification.js",
     "test:tournaments": "node test-tournaments-verification.js",
     "test:delete-match": "node scripts/test-delete-match.js",
-    "audit:security": "node scripts/security-audit.js"
+    "audit:security": "node scripts/security-audit.js",
+    "lint": "eslint server/ test-*.js scripts/",
+    "lint:fix": "eslint server/ test-*.js scripts/ --fix",
+    "lint:client": "eslint client/src/",
+    "format": "prettier --write \"server/**/*.js\" \"client/src/**/*.{js,jsx}\" \"*.{js,json,md}\"",
+    "format:check": "prettier --check \"server/**/*.js\" \"client/src/**/*.{js,jsx}\" \"*.{js,json,md}\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "prettier": "^3.9.10"
   }
 }

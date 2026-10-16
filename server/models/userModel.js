@@ -54,7 +54,7 @@ export const UserModel = {
    */
   async findById(id) {
     const text = `
-      SELECT id, college_id, name, department, campus, year, email, phone, profile_photo, role, created_at 
+      SELECT id, college_id, name, department, campus, year, email, phone, profile_photo, role, token_version, created_at 
       FROM users 
       WHERE id = $1 
       LIMIT 1;
@@ -65,7 +65,7 @@ export const UserModel = {
 
   /** Contact details are shared only through an authenticated player-profile route. */
   async findPublicProfileById(id) {
-    const { rows } = await query(`SELECT id, college_id, name, department, campus, year, email, phone, profile_photo, role, created_at FROM users WHERE id = $1 LIMIT 1;`, [id]);
+    const { rows } = await query(`SELECT id, college_id, name, department, campus, year, email, phone, profile_photo, role, token_version, created_at FROM users WHERE id = $1 LIMIT 1;`, [id]);
     return rows[0] || null;
   },
 
@@ -76,9 +76,9 @@ export const UserModel = {
    */
   async create({ college_id, name, department, campus, year, email, phone, password_hash, role = 'player', profile_photo = null }) {
     const text = `
-      INSERT INTO users (college_id, name, department, campus, year, email, phone, password_hash, role, profile_photo)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING id, college_id, name, department, campus, year, email, phone, profile_photo, role, created_at;
+      INSERT INTO users (college_id, name, department, campus, year, email, phone, password_hash, role, profile_photo, token_version)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0)
+      RETURNING id, college_id, name, department, campus, year, email, phone, profile_photo, role, token_version, created_at;
     `;
     const params = [
       college_id.trim(),
@@ -103,10 +103,15 @@ export const UserModel = {
   },
 
   async resetPassword({ tokenHash, passwordHash }) {
-    const { rows } = await query(`UPDATE users SET password_hash = $1, password_reset_token_hash = NULL, password_reset_expires = NULL
+    const { rows } = await query(`UPDATE users SET password_hash = $1, password_reset_token_hash = NULL, password_reset_expires = NULL, token_version = token_version + 1
       WHERE password_reset_token_hash = $2 AND password_reset_expires > CURRENT_TIMESTAMP
-      RETURNING id, name, email, role;`, [passwordHash, tokenHash]);
+      RETURNING id, name, email, role, token_version;`, [passwordHash, tokenHash]);
     return rows[0] || null;
+  },
+
+  async incrementTokenVersion(id) {
+    const { rows } = await query(`UPDATE users SET token_version = token_version + 1 WHERE id = $1 RETURNING token_version;`, [id]);
+    return rows[0]?.token_version ?? null;
   },
 
   async deleteAccount(id) {
@@ -123,9 +128,10 @@ export const UserModel = {
     const { rows } = await query(
       `UPDATE users
        SET name = $1, department = $2, campus = $3, year = $4,
-           email = $5, phone = $6, profile_photo = $7
+           email = $5, phone = $6, profile_photo = $7,
+           token_version = token_version + 1
        WHERE id = $8
-       RETURNING id, college_id, name, department, campus, year, email, phone, profile_photo, role, created_at;`,
+       RETURNING id, college_id, name, department, campus, year, email, phone, profile_photo, role, token_version, created_at;`,
       [
         name.trim(),
         department.trim(),

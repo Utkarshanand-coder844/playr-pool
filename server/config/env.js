@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== 'production') {
     console.warn('⚠️  JWT_SECRET is not set. Using a development-only local secret.');
   }
   if (!process.env.ADMIN_SIGNUP_CODE) {
-    process.env.ADMIN_SIGNUP_CODE = 'local-admin-code';
+    process.env.ADMIN_SIGNUP_CODE = 'local-dev-admin-code-2026';
     console.warn('⚠️  ADMIN_SIGNUP_CODE is not set. Using the development-only local code.');
   }
 }
