@@ -15,6 +15,7 @@ Playr-Pool is a full-stack, real-time sports tournament platform built for campu
 ## ✨ Features
 
 **For players**
+
 - Sign up, join a campus, and register for one or more sports
 - Create or join a team, invite teammates, and manage a roster with sport-specific positions and roles (e.g. batting/bowling style in Cricket, playing position in Football)
 - Request to join/leave teams, vote to remove an inactive team admin, and transfer ownership
@@ -25,6 +26,7 @@ Playr-Pool is a full-stack, real-time sports tournament platform built for campu
 - Manage per-sport availability for upcoming matches
 
 **For admins**
+
 - Create match fixtures, assign teams, and toggle status between Upcoming / Live / Completed
 - Record and broadcast live scores and individual player stats in real time
 - Generate and advance knockout tournament brackets automatically from decisive results
@@ -35,6 +37,7 @@ Playr-Pool is a full-stack, real-time sports tournament platform built for campu
 - Export players, teams, fixtures, and scores to CSV
 
 **Platform**
+
 - Real-time updates everywhere via Socket.IO (scores, match status, announcements, notifications, chat)
 - JWT authentication with role-based access (`player` / `admin`) and an admin signup code
 - PostgreSQL persistence with an automatic in-memory fallback store for local development without a database
@@ -45,13 +48,13 @@ Playr-Pool is a full-stack, real-time sports tournament platform built for campu
 
 ## 🧱 Tech Stack
 
-| Layer      | Technology |
-|------------|------------|
-| Frontend   | React 18, Vite 6, Socket.IO client |
-| Backend    | Node.js, Express 4, Socket.IO |
-| Database   | PostgreSQL (`pg`), with an in-memory fallback store |
-| Auth       | JSON Web Tokens (`jsonwebtoken`), `bcryptjs` password hashing |
-| Email      | Resend API (password-reset emails) |
+| Layer      | Technology                                                                      |
+| ---------- | ------------------------------------------------------------------------------- |
+| Frontend   | React 18, Vite 6, Socket.IO client                                              |
+| Backend    | Node.js, Express 4, Socket.IO                                                   |
+| Database   | PostgreSQL (`pg`), with an in-memory fallback store                             |
+| Auth       | JSON Web Tokens (`jsonwebtoken`), `bcryptjs` password hashing                   |
+| Email      | Resend API (password-reset emails)                                              |
 | Deployment | Vercel (client) + any persistent Node host with WebSocket support (e.g. Render) |
 
 ---
@@ -83,10 +86,12 @@ project1/
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - A PostgreSQL database (optional for local development — the server falls back to an in-memory store if `DATABASE_URL` isn't set)
 
 ### 1. Clone and install
+
 ```bash
 git clone https://github.com/<your-username>/playr-pool.git
 cd playr-pool
@@ -97,6 +102,7 @@ npm --prefix client install
 ### 2. Configure environment variables
 
 **`server/.env`** (copy from `server/.env.example`):
+
 ```env
 PORT=5000
 NODE_ENV=development
@@ -109,21 +115,26 @@ RESEND_API_KEY=re_xxxxxxxxx
 PASSWORD_RESET_EMAIL_FROM=Playr-Pool <no-reply@example.edu>
 TRUST_PROXY=false
 ```
+
 > `DATABASE_URL` can be left unset locally — the app will run on an in-memory store automatically. It's required in production.
 
 **`client/.env`** (copy from `client/.env.example`), only needed if the API is on a different origin than the frontend:
+
 ```env
 VITE_SOCKET_URL=https://api.example.edu
 ```
 
 ### 3. Run in development
+
 From the project root, in two terminals:
+
 ```bash
 npm run server   # starts the API + Socket.IO on http://localhost:5000
 npm run client   # starts the Vite dev server on http://localhost:3000 (proxies /api to the server)
 ```
 
 ### 4. Run in production
+
 ```bash
 npm --prefix client run build
 npm start          # runs server/server.js, which also serves as the API/socket host
@@ -144,6 +155,7 @@ npm run test:scores   # scoring and leaderboard behavior
 node test-roles.js        # sport-specific player role validation
 node test-e2e-suite.js    # full end-to-end suite across the app
 ```
+
 These scripts run against a live server instance (local or deployed), not a mocked test harness.
 
 ---
@@ -152,20 +164,20 @@ These scripts run against a live server instance (local or deployed), not a mock
 
 All routes are mounted under `/api`:
 
-| Route                | Purpose |
-|-----------------------|---------|
-| `/api/auth`            | Signup, login, password reset |
-| `/api/teams`            | Team CRUD, rosters, invites, join/leave requests, availability |
-| `/api/admin`             | Fixture, score, bracket, deadline, and announcement management (admin-only) |
-| `/api/matches`            | Public match schedule and live scores |
-| `/api/leaderboard`         | Standings per sport |
-| `/api/brackets`              | Public knockout bracket view |
-| `/api/announcements`          | Tournament/event announcements |
-| `/api/notifications`           | Per-user notifications |
-| `/api/sports-admins`             | Sport-specific admin directory |
-| `/api/player-sports`              | A player's registered sports |
-| `/api/chat`                        | Direct messaging between players |
-| `/api/health`                       | Health check |
+| Route                | Purpose                                                                     |
+| -------------------- | --------------------------------------------------------------------------- |
+| `/api/auth`          | Signup, login, password reset                                               |
+| `/api/teams`         | Team CRUD, rosters, invites, join/leave requests, availability              |
+| `/api/admin`         | Fixture, score, bracket, deadline, and announcement management (admin-only) |
+| `/api/matches`       | Public match schedule and live scores                                       |
+| `/api/leaderboard`   | Standings per sport                                                         |
+| `/api/brackets`      | Public knockout bracket view                                                |
+| `/api/announcements` | Tournament/event announcements                                              |
+| `/api/notifications` | Per-user notifications                                                      |
+| `/api/sports-admins` | Sport-specific admin directory                                              |
+| `/api/player-sports` | A player's registered sports                                                |
+| `/api/chat`          | Direct messaging between players                                            |
+| `/api/health`        | Health check                                                                |
 
 Real-time events are pushed over Socket.IO, including `match:score`, `match:status`, `announcement:new`, and chat/notification events.
 

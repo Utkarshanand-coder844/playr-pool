@@ -12,14 +12,14 @@ if (!connectionString || connectionString.includes('YOUR_USER')) {
 
 const pool = new pg.Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 });
 
 async function cleanDatabase() {
   const client = await pool.connect();
   try {
     console.log('Connecting to database...');
-    
+
     // Find all tables in public schema
     const tablesRes = await client.query(`
       SELECT tablename 
@@ -33,17 +33,17 @@ async function cleanDatabase() {
     }
 
     const validTableNames = tablesRes.rows
-      .map(r => r.tablename)
-      .filter(t => /^[a-zA-Z0-9_]+$/.test(t));
+      .map((r) => r.tablename)
+      .filter((t) => /^[a-zA-Z0-9_]+$/.test(t));
 
     if (validTableNames.length === 0) {
       console.log('ℹ️ No valid tables to wipe.');
       return;
     }
 
-    const tableNames = validTableNames.map(t => `"${t}"`).join(', ');
+    const tableNames = validTableNames.map((t) => `"${t}"`).join(', ');
     console.log(`Found ${tablesRes.rows.length} table(s): ${tableNames}`);
-    
+
     await client.query(`TRUNCATE TABLE ${tableNames} RESTART IDENTITY CASCADE;`);
     console.log('✅ Successfully wiped all data from all tables!');
   } catch (err) {

@@ -10,8 +10,7 @@ import './env.js';
 
 const RESEND_URL = 'https://api.resend.com/emails';
 
-const isDummy = (key) =>
-  !key || key.startsWith('re_xxxxxxxxx') || key === 'your_resend_api_key';
+const isDummy = (key) => !key || key.startsWith('re_xxxxxxxxx') || key === 'your_resend_api_key';
 
 /**
  * sendEmail({ to, subject, html, text })
@@ -23,7 +22,9 @@ export const sendEmail = async ({ to, subject, html, text }) => {
 
   if (isDummy(apiKey)) {
     if (process.env.NODE_ENV !== 'production') {
-      console.warn(`[DEV] Email not sent (no real RESEND_API_KEY). Would send to: ${to} | Subject: ${subject}`);
+      console.warn(
+        `[DEV] Email not sent (no real RESEND_API_KEY). Would send to: ${to} | Subject: ${subject}`
+      );
     }
     return;
   }
@@ -33,15 +34,15 @@ export const sendEmail = async ({ to, subject, html, text }) => {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         from,
         to: Array.isArray(to) ? to : [to],
         subject,
         html,
-        text
-      })
+        text,
+      }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -63,7 +64,7 @@ export const sendTournamentInviteEmail = async ({
   sport,
   tournamentName,
   campus,
-  frontendUrl
+  frontendUrl,
 }) => {
   const tournamentsUrl = `${frontendUrl || process.env.FRONTEND_URL || 'http://localhost:3000'}/tournaments`;
 
@@ -77,7 +78,7 @@ export const sendTournamentInviteEmail = async ({
     '',
     'If you were not expecting this invitation, you can safely ignore this email.',
     '',
-    '— The Playr-Pool Team'
+    '— The Playr-Pool Team',
   ].join('\n');
 
   const html = `<!DOCTYPE html>
@@ -130,6 +131,6 @@ export const sendTournamentInviteEmail = async ({
     to: captainEmail,
     subject: `🏆 Tournament Invitation: ${tournamentName}`,
     html,
-    text
+    text,
   });
 };

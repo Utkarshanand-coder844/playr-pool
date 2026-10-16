@@ -12,13 +12,9 @@ export const SPORT_ROLES = {
       'Wicketkeeper Batter',
       'Batting All-rounder',
       'Bowling All-rounder',
-      'Bowler'
+      'Bowler',
     ],
-    battingHands: [
-      'Right-hand Batter',
-      'Left-hand Batter',
-      'Not applicable'
-    ],
+    battingHands: ['Right-hand Batter', 'Left-hand Batter', 'Not applicable'],
     bowlingStyles: [
       'Right-arm Fast',
       'Right-arm Medium Fast',
@@ -29,8 +25,8 @@ export const SPORT_ROLES = {
       'Left-arm Medium Fast',
       'Left-arm Orthodox Spin',
       'Left-arm Wrist Spin',
-      'None / Does not bowl'
-    ]
+      'None / Does not bowl',
+    ],
   },
 
   Football: {
@@ -44,13 +40,9 @@ export const SPORT_ROLES = {
       'Attacking Midfielder',
       'Winger',
       'Forward',
-      'Striker'
+      'Striker',
     ],
-    preferredFoot: [
-      'Right-footed',
-      'Left-footed',
-      'Both'
-    ]
+    preferredFoot: ['Right-footed', 'Left-footed', 'Both'],
   },
 
   Futsal: {
@@ -64,23 +56,13 @@ export const SPORT_ROLES = {
       'Attacking Midfielder',
       'Winger',
       'Forward',
-      'Striker'
+      'Striker',
     ],
-    preferredFoot: [
-      'Right-footed',
-      'Left-footed',
-      'Both'
-    ]
+    preferredFoot: ['Right-footed', 'Left-footed', 'Both'],
   },
 
   Basketball: {
-    positions: [
-      'Point Guard',
-      'Shooting Guard',
-      'Small Forward',
-      'Power Forward',
-      'Center'
-    ]
+    positions: ['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center'],
   },
 
   Volleyball: {
@@ -90,41 +72,20 @@ export const SPORT_ROLES = {
       'Opposite Hitter',
       'Middle Blocker',
       'Libero',
-      'Defensive Specialist'
-    ]
+      'Defensive Specialist',
+    ],
   },
 
   Badminton: {
-    categories: [
-      'Singles',
-      'Doubles',
-      'Mixed Doubles'
-    ],
-    playingStyles: [
-      'Attacking',
-      'Defensive',
-      'All-round'
-    ],
-    hands: [
-      'Right-handed',
-      'Left-handed'
-    ]
+    categories: ['Singles', 'Doubles', 'Mixed Doubles'],
+    playingStyles: ['Attacking', 'Defensive', 'All-round'],
+    hands: ['Right-handed', 'Left-handed'],
   },
 
   'Table Tennis': {
-    categories: [
-      'Singles',
-      'Doubles'
-    ],
-    playingStyles: [
-      'Attacker',
-      'Defender',
-      'All-round'
-    ],
-    hands: [
-      'Right-handed',
-      'Left-handed'
-    ]
+    categories: ['Singles', 'Doubles'],
+    playingStyles: ['Attacker', 'Defender', 'All-round'],
+    hands: ['Right-handed', 'Left-handed'],
   },
 
   Athletics: {
@@ -142,19 +103,13 @@ export const SPORT_ROLES = {
       'Triple Jump',
       'Shot Put',
       'Discus Throw',
-      'Javelin Throw'
-    ]
+      'Javelin Throw',
+    ],
   },
 
   Chess: {
-    formats: [
-      'Classical',
-      'Rapid',
-      'Blitz',
-      'Bullet',
-      'Open / General'
-    ]
-  }
+    formats: ['Classical', 'Rapid', 'Blitz', 'Bullet', 'Open / General'],
+  },
 };
 
 /** All sports that have a defined role config */

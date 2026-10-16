@@ -168,13 +168,6 @@ export const Navbar = ({ currentView, onViewChange }) => {
           >
             Events
           </button>
-          <button
-            type="button"
-            className={`nav-link-item ${currentView === 'feedback' || currentView === 'community' || currentView === 'experiences' || currentView === 'reviews' ? 'active' : ''}`}
-            onClick={() => handleNav('feedback')}
-          >
-            Community Wall
-          </button>
           {isAuthenticated && (
             <button
               type="button"
