@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { Alert } from '../components/Alert';
 import { getAuthHeaders } from '../utils/authFetch';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:5000' : window.location.origin);
-
 export const Chat = ({ playerId: initialPlayerId }) => {
   const { user, token } = useAuth();
+  const { socket } = useSocket();
   const [players, setPlayers] = useState([]);
   const [activePlayerId, setActivePlayerId] = useState(initialPlayerId || '');
   const [messages, setMessages] = useState([]);
@@ -34,12 +33,13 @@ export const Chat = ({ playerId: initialPlayerId }) => {
   }, [activePlayerId, token]);
 
   useEffect(() => {
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token } });
-    socket.on('connect', () => socket.emit('join:user'));
-    socket.on('chat:message', message => { if (message.sender_id === activePlayerId) setMessages(items => [...items, message]); });
-    return () => socket.disconnect();
-  }, [token, activePlayerId]);
+    if (!socket) return;
+    const onMessage = (message) => {
+      if (message.sender_id === activePlayerId) setMessages((items) => [...items, message]);
+    };
+    socket.on('chat:message', onMessage);
+    return () => socket.off('chat:message', onMessage);
+  }, [socket, activePlayerId]);
 
   const send = async event => {
     event.preventDefault();

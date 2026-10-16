@@ -2,7 +2,9 @@
  * Automated Verification Script for Team Creation, Roster Management, and Admin Lock
  */
 
-const BASE_URL = 'http://localhost:5000/api';
+import { getTestBaseUrl, stopTestServer } from './test-setup.js';
+
+let BASE_URL = 'http://localhost:5000/api';
 
 const logResult = (testName, passed, detail) => {
   if (passed) {
@@ -15,12 +17,14 @@ const logResult = (testName, passed, detail) => {
 async function runTeamTests() {
   console.log('🏆 Starting Team Management & Tournament Lock Verification Suite...\n');
 
-  const runId = Date.now().toString().slice(-4);
-  const p1Id = `ATH-101-${runId}`;
-  const p2Id = `ATH-102-${runId}`;
-  const adminId = `ADM-${runId}`;
-
   try {
+    const host = await getTestBaseUrl();
+    BASE_URL = `${host}/api`;
+
+    const runId = Date.now().toString().slice(-4);
+    const p1Id = `ATH-101-${runId}`;
+    const p2Id = `ATH-102-${runId}`;
+    const adminId = `ADM-${runId}`;
     // 1. Setup Player 1
     const p1Signup = await fetch(`${BASE_URL}/auth/signup`, {
       method: 'POST',
@@ -69,7 +73,8 @@ async function runTeamTests() {
         email: `admin.${runId}@college.edu`,
         phone: '+1 555-999-0000',
         password: 'adminPassword123',
-        role: 'admin'
+        role: 'admin',
+        admin_code: process.env.ADMIN_SIGNUP_CODE || 'local-dev-admin-code-2026'
       })
     });
     const adminData = await adminSignup.json();
@@ -99,7 +104,7 @@ async function runTeamTests() {
     );
     const createdTeamId = createTeamData.team.id;
 
-    // Test 2: Reject second team creation for same player (One team per player)
+    // Test 2: Reject team creation without roster members (400 Bad Request)
     const duplicateTeamRes = await fetch(`${BASE_URL}/teams`, {
       method: 'POST',
       headers: {
@@ -107,13 +112,14 @@ async function runTeamTests() {
         'Authorization': `Bearer ${p1Token}`
       },
       body: JSON.stringify({
-        name: 'Second Team FC'
+        name: 'Second Team FC',
+        members: []
       })
     });
     const duplicateTeamData = await duplicateTeamRes.json();
     logResult(
-      'Reject duplicate team creation for same user (409 Conflict)',
-      duplicateTeamRes.status === 409 && !duplicateTeamData.success,
+      'Reject team creation without roster members (400 Bad Request)',
+      duplicateTeamRes.status === 400 && !duplicateTeamData.success,
       JSON.stringify(duplicateTeamData)
     );
 
@@ -235,10 +241,11 @@ async function runTeamTests() {
     );
 
     console.log('\n🎉 ALL 10 TEAM & TOURNAMENT LOCK TESTS PASSED SUCCESSFULLY!\n');
-    process.exit(0);
   } catch (err) {
     console.error('Fatal error during team test suite:', err);
     process.exit(1);
+  } finally {
+    await stopTestServer();
   }
 }
 

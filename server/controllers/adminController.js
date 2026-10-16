@@ -176,7 +176,7 @@ export const getAdminTournamentStatus = async (req, res) => {
  */
 export const createMatch = async (req, res) => {
   try {
-    const { name, sport, team_a_id, team_b_id, match_date, status = 'upcoming' } = req.body;
+    const { name, sport, team_a_id = null, team_b_id = null, match_date, status = 'upcoming' } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -184,15 +184,18 @@ export const createMatch = async (req, res) => {
         message: 'Match title/name is required'
       });
     }
-    if (!sport || !sport.trim() || sport.trim().length > 60) {
+    const normalizedSport = typeof sport === 'string' && sport.trim() ? sport.trim() : 'Football';
+    if (normalizedSport.length > 60) {
       return res.status(400).json({ success: false, message: 'Choose a sport for this fixture' });
     }
-    if (!team_a_id || !team_b_id || team_a_id === team_b_id) {
-      return res.status(400).json({ success: false, message: 'Choose two different participating teams' });
-    }
-    const [teamA, teamB] = await Promise.all([TeamModel.findById(team_a_id), TeamModel.findById(team_b_id)]);
-    if (!teamA || !teamB || teamA.sport !== sport.trim() || teamB.sport !== sport.trim()) {
-      return res.status(400).json({ success: false, message: 'Both teams must be registered for this sport' });
+    if (team_a_id && team_b_id) {
+      if (team_a_id === team_b_id) {
+        return res.status(400).json({ success: false, message: 'Choose two different participating teams' });
+      }
+      const [teamA, teamB] = await Promise.all([TeamModel.findById(team_a_id), TeamModel.findById(team_b_id)]);
+      if (!teamA || !teamB || teamA.sport !== normalizedSport || teamB.sport !== normalizedSport) {
+        return res.status(400).json({ success: false, message: 'Both teams must be registered for this sport' });
+      }
     }
 
     const validStatuses = ['upcoming', 'live', 'completed'];
@@ -205,9 +208,9 @@ export const createMatch = async (req, res) => {
 
     const match = await MatchModel.createMatch({
       name: name.trim(),
-      sport: sport.trim(),
-      team_a_id,
-      team_b_id,
+      sport: normalizedSport,
+      team_a_id: team_a_id || null,
+      team_b_id: team_b_id || null,
       match_date,
       status: status.toLowerCase(),
       tournament_id: req.tournamentId || null

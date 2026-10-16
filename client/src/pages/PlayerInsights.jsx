@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:5000' : window.location.origin);
+import { useSocket } from '../context/SocketContext';
 
 // ──────────────────────────────────────────────────────────────
 // Mini sparkline chart (SVG)
@@ -141,6 +139,7 @@ function TrendBadge({ trend = [] }) {
 // ──────────────────────────────────────────────────────────────
 export function PlayerInsights({ playerId: propPlayerId, onNavigate }) {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const playerId = propPlayerId || user?.id;
 
   const [data, setData] = useState(null);
@@ -172,13 +171,13 @@ export function PlayerInsights({ playerId: propPlayerId, onNavigate }) {
 
   useEffect(() => {
     fetchData();
-    let socket;
-    try {
-      socket = io(SOCKET_URL);
-      socket.on('player:stats_update', () => fetchData());
-    } catch (_) {}
-    return () => { if (socket) socket.disconnect(); };
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('player:stats_update', fetchData);
+    return () => socket.off('player:stats_update', fetchData);
+  }, [socket, fetchData]);
 
   const sports = ['Cricket', 'Football', 'Basketball', 'Kabaddi', 'Badminton', 'Table Tennis', 'Volleyball', 'Tennis'];
 

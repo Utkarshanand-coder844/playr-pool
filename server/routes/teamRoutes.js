@@ -2,6 +2,7 @@ import express from 'express';
 import { createTeam, getMyTeam, updateTeam, deleteTeam, getTournamentStatus, getTeamById, getRegisteredPlayers, getPlayerProfile, createTeamInvite, getMyInvites, respondToTeamInvite, getRegistrationStatus, setAvailability, getTeamAvailability, createTeamRequest, getTeamRequests, reviewTeamRequest, removeTeamMember, voteToRemoveAdmin, getAdminRemovalVoteSummary, discover, transferTeamOwnership } from '../controllers/teamController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { actionRateLimit } from '../middleware/rateLimitMiddleware.js';
+import { validateBody, createTeamSchema } from '../middleware/validateMiddleware.js';
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ router.get('/status', getTournamentStatus);
 router.get('/registration-status', getRegistrationStatus);
 
 // Authenticated team routes
-router.post('/', authenticateToken, createTeam);
+router.post('/', authenticateToken, validateBody(createTeamSchema), createTeam);
 router.get('/mine', authenticateToken, getMyTeam);
 router.get('/players', authenticateToken, getRegisteredPlayers);
 router.get('/players/:id', authenticateToken, getPlayerProfile);

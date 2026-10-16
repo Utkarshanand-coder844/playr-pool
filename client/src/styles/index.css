@@ -1625,3 +1625,21 @@ textarea.form-input {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Accessible Keyboard Focus States */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(0, 242, 254, 0.25);
+}
+

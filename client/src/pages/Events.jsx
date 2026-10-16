@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
 import { Alert } from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { getAuthHeaders } from '../utils/authFetch';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:5000' : window.location.origin);
 const categoryLabel = { tournament: '🏆 Tournament', match: '⚽ Match', notice: '📣 Notice' };
 const orderAnnouncements = (items) => [...items].sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned)));
 
 export const Events = () => {
   const { token } = useAuth();
+  const { socket } = useSocket();
   const [announcements, setAnnouncements] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -25,13 +25,22 @@ export const Events = () => {
       finally { setLoading(false); }
     };
     load();
-    const socket = io(SOCKET_URL, { auth: { token } });
-    socket.on('connect', () => socket.emit('join:user'));
-    socket.on('announcement:new', (announcement) => setAnnouncements((items) => orderAnnouncements([announcement, ...items])));
-    socket.on('announcement:updated', (announcement) => setAnnouncements((items) => orderAnnouncements(items.map((item) => item.id === announcement.id ? { ...item, ...announcement } : item))));
-    socket.on('announcement:deleted', ({ id }) => setAnnouncements((items) => items.filter((item) => item.id !== id)));
-    return () => socket.disconnect();
   }, [token]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onNew = (a) => setAnnouncements((items) => orderAnnouncements([a, ...items]));
+    const onUpdated = (a) => setAnnouncements((items) => orderAnnouncements(items.map((i) => (i.id === a.id ? { ...i, ...a } : i))));
+    const onDeleted = ({ id }) => setAnnouncements((items) => items.filter((i) => i.id !== id));
+    socket.on('announcement:new', onNew);
+    socket.on('announcement:updated', onUpdated);
+    socket.on('announcement:deleted', onDeleted);
+    return () => {
+      socket.off('announcement:new', onNew);
+      socket.off('announcement:updated', onUpdated);
+      socket.off('announcement:deleted', onDeleted);
+    };
+  }, [socket]);
 
   return <div className="dashboard-container" style={{ maxWidth: '900px' }}>
     <div className="auth-header" style={{ textAlign: 'left', marginBottom: 0 }}><h1>📣 Tournament Events</h1><p>Official match dates, tournament updates, and important notices from the organizers.</p></div>

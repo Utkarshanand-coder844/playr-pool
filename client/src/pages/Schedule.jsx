@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { io } from 'socket.io-client';
 import { Alert } from '../components/Alert';
-
-// Socket.io connects directly to the backend origin — Vite's dev proxy only
-// forwards plain HTTP under /api, not the WebSocket upgrade Socket.io needs.
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:5000' : window.location.origin);
+import { useSocket } from '../context/SocketContext';
 const SITE_URL = 'https://playr-pool-two.vercel.app';
 const DEFAULT_TITLE = 'Playr-Pool — Official Sports Tournament Platform | Connect, Play, Conquer';
 
@@ -34,6 +30,7 @@ function removeMatchSchema() {
 }
 
 export const Schedule = ({ focusMatchId }) => {
+  const { socket } = useSocket();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -63,35 +60,35 @@ export const Schedule = ({ focusMatchId }) => {
     };
     fetchMatches();
 
-    let socket;
-    try {
-      socket = io(SOCKET_URL);
-
-      // A score was recorded/updated somewhere — patch just that team's score in place
-      socket.on('match:score', ({ match_id, team_id, points }) => {
-        setMatches((prev) => prev.map((m) => {
-          if (m.id !== match_id) return m;
-          if (m.team_a_id === team_id) return { ...m, team_a_score: points };
-          if (m.team_b_id === team_id) return { ...m, team_b_score: points };
-          return m;
-        }));
-      });
-
-      // A match moved between upcoming / live / completed
-      socket.on('match:status', ({ match_id, status }) => {
+    // Live updates via shared socket
+    if (socket) {
+      const onScore = ({ match_id, team_id, points }) => {
+        setMatches((prev) =>
+          prev.map((m) => {
+            if (m.id !== match_id) return m;
+            if (m.team_a_id === team_id) return { ...m, team_a_score: points };
+            if (m.team_b_id === team_id) return { ...m, team_b_score: points };
+            return m;
+          })
+        );
+      };
+      const onStatus = ({ match_id, status }) => {
         setMatches((prev) => prev.map((m) => (m.id === match_id ? { ...m, status } : m)));
-      });
-
-      // A match was deleted by admin
-      socket.on('match:deleted', ({ match_id }) => {
+      };
+      const onDeleted = ({ match_id }) => {
         setMatches((prev) => prev.filter((m) => m.id !== match_id));
-      });
-    } catch (err) {
-      console.warn('Socket connection failed, live match updates disabled:', err);
+      };
+      socket.on('match:score', onScore);
+      socket.on('match:status', onStatus);
+      socket.on('match:deleted', onDeleted);
+      return () => {
+        socket.off('match:score', onScore);
+        socket.off('match:status', onStatus);
+        socket.off('match:deleted', onDeleted);
+      };
     }
+  }, [socket]);
 
-    return () => { if (socket) socket.disconnect(); };
-  }, []);
 
   // When focusedId changes: update title, inject schema, update URL
   useEffect(() => {

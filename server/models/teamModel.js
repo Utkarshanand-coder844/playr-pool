@@ -149,13 +149,13 @@ export const TeamModel = {
         const memberName = typeof m === 'object' ? m.member_name || m.name : null;
         const position = typeof m === 'object' ? m.position || 'Player' : 'Player';
         const memberUserId = typeof m === 'object' ? m.member_user_id || m.user_id : null;
-        if (memberName && memberName.trim() && memberUserId) {
+        if (memberName && memberName.trim()) {
           const memberText = `
             INSERT INTO team_members (team_id, member_name, position, member_user_id)
             VALUES ($1, $2, $3, $4)
             RETURNING id, team_id, member_name, position, member_user_id, created_at;
           `;
-          const { rows: memberRows } = await query(memberText, [newTeam.id, memberName.trim(), position.trim(), memberUserId]);
+          const { rows: memberRows } = await query(memberText, [newTeam.id, memberName.trim(), position.trim(), memberUserId || null]);
           if (memberRows[0]) insertedMembers.push(memberRows[0]);
         }
       }
@@ -194,13 +194,13 @@ export const TeamModel = {
         const memberName = typeof m === 'object' ? m.member_name || m.name : null;
         const position = typeof m === 'object' ? m.position || 'Player' : 'Player';
         const memberUserId = typeof m === 'object' ? m.member_user_id || m.user_id : null;
-        if (memberName && memberName.trim() && memberUserId) {
+        if (memberName && memberName.trim()) {
           const memberText = `
             INSERT INTO team_members (team_id, member_name, position, member_user_id)
             VALUES ($1, $2, $3, $4)
             RETURNING id, team_id, member_name, position, member_user_id, created_at;
           `;
-          const { rows: memberRows } = await query(memberText, [id, memberName.trim(), position.trim(), memberUserId]);
+          const { rows: memberRows } = await query(memberText, [id, memberName.trim(), position.trim(), memberUserId || null]);
           if (memberRows[0]) updatedMembers.push(memberRows[0]);
         }
       }

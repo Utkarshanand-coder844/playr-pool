@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { query } from '../config/db.js';
 import { PlayerSportProfileModel } from './playerSportProfileModel.js';
 
@@ -74,7 +75,11 @@ export const UserModel = {
    * @param {object} userData 
    * @returns {Promise<object>}
    */
-  async create({ college_id, name, department, campus, year, email, phone, password_hash, role = 'player', profile_photo = null }) {
+  async create({ college_id, name, department, campus, year, email, phone, password_hash, password, role = 'player', profile_photo = null }) {
+    let finalPasswordHash = password_hash;
+    if (!finalPasswordHash && password) {
+      finalPasswordHash = await bcrypt.hash(password, 10);
+    }
     const text = `
       INSERT INTO users (college_id, name, department, campus, year, email, phone, password_hash, role, profile_photo, token_version)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0)
@@ -88,7 +93,7 @@ export const UserModel = {
       year.toString().trim(),
       email.trim().toLowerCase(),
       phone.trim(),
-      password_hash,
+      finalPasswordHash,
       role,
       profile_photo
     ];

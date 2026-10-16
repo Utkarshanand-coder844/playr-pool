@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { io } from 'socket.io-client';
 import { Alert } from '../components/Alert';
-
-// Socket.io connects directly to the backend origin — Vite's dev proxy only
-// forwards plain HTTP under /api, not the WebSocket upgrade Socket.io needs.
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:5000' : window.location.origin);
+import { useSocket } from '../context/SocketContext';
 
 export const Leaderboard = ({ onNavigate }) => {
+  const { socket } = useSocket();
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,21 +62,16 @@ export const Leaderboard = ({ onNavigate }) => {
 
     fetchInitial();
 
-    try {
-      socket = io(SOCKET_URL);
-      socket.on('leaderboard:update', (data) => {
-        // New payloads are sport-specific; retain compatibility with older array payloads.
+    if (socket) {
+      const onUpdate = (data) => {
         if (Array.isArray(data)) applyLeaderboard(data);
-        else if (data.sport === (selectedSport === 'Other' ? customSport.trim() : selectedSport)) applyLeaderboard(data.leaderboard || []);
-      });
-    } catch (err) {
-      console.warn('Socket connection failed, live updates disabled:', err);
+        else if (data.sport === (selectedSport === 'Other' ? customSport.trim() : selectedSport))
+          applyLeaderboard(data.leaderboard || []);
+      };
+      socket.on('leaderboard:update', onUpdate);
+      return () => socket.off('leaderboard:update', onUpdate);
     }
-
-    return () => {
-      if (socket) socket.disconnect();
-    };
-  }, [selectedSport, customSport]);
+  }, [selectedSport, customSport, socket]);
 
   const visibleLeaderboard = leaderboard.filter((row) => row.team_name.toLowerCase().includes(teamSearch.trim().toLowerCase()));
 

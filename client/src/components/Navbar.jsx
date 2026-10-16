@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { MessageToast } from './MessageToast';
 import { getAuthHeaders } from '../utils/authFetch';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:5000' : window.location.origin);
-
 export const Navbar = ({ currentView, onViewChange }) => {
   const { user, token, isAuthenticated, logout } = useAuth();
+  const { socket } = useSocket();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [pendingInviteCount, setPendingInviteCount] = useState(0);
@@ -75,28 +74,32 @@ export const Navbar = ({ currentView, onViewChange }) => {
   }, [token]);
 
   useEffect(() => {
-    if (!token) return undefined;
-    const socket = io(SOCKET_URL, { auth: { token } });
-    socket.on('connect', () => socket.emit('join:user'));
-    socket.on('announcement:notification', () => setUnreadNotificationCount(count => count + 1));
-    socket.on('security:password-changed', () => setUnreadNotificationCount(count => count + 1));
-    socket.on('team:notification', () => setUnreadNotificationCount(count => count + 1));
-
-    const handleMessageReceived = (message) => {
-      setUnreadMessageCount(count => count + 1);
-      setUnreadNotificationCount(count => count + 1);
+    if (!socket) return undefined;
+    const onAnnouncement = () => setUnreadNotificationCount((c) => c + 1);
+    const onSecurity = () => setUnreadNotificationCount((c) => c + 1);
+    const onTeam = () => setUnreadNotificationCount((c) => c + 1);
+    const onMessage = (message) => {
+      setUnreadMessageCount((c) => c + 1);
+      setUnreadNotificationCount((c) => c + 1);
       if (currentView !== 'chat') {
         setMessageToast({
           sender_id: message.sender_id,
           sender_name: message.sender_name || 'A player',
-          body: message.body
+          body: message.body,
         });
       }
     };
-
-    socket.on('message:notification', handleMessageReceived);
-    return () => socket.disconnect();
-  }, [token, currentView]);
+    socket.on('announcement:notification', onAnnouncement);
+    socket.on('security:password-changed', onSecurity);
+    socket.on('team:notification', onTeam);
+    socket.on('message:notification', onMessage);
+    return () => {
+      socket.off('announcement:notification', onAnnouncement);
+      socket.off('security:password-changed', onSecurity);
+      socket.off('team:notification', onTeam);
+      socket.off('message:notification', onMessage);
+    };
+  }, [socket, currentView]);
 
   useEffect(() => {
     if (!token) { setUnreadNotificationCount(0); return undefined; }

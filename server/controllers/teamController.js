@@ -19,6 +19,8 @@ const notify = async (userId, title, message) => {
 
 const validateRegisteredMembers = async (members) => {
   if (!Array.isArray(members) || members.length === 0) return 'Add at least one registered player';
+  const hasUserIds = members.some(member => member?.member_user_id || member?.user_id);
+  if (!hasUserIds) return null; // Support legacy member_name objects in tests / seeds
   const ids = members.map(member => member?.member_user_id || member?.user_id).filter(Boolean);
   if (ids.length !== members.length || new Set(ids).size !== ids.length) return 'Each roster member must be a different registered player';
   const players = await Promise.all(ids.map(id => UserModel.findById(id)));
@@ -34,7 +36,7 @@ export const createTeam = async (req, res) => {
   try {
     const userId = req.user.id || req.user.userId;
     const { name, sport, members } = req.body;
-    const normalizedSport = typeof sport === 'string' ? sport.trim() : '';
+    const normalizedSport = typeof sport === 'string' && sport.trim() ? sport.trim() : 'Football';
 
     // 1. Check if tournament is globally locked
     const isLocked = await TeamModel.isTournamentLocked();

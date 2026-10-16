@@ -20,6 +20,8 @@ import {
 } from '../controllers/adminController.js';
 import { authenticateToken, requireTournamentAdmin } from '../middleware/authMiddleware.js';
 
+import { validateBody, saveScoreSchema } from '../middleware/validateMiddleware.js';
+
 const router = express.Router();
 
 // All routes in this file require tournament admin permissions (scoped to the tournament) or super admin
@@ -37,7 +39,7 @@ router.put('/matches/:id/status', updateMatchStatus);
 router.delete('/matches/:id', deleteMatch);
 
 // Scores Management
-router.post('/scores', saveScore);
+router.post('/scores', validateBody(saveScoreSchema), saveScore);
 router.get('/scores', getScores);
 router.post('/player-stats', savePlayerStat);
 

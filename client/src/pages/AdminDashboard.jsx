@@ -1,12 +1,14 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { Alert } from '../components/Alert';
 import { SPORT_LIST, SPORT_ROLES, formatSportProfile } from '../utils/sportRoles';
 import { getAuthHeaders } from '../utils/authFetch';
+import { AdminAthleteDirectory } from '../features/admin/components/AdminAthleteDirectory';
 
 export const AdminDashboard = ({ onNavigate, tournamentId: propTournamentId }) => {
   const { user, token } = useAuth();
+  const { socket } = useSocket();
   const [activeTournamentId, setActiveTournamentId] = useState(propTournamentId || null);
   const [myTournaments, setMyTournaments] = useState([]);
   const [tournamentSelectorLoading, setTournamentSelectorLoading] = useState(!propTournamentId);
@@ -217,31 +219,38 @@ export const AdminDashboard = ({ onNavigate, tournamentId: propTournamentId }) =
 
   // Real-time socket updates for Admin Desk
   useEffect(() => {
-    const socket = io(window.location.origin);
-    socket.on('match:live_update', (payload) => {
+    if (!socket) return;
+    const onLiveUpdate = (payload) => {
       if (String(payload?.matchId) === String(lsMatchIdRef.current)) {
         setLsLiveState(payload.liveState);
       }
-      setMatches(prev => prev.map(m => {
-        if (String(m.id) !== String(payload?.matchId)) return m;
-        return {
-          ...m,
-          liveState: payload.liveState,
-          status: payload.status || m.status,
-          team_a_score: payload.scoreA,
-          team_b_score: payload.scoreB
-        };
-      }));
-    });
-    socket.on('match:deleted', ({ match_id }) => {
-      setMatches(prev => prev.filter(m => String(m.id) !== String(match_id)));
+      setMatches((prev) =>
+        prev.map((m) => {
+          if (String(m.id) !== String(payload?.matchId)) return m;
+          return {
+            ...m,
+            liveState: payload.liveState,
+            status: payload.status || m.status,
+            team_a_score: payload.scoreA,
+            team_b_score: payload.scoreB,
+          };
+        })
+      );
+    };
+    const onDeleted = ({ match_id }) => {
+      setMatches((prev) => prev.filter((m) => String(m.id) !== String(match_id)));
       if (String(lsMatchIdRef.current) === String(match_id)) {
         setLsMatchId('');
         setLsLiveState(null);
       }
-    });
-    return () => socket.disconnect();
-  }, []);
+    };
+    socket.on('match:live_update', onLiveUpdate);
+    socket.on('match:deleted', onDeleted);
+    return () => {
+      socket.off('match:live_update', onLiveUpdate);
+      socket.off('match:deleted', onDeleted);
+    };
+  }, [socket]);
 
   // Send a scoring event
   const lsSendEvent = async (eventType, payload = {}) => {
@@ -1707,195 +1716,18 @@ export const AdminDashboard = ({ onNavigate, tournamentId: propTournamentId }) =
       </div>
 
       {/* REGISTERED ATHLETES & SPORT ROLE DIRECTORY */}
-      <div style={{ marginTop: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-secondary)', margin: 0 }}>
-              🏃 REGISTERED ATHLETES & SPORT ROLE DIRECTORY ({filteredPlayers.length} / {players.length})
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0' }}>
-              Filter registered athletes by sport and playing role to evaluate squad eligibility.
-            </p>
-          </div>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => exportCsv('filtered-players', filteredPlayers)}
-          >
-            Export Filtered Athletes CSV
-          </button>
-        </div>
-
-        {/* Filter Controls Bar */}
-        <div className="auth-card" style={{ maxWidth: '100%', marginBottom: '1rem', padding: '1rem 1.25rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
-            {/* Search input */}
-            <div>
-              <label className="form-label" style={{ marginBottom: '0.35rem', fontSize: '0.8rem' }}>Search Athlete</label>
-              <input
-                type="text"
-                className="form-input no-icon"
-                placeholder="Name, College ID, Dept..."
-                value={playerSearchQuery}
-                onChange={(e) => setPlayerSearchQuery(e.target.value)}
-              />
-            </div>
-
-            {/* Sport Filter */}
-            <div>
-              <label className="form-label" style={{ marginBottom: '0.35rem', fontSize: '0.8rem' }}>Sport</label>
-              <select
-                className="form-select no-icon"
-                value={playerSportFilter}
-                onChange={(e) => {
-                  setPlayerSportFilter(e.target.value);
-                  setPlayerRoleFilter('All');
-                }}
-              >
-                <option value="All">All Sports</option>
-                {SPORT_LIST.map((sp) => (
-                  <option key={sp} value={sp}>{sp}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Role Filter */}
-            <div>
-              <label className="form-label" style={{ marginBottom: '0.35rem', fontSize: '0.8rem' }}>
-                Playing Role / Position
-              </label>
-              <select
-                className="form-select no-icon"
-                value={playerRoleFilter}
-                onChange={(e) => setPlayerRoleFilter(e.target.value)}
-                disabled={playerSportFilter === 'All' && availableRolesForFilter.length === 0}
-              >
-                <option value="All">All Roles / Positions</option>
-                {availableRolesForFilter.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Reset Button */}
-            <div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ width: '100%', padding: '0.55rem' }}
-                onClick={() => {
-                  setPlayerSportFilter('All');
-                  setPlayerRoleFilter('All');
-                  setPlayerSearchQuery('');
-                }}
-              >
-                🔄 Reset Filters
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Players Table */}
-        <div style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-lg)',
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch'
-        }}>
-          <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ background: 'rgba(255, 255, 255, 0.04)', borderBottom: '1px solid var(--border-subtle)' }}>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Athlete</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Dept / Year</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Campus</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Sport Roles & Attributes</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPlayers.length === 0 ? (
-                <tr>
-                  <td colSpan="5" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No registered athletes match the selected filters.
-                  </td>
-                </tr>
-              ) : (
-                filteredPlayers.map((p) => {
-                  const profiles = p.sport_profiles || {};
-                  const enrolledSports = Object.keys(profiles);
-
-                  return (
-                    <tr key={p.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '0.85rem 1rem' }}>
-                        <div style={{ fontWeight: 700, color: '#fff' }}>{p.name}</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)' }}>{p.college_id}</div>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem' }}>
-                        <div>{p.department || '—'}</div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{p.year}</div>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        {p.campus || 'Main Campus'}
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem' }}>
-                        {enrolledSports.length === 0 ? (
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                            No roles defined
-                          </span>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                            {enrolledSports
-                              .filter((sp) => playerSportFilter === 'All' || sp === playerSportFilter)
-                              .map((sp) => {
-                                const prof = profiles[sp];
-                                const tags = formatSportProfile(sp, prof);
-                                return (
-                                  <div key={sp} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                    <strong style={{ fontSize: '0.8rem', color: '#fff' }}>{sp}:</strong>
-                                    {tags.length > 0 ? (
-                                      tags.map((t, idx) => (
-                                        <span
-                                          key={idx}
-                                          style={{
-                                            fontSize: '0.7rem',
-                                            background: 'rgba(0, 242, 254, 0.12)',
-                                            color: 'var(--accent-cyan)',
-                                            border: '1px solid rgba(0, 242, 254, 0.25)',
-                                            padding: '0.1rem 0.45rem',
-                                            borderRadius: '8px',
-                                            fontWeight: 600
-                                          }}
-                                        >
-                                          {t}
-                                        </span>
-                                      ))
-                                    ) : (
-                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Registered</span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem' }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                          onClick={() => onNavigate && onNavigate('player-profile', p.id)}
-                        >
-                          👤 Profile
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <AdminAthleteDirectory
+        filteredPlayers={filteredPlayers}
+        playerSearchQuery={playerSearchQuery}
+        setPlayerSearchQuery={setPlayerSearchQuery}
+        playerSportFilter={playerSportFilter}
+        setPlayerSportFilter={setPlayerSportFilter}
+        playerRoleFilter={playerRoleFilter}
+        setPlayerRoleFilter={setPlayerRoleFilter}
+        availableRolesForFilter={availableRolesForFilter}
+        exportCsv={exportCsv}
+        onNavigate={onNavigate}
+      />
 
       <div style={{ marginTop: '1.75rem' }}>
         <h3 style={{ marginBottom: '0.8rem', fontSize: '1.2rem', color: 'var(--text-secondary)' }}>ADMIN AUDIT LOG</h3>

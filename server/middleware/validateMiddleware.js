@@ -229,3 +229,59 @@ export const validateTournamentTeamEntry = (req, res, next) => {
   req.teamId = teamId.trim();
   next();
 };
+
+// ──────────────────────────────────────────────────────────────
+// Zod Shared Schema Validation Middleware
+// ──────────────────────────────────────────────────────────────
+import { z } from 'zod';
+
+export const validateBody = (schema) => (req, res, next) => {
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    const issues = result.error?.issues || result.error?.errors || [];
+    const errorMsg = issues[0]?.message || result.error?.message || 'Invalid request body';
+    return res.status(400).json({
+      success: false,
+      message: errorMsg,
+      errors: issues.map((e) => e.message)
+    });
+  }
+  req.validatedBody = result.data;
+  next();
+};
+
+export const chatMessageSchema = z.object({
+  body: z.string().min(1, 'Message body is required').max(1000, 'Message cannot exceed 1000 characters')
+});
+
+export const scoringEventSchema = z.object({
+  event_type: z.string().min(1, 'Event type is required').max(60),
+  payload: z.record(z.any()).optional().default({})
+});
+
+export const saveScoreSchema = z.object({
+  match_id: z.string().optional(),
+  team_id: z.string().optional(),
+  points: z.number().int('Points must be an integer').min(0, 'Points cannot be negative').max(1000, 'Points cannot exceed 1000')
+}).passthrough();
+
+export const createTeamSchema = z.object({
+  name: z.string().min(1, 'Team name is required').max(100),
+  sport: z.string().max(60).optional(),
+  members: z.array(z.any()).optional()
+});
+
+export const passwordResetRequestSchema = z.object({
+  email: z.string().email('Please enter a valid email address')
+});
+
+export const passwordResetConfirmSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters long').optional(),
+  new_password: z.string().min(8, 'Password must be at least 8 characters long').optional()
+}).refine(data => data.password || data.new_password, {
+  message: 'Password must be at least 8 characters long',
+  path: ['password']
+});
+
+

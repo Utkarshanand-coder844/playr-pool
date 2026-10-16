@@ -2,7 +2,9 @@
  * Automated Verification Script for Matches, Live Scores, and Admin Dashboard Endpoints
  */
 
-const BASE_URL = 'http://localhost:5000/api';
+import { getTestBaseUrl, stopTestServer } from './test-setup.js';
+
+let BASE_URL = 'http://localhost:5000/api';
 
 const logResult = (testName, passed, detail) => {
   if (passed) {
@@ -15,11 +17,14 @@ const logResult = (testName, passed, detail) => {
 async function runScoreTests() {
   console.log('⚡ Starting Match & Score Management Verification Suite...\n');
 
-  const runId = Date.now().toString().slice(-4);
-  const adminId = `ADM-SCORE-${runId}`;
-  const playerId = `PLY-SCORE-${runId}`;
-
   try {
+    const host = await getTestBaseUrl();
+    BASE_URL = `${host}/api`;
+
+    const runId = Date.now().toString().slice(-4);
+    const adminId = `ADM-SCORE-${runId}`;
+    const playerId = `PLY-SCORE-${runId}`;
+
     // 1. Setup Admin
     const adminSignup = await fetch(`${BASE_URL}/auth/signup`, {
       method: 'POST',
@@ -32,7 +37,8 @@ async function runScoreTests() {
         email: `admin.score.${runId}@college.edu`,
         phone: '+1 555-400-0000',
         password: 'adminPassword123',
-        role: 'admin'
+        role: 'admin',
+        admin_code: process.env.ADMIN_SIGNUP_CODE || 'local-dev-admin-code-2026'
       })
     });
     const adminData = await adminSignup.json();
@@ -265,10 +271,11 @@ async function runScoreTests() {
     );
 
     console.log('\n🎉 ALL 10 MATCHES & SCORES TESTS PASSED SUCCESSFULLY!\n');
-    process.exit(0);
   } catch (err) {
     console.error('Fatal error during score test suite:', err);
     process.exit(1);
+  } finally {
+    await stopTestServer();
   }
 }
 

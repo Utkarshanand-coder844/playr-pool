@@ -4,9 +4,10 @@
 import fs from 'fs';
 import path from 'path';
 import './server/config/env.js';
+import { getTestBaseUrl, stopTestServer } from './test-setup.js';
 
-const BASE_URL = 'http://localhost:5000/api/auth';
-const PAYMENTS_URL = 'http://localhost:5000/api/payments';
+let BASE_URL = 'http://localhost:5000/api/auth';
+let PAYMENTS_URL = 'http://localhost:5000/api/payments';
 const ADMIN_CODE = process.env.ADMIN_SIGNUP_CODE || 'local-dev-admin-code-2026';
 
 let passedCount = 0;
@@ -26,6 +27,9 @@ async function runTests() {
   console.log('🏁 Starting Authentication System Verification Suite...\n');
 
   try {
+    const host = await getTestBaseUrl();
+    BASE_URL = `${host}/api/auth`;
+    PAYMENTS_URL = `${host}/api/payments`;
     // 1. Test validation: missing fields
     const invalidSignup = await fetch(`${BASE_URL}/signup`, {
       method: 'POST',
@@ -289,10 +293,11 @@ async function runTests() {
     if (failedCount > 0) {
       process.exit(1);
     }
-    process.exit(0);
   } catch (err) {
     console.error('Fatal error during test suite:', err);
     process.exit(1);
+  } finally {
+    await stopTestServer();
   }
 }
 

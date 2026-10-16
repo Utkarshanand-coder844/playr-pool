@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Alert } from '../components/Alert';
 import { formatSportProfile } from '../utils/sportRoles';
 import { getAuthHeaders } from '../utils/authFetch';
+import { AdminRemovalPoll } from '../features/teams/components/AdminRemovalPoll';
 
 export const MyTeam = ({ onNavigate }) => {
   const { user, token } = useAuth();
@@ -1187,90 +1188,17 @@ export const MyTeam = ({ onNavigate }) => {
 
           {/* ADMIN REMOVAL POLL — visible to all team members */}
           {pollData && pollData.vote_summary && (
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.07), rgba(20, 14, 30, 0.6))',
-              border: '1px solid rgba(244, 63, 94, 0.3)',
-              borderRadius: 'var(--radius-md)',
-              padding: '1.5rem',
-              marginTop: '0.5rem'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fb7185', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    🗳️ Admin Removal Poll
-                  </h3>
-                  <p style={{ margin: '0.3rem 0 0', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-                    If 90% of roster members vote, the team admin will be demoted to a player account.
-                  </p>
-                </div>
-                {pollLoading && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Loading…</span>}
-              </div>
-
-              {/* Progress Bar */}
-              {(() => {
-                const { votes = 0, threshold = 0, eligible_voters = 0 } = pollData.vote_summary;
-                const pct = threshold > 0 ? Math.min(100, Math.round((votes / threshold) * 100)) : 0;
-                return (
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.45rem' }}>
-                      <span><strong style={{ color: '#fb7185', fontSize: '1rem' }}>{votes}</strong> of <strong>{threshold}</strong> votes needed</span>
-                      <span>{eligible_voters} eligible voter{eligible_voters !== 1 ? 's' : ''} · {pct}% reached</span>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '999px', height: '10px', overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%',
-                        width: `${pct}%`,
-                        background: pct >= 100 ? 'var(--accent-emerald)' : 'linear-gradient(90deg, #fb7185, #f43f5e)',
-                        borderRadius: '999px',
-                        transition: 'width 0.5s ease'
-                      }} />
-                    </div>
-                    {eligible_voters < 3 && (
-                      <p style={{ margin: '0.5rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        ⚠️ At least 3 non-admin roster members are required to activate this poll.
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Feedback */}
-              {pollError && <div className="alert alert-error" style={{ padding: '0.6rem 1rem', marginBottom: '0.75rem', fontSize: '0.84rem' }}>{pollError}</div>}
-              {pollSuccess && <div className="alert alert-success" style={{ padding: '0.6rem 1rem', marginBottom: '0.75rem', fontSize: '0.84rem' }}>{pollSuccess}</div>}
-
-              {/* Vote Button (only non-owners can vote) */}
-              {user && user.id !== team.owner_user_id && (
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {pollData.has_voted ? (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                      background: 'rgba(244, 63, 94, 0.12)', border: '1px solid rgba(244, 63, 94, 0.35)',
-                      color: '#fb7185', padding: '0.45rem 1rem', borderRadius: '8px', fontSize: '0.84rem', fontWeight: 600
-                    }}>✅ Your vote has been recorded</span>
-                  ) : (
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={castVote}
-                      disabled={pollVoting || pollData.vote_summary?.eligible_voters < 3}
-                      style={{ background: 'linear-gradient(135deg, #f43f5e, #be123c)', borderColor: 'transparent' }}
-                    >
-                      {pollVoting ? 'Casting vote…' : '🗳️ Vote to Remove Admin'}
-                    </button>
-                  )}
-                  <button className="btn btn-secondary btn-sm" onClick={() => fetchPollStatus(team.id)} disabled={pollLoading}>
-                    🔄 Refresh
-                  </button>
-                </div>
-              )}
-
-              {/* Owner view — can see votes but cannot vote */}
-              {user && (user.id || user.userId) === team.owner_user_id && (
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>You are the admin — you cannot vote in this poll.</span>
-                  <button className="btn btn-secondary btn-sm" onClick={() => fetchPollStatus(team.id)} disabled={pollLoading}>🔄 Refresh</button>
-                </div>
-              )}
-            </div>
+            <AdminRemovalPoll
+              pollData={pollData}
+              pollLoading={pollLoading}
+              pollVoting={pollVoting}
+              pollError={pollError}
+              pollSuccess={pollSuccess}
+              castVote={castVote}
+              fetchPollStatus={fetchPollStatus}
+              team={team}
+              user={user}
+            />
           )}
 
           {/* DANGER ZONE: DISBAND TEAM */}

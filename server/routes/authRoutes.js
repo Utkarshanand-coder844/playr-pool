@@ -1,7 +1,7 @@
 import express from 'express';
 import { signup, login, getMe, updateProfile, requestPasswordReset, resetPassword, deleteAccount } from '../controllers/authController.js';
 import { authenticateToken, requireAdmin } from '../middleware/authMiddleware.js';
-import { validateSignup, validateLogin } from '../middleware/validateMiddleware.js';
+import { validateSignup, validateLogin, validateBody, passwordResetRequestSchema, passwordResetConfirmSchema } from '../middleware/validateMiddleware.js';
 import { credentialRateLimit } from '../middleware/rateLimitMiddleware.js';
 
 const router = express.Router();
@@ -9,8 +9,8 @@ const router = express.Router();
 // Public routes
 router.post('/signup', credentialRateLimit({ max: 5 }), validateSignup, signup);
 router.post('/login', credentialRateLimit(), validateLogin, login);
-router.post('/password-reset/request', credentialRateLimit({ max: 5 }), requestPasswordReset);
-router.post('/password-reset/confirm', credentialRateLimit({ max: 5 }), resetPassword);
+router.post('/password-reset/request', credentialRateLimit({ max: 5 }), validateBody(passwordResetRequestSchema), requestPasswordReset);
+router.post('/password-reset/confirm', credentialRateLimit({ max: 5 }), validateBody(passwordResetConfirmSchema), resetPassword);
 
 // Protected routes (JWT required)
 router.get('/me', authenticateToken, getMe);

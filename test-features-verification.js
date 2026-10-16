@@ -43,8 +43,8 @@ async function runVerification() {
     id: 'a0000000-0000-0000-0000-000000000001',
     sport: 'Cricket',
     name: 'Finals: Red Dragons vs Blue Eagles',
-    team_a_id: 't0000000-0000-0000-0000-000000000001',
-    team_b_id: 't0000000-0000-0000-0000-000000000002',
+    team_a_id: 'c0000000-0000-0000-0000-000000000001',
+    team_b_id: 'c0000000-0000-0000-0000-000000000002',
     team_a_name: 'Red Dragons',
     team_b_name: 'Blue Eagles',
     status: 'live'
@@ -199,11 +199,25 @@ async function runVerification() {
 
   // Test 6: In-Memory / DB Query Player Stats Filtering
   console.log('\n📌 Test 6: DB Query Filtering (pmp.player_id support)');
+  // Ensure user, match, and team exist to satisfy foreign keys
+  await query(
+    `INSERT INTO users (id, college_id, name, department, campus, year, email, phone, password_hash, role)
+     VALUES ($1, 'BATTER-1', 'Virat Coder', 'CS', 'Main Campus', '3rd', 'batter1@college.edu', '5550001111', 'hash', 'player')
+     ON CONFLICT (id) DO NOTHING;`,
+    [pBatter1]
+  );
+  await query(
+    `INSERT INTO matches (id, name, sport, status)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO NOTHING;`,
+    [dummyMatch.id, dummyMatch.name, dummyMatch.sport, dummyMatch.status]
+  );
   // Insert test row into player_match_points
   await query(
     `INSERT INTO player_match_points (match_id, player_id, team_id, sport, fantasy_points, stats)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [dummyMatch.id, pBatter1, dummyMatch.team_a_id, 'Cricket', 13, JSON.stringify({ runs: 10, balls: 2 })]
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (match_id, player_id) DO UPDATE SET fantasy_points = EXCLUDED.fantasy_points;`,
+    [dummyMatch.id, pBatter1, null, 'Cricket', 13, JSON.stringify({ runs: 10, balls: 2 })]
   );
 
   const testHistoryQuery = `SELECT pmp.*, m.name as match_name, m.sport, m.status, m.match_date,

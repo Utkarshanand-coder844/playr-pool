@@ -305,7 +305,8 @@ export const requestPasswordReset = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { token, password } = req.body;
+    const token = req.body?.token;
+    const password = req.body?.password || req.body?.new_password;
     if (typeof token !== 'string' || !token || typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({ success: false, message: 'A valid reset token and a password of at least 8 characters are required.' });
     }

@@ -1,6 +1,17 @@
 -- Enable UUID extension if available
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END $$;
+
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END $$;
 
 -- Role enum type
 DO $$ 
@@ -111,6 +122,8 @@ CREATE TABLE IF NOT EXISTS matches (
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS sport VARCHAR(60) NOT NULL DEFAULT 'Football';
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS team_a_id UUID REFERENCES teams(id) ON DELETE SET NULL;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS team_b_id UUID REFERENCES teams(id) ON DELETE SET NULL;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS live_state JSONB DEFAULT NULL;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS event_count INTEGER DEFAULT 0;
 
 -- Scores Table
 CREATE TABLE IF NOT EXISTS scores (
@@ -326,6 +339,18 @@ CREATE INDEX IF NOT EXISTS idx_player_match_points_player ON player_match_points
 CREATE INDEX IF NOT EXISTS idx_player_match_points_match ON player_match_points(match_id);
 CREATE INDEX IF NOT EXISTS idx_player_match_points_sport ON player_match_points(sport);
 CREATE INDEX IF NOT EXISTS idx_player_match_points_campus ON player_match_points(player_id, sport);
+
+-- Match events table for real-time play-by-play scoring ledger
+CREATE TABLE IF NOT EXISTS match_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    event_type VARCHAR(60) NOT NULL,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    seq INTEGER,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT unique_match_seq UNIQUE (match_id, seq)
+);
 
 -- Match events index for fast replay
 CREATE INDEX IF NOT EXISTS idx_match_events_match_id ON match_events(match_id, created_at ASC);

@@ -1,6 +1,7 @@
 import express from 'express';
 import './config/env.js';
 import { createServer } from 'http';
+import helmet from 'helmet';
 import cors from 'cors';
 import authRoutes from './routes/authRoutes.js';
 import teamRoutes from './routes/teamRoutes.js';
@@ -41,8 +42,27 @@ if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 1);
 // Initialize Socket.io on the HTTP server
 initSocket(httpServer);
 
+let dbReadyPromise = null;
+export const ensureDbReady = () => {
+  if (!dbReadyPromise) {
+    dbReadyPromise = initDb();
+  }
+  return dbReadyPromise;
+};
+
+// Ensure database is initialized before any route handles traffic
+app.use(async (req, res, next) => {
+  try {
+    await ensureDbReady();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Middlewares
 app.use(cors(corsOptions));
+app.use(helmet({ contentSecurityPolicy: false }));
 
 // Remove X-Powered-By to avoid fingerprinting the stack
 app.disable('x-powered-by');
@@ -156,11 +176,12 @@ app.use((err, req, res, next) => {
 });
 
 // Start server using httpServer (not app.listen) so Socket.io works
-const startServer = async () => {
+export const startServer = async () => {
   await initDb();
+  if (httpServer.listening) return httpServer;
   httpServer.once('error', (error) => {
     if (error.code === 'EADDRINUSE') {
-      console.error(`Port ${PORT} is already in use. Stop the other local server or set PORT to another value before starting CampusClash.`);
+      console.error(`Port ${PORT} is already in use. Stop the other local server or set PORT to another value before starting Playr-Pool.`);
       return;
     }
     console.error('Unable to start HTTP server:', error.message);
@@ -176,6 +197,11 @@ const startServer = async () => {
   });
 };
 
-startServer();
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export { app, httpServer };
+
 
 export default app;
