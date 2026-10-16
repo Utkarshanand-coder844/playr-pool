@@ -473,38 +473,38 @@ BEGIN
     END IF;
 END $$;
 
--- Player Experiences & Recommendations
-CREATE TABLE IF NOT EXISTS player_experiences (
+-- Community Feedback Posts, Replies & Upvotes
+CREATE TABLE IF NOT EXISTS feedback_posts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    author_name VARCHAR(100) NOT NULL,
-    author_role VARCHAR(100) DEFAULT 'Player',
-    campus VARCHAR(100) DEFAULT 'Main Campus',
-    sport VARCHAR(60) NOT NULL DEFAULT 'General',
-    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    experience_type VARCHAR(60) NOT NULL DEFAULT 'Tournament Experience',
-    title VARCHAR(150),
-    experience TEXT NOT NULL,
-    recommendations TEXT,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
     upvotes INTEGER NOT NULL DEFAULT 0,
-    is_verified_player BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_player_experiences_created_at ON player_experiences(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_player_experiences_sport ON player_experiences(sport);
-CREATE INDEX IF NOT EXISTS idx_player_experiences_rating ON player_experiences(rating DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_posts_created_at ON feedback_posts(created_at DESC);
 
-CREATE TABLE IF NOT EXISTS player_experience_upvotes (
+CREATE TABLE IF NOT EXISTS feedback_replies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    experience_id UUID NOT NULL REFERENCES player_experiences(id) ON DELETE CASCADE,
+    post_id UUID NOT NULL REFERENCES feedback_posts(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    author_name VARCHAR(100) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_replies_post_id ON feedback_replies(post_id, created_at ASC);
+
+CREATE TABLE IF NOT EXISTS feedback_upvotes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id UUID NOT NULL REFERENCES feedback_posts(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     client_ip VARCHAR(64),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_exp_upvote_user ON player_experience_upvotes(experience_id, user_id) WHERE user_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_exp_upvote_ip ON player_experience_upvotes(experience_id, client_ip) WHERE user_id IS NULL AND client_ip IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_feedback_upvote_user ON feedback_upvotes(post_id, user_id) WHERE user_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_feedback_upvote_ip ON feedback_upvotes(post_id, client_ip) WHERE user_id IS NULL AND client_ip IS NOT NULL;
+
 
 

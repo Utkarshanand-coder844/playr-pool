@@ -170,10 +170,10 @@ export const Navbar = ({ currentView, onViewChange }) => {
           </button>
           <button
             type="button"
-            className={`nav-link-item ${currentView === 'experiences' || currentView === 'reviews' ? 'active' : ''}`}
-            onClick={() => handleNav('experiences')}
+            className={`nav-link-item ${currentView === 'feedback' || currentView === 'community' || currentView === 'experiences' || currentView === 'reviews' ? 'active' : ''}`}
+            onClick={() => handleNav('feedback')}
           >
-            Reviews &amp; Tips
+            Community Wall
           </button>
           {isAuthenticated && (
             <button
@@ -420,11 +420,11 @@ export const Navbar = ({ currentView, onViewChange }) => {
                 </button>
                 <button
                   type="button"
-                  className={`mobile-nav-item ${currentView === 'experiences' || currentView === 'reviews' ? 'active' : ''}`}
-                  onClick={() => handleNav('experiences')}
+                  className={`mobile-nav-item ${currentView === 'feedback' || currentView === 'community' || currentView === 'experiences' || currentView === 'reviews' ? 'active' : ''}`}
+                  onClick={() => handleNav('feedback')}
                 >
-                  <span className="mobile-item-icon">💡</span>
-                  <span className="mobile-item-label">Player Reviews &amp; Advice</span>
+                  <span className="mobile-item-icon">💬</span>
+                  <span className="mobile-item-label">Community Wall &amp; Feedback</span>
                 </button>
                 <button
                   type="button"

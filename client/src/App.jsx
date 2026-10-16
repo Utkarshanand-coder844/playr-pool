@@ -63,8 +63,8 @@ const Tournaments = lazy(() =>
 const EditProfile = lazy(() =>
   import('./pages/EditProfile').then((m) => ({ default: m.EditProfile }))
 );
-const PlayerExperiences = lazy(() =>
-  import('./pages/PlayerExperiences').then((m) => ({ default: m.PlayerExperiences }))
+const CommunityFeedback = lazy(() =>
+  import('./pages/CommunityFeedback').then((m) => ({ default: m.CommunityFeedback }))
 );
 
 // Fallback spinner while route chunk loads
@@ -217,7 +217,9 @@ function MainLayout() {
         break;
       case 'experiences':
       case 'reviews':
-        navigate('/experiences');
+      case 'feedback':
+      case 'community':
+        navigate('/feedback');
         break;
       default:
         navigate(`/${view}`);
@@ -264,12 +266,20 @@ function MainLayout() {
               <Route path="/scorehub" element={<ScoreHub />} />
               <Route path="/events" element={<Events />} />
               <Route
+                path="/feedback"
+                element={<CommunityFeedback onNavigate={handleNavigate} />}
+              />
+              <Route
+                path="/community"
+                element={<CommunityFeedback onNavigate={handleNavigate} />}
+              />
+              <Route
                 path="/experiences"
-                element={<PlayerExperiences onNavigate={handleNavigate} />}
+                element={<CommunityFeedback onNavigate={handleNavigate} />}
               />
               <Route
                 path="/reviews"
-                element={<PlayerExperiences onNavigate={handleNavigate} />}
+                element={<CommunityFeedback onNavigate={handleNavigate} />}
               />
               <Route
                 path="/live-scoring"
