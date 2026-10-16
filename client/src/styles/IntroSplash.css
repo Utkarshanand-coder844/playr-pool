@@ -1,0 +1,150 @@
+/* Playr-Pool opening animation. Uses only transform/opacity/filter so it stays smooth on phones. */
+.pp-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 4vh, 34px);
+  background: #000;
+  overflow: hidden;
+}
+.pp-intro.leaving {
+  animation: pp-intro-out 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+@keyframes pp-intro-out {
+  to { opacity: 0; transform: scale(1.06); visibility: hidden; }
+}
+@keyframes pp-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Orange stadium glow behind the emblem */
+.pp-intro-glow {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: min(120vmin, 900px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 122, 24, 0.42) 0%, rgba(255, 122, 24, 0.12) 40%, transparent 68%);
+  opacity: 0;
+  animation: pp-glow 1.4s ease-out 0.1s forwards, pp-breathe 2.4s ease-in-out 1.5s infinite;
+}
+@keyframes pp-glow {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes pp-breathe { 50% { opacity: 0.7; } }
+
+/* The emblem: slams in from large and blurry, then a light sweep passes over it */
+.pp-intro-logo {
+  position: relative;
+  width: min(80vmin, 540px);
+  aspect-ratio: 1;
+}
+.pp-intro-logo img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  opacity: 0;
+  animation: pp-logo-in 1.05s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+}
+@keyframes pp-logo-in {
+  from { opacity: 0; transform: scale(1.32); filter: blur(16px) brightness(2.2); }
+  60% { filter: blur(0) brightness(1.25); }
+  to { opacity: 1; transform: scale(1); filter: blur(0) brightness(1); }
+}
+.pp-intro-shine {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: var(--pp-logo);
+  mask-image: var(--pp-logo);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.85) 50%, transparent 60%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: pp-shine 1s ease-in-out 1.3s forwards;
+}
+@keyframes pp-shine {
+  from { opacity: 1; background-position: 130% 0; }
+  to { opacity: 1; background-position: -30% 0; }
+}
+
+/* Embers rising from the bottom */
+.pp-intro-embers { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; }
+.pp-intro-embers li {
+  position: absolute;
+  bottom: -12px;
+  left: var(--x);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: #ffa24a;
+  box-shadow: 0 0 8px 2px rgba(255, 140, 40, 0.7);
+  opacity: 0;
+  animation: pp-ember var(--d) ease-out var(--t) infinite;
+}
+@keyframes pp-ember {
+  0% { opacity: 0; transform: translate(0, 0); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), -85vh); }
+}
+
+/* Progress bar: tells people the site is loading */
+.pp-intro-bar {
+  width: min(56vmin, 300px);
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  opacity: 0;
+  animation: pp-fade 0.4s ease 0.5s forwards;
+}
+.pp-intro-bar span {
+  display: block;
+  height: 100%;
+  transform-origin: left;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, #ff7a18, #ffb347);
+  box-shadow: 0 0 12px rgba(255, 122, 24, 0.8);
+  animation: pp-fill 2.5s cubic-bezier(0.3, 0.1, 0.2, 1) 0.5s forwards;
+}
+@keyframes pp-fill { to { transform: scaleX(1); } }
+
+/* Skip button (real button so keyboard users can use it) */
+.pp-intro-skip {
+  position: absolute;
+  right: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  min-height: 44px;
+  padding: 0.55rem 1.1rem;
+  background: transparent;
+  color: #d8d2ca;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  font: 600 0.95rem var(--font-sans, system-ui, sans-serif);
+  cursor: pointer;
+  opacity: 0;
+  animation: pp-fade 0.4s ease 0.8s forwards;
+  transition: border-color 0.2s ease, color 0.2s ease;
+  z-index: 10;
+}
+.pp-intro-skip:hover { border-color: #ff7a18; color: #fff; }
+.pp-intro-skip:focus-visible { outline: 3px solid #ffb347; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-intro-glow, .pp-intro-shine, .pp-intro-embers { display: none; }
+  .pp-intro-logo img { animation: pp-fade 0.5s ease forwards; }
+  .pp-intro-bar span { animation-duration: 0.8s; }
+}

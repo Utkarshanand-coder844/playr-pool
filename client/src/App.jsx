@@ -428,13 +428,18 @@ export default function App() {
   const [loaderPhase, setLoaderPhase] = useState('loading');
 
   useEffect(() => {
-    const exitTimer = window.setTimeout(() => setLoaderPhase('exiting'), 700);
-    const hideTimer = window.setTimeout(() => setLoaderPhase('complete'), 1000);
+    const exitTimer = window.setTimeout(() => setLoaderPhase('exiting'), 3000);
+    const hideTimer = window.setTimeout(() => setLoaderPhase('complete'), 3600);
     return () => {
       window.clearTimeout(exitTimer);
       window.clearTimeout(hideTimer);
     };
   }, []);
+
+  const handleDismissIntro = () => {
+    setLoaderPhase('exiting');
+    window.setTimeout(() => setLoaderPhase('complete'), 600);
+  };
 
   return (
     <BrowserRouter>
@@ -442,7 +447,10 @@ export default function App() {
         <SocketProvider>
           <MainLayout />
           {loaderPhase !== 'complete' && (
-            <CampusClashLoader isExiting={loaderPhase === 'exiting'} />
+            <CampusClashLoader
+              isExiting={loaderPhase === 'exiting'}
+              onDismiss={handleDismissIntro}
+            />
           )}
         </SocketProvider>
       </AuthProvider>
