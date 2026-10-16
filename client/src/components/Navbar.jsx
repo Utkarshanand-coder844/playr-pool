@@ -236,6 +236,16 @@ export const Navbar = ({ currentView, onViewChange }) => {
             <div className="nav-user-cluster">
               <button
                 type="button"
+                className={`nav-icon-btn ${currentView === 'feedback' || currentView === 'community' ? 'active' : ''}`}
+                onClick={() => handleNav('feedback')}
+                aria-label="Community Wall & Feedback"
+                title="Community Wall & Feedback"
+              >
+                💬
+              </button>
+
+              <button
+                type="button"
                 className={`nav-icon-btn ${currentView === 'notifications' ? 'active' : ''}`}
                 onClick={() => handleNav('notifications')}
                 aria-label="Notifications"
@@ -293,7 +303,16 @@ export const Navbar = ({ currentView, onViewChange }) => {
               </button>
             </div>
           ) : (
-            <div className="nav-auth-buttons">
+            <div className="nav-auth-buttons" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <button
+                type="button"
+                className={`nav-icon-btn ${currentView === 'feedback' || currentView === 'community' ? 'active' : ''}`}
+                onClick={() => handleNav('feedback')}
+                aria-label="Community Wall & Feedback"
+                title="Community Wall & Feedback"
+              >
+                💬
+              </button>
               <button 
                 type="button"
                 className={`btn btn-sm ${currentView === 'login' ? 'btn-primary' : 'btn-secondary'}`}
