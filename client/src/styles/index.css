@@ -215,7 +215,7 @@ a:hover {
   align-items: stretch;
   gap: 0;
   padding: 0 1.5rem;
-  height: 46px;
+  height: 58px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -302,17 +302,17 @@ a:hover {
 
 .nav-link-item {
   font-family: var(--font-sans);
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-muted);
   background: transparent;
   border: none;
-  padding: 0 1.1rem;
+  padding: 0 1.4rem;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   cursor: pointer;
   position: relative;
   white-space: nowrap;
@@ -320,11 +320,11 @@ a:hover {
   letter-spacing: 0.01em;
 }
 .nav-link-item .nl-icon {
-  font-size: 1.05rem;
+  font-size: 1.35rem;
   line-height: 1;
 }
 .nav-link-item .nl-label {
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
