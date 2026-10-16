@@ -313,7 +313,6 @@ export const Dashboard = ({ onNavigate }) => {
             </div>
             <button 
               className="btn btn-primary" 
-              style={{ width: '100%', fontSize: '1.15rem', padding: '0.8rem 1.25rem' }}
               onClick={() => onNavigate && onNavigate('my-team')}
             >
               Go to My Team →
@@ -330,7 +329,6 @@ export const Dashboard = ({ onNavigate }) => {
             </div>
             <button 
               className="btn btn-primary" 
-              style={{ width: '100%', fontSize: '1.15rem', padding: '0.8rem 1.25rem' }}
               onClick={() => onNavigate && onNavigate(user.role === 'admin' ? 'admin-dashboard' : 'leaderboard')}
             >
               {user.role === 'admin' ? 'Go to Admin Desk →' : 'View Live Scores →'}
@@ -347,7 +345,6 @@ export const Dashboard = ({ onNavigate }) => {
             </div>
             <button 
               className="btn btn-primary" 
-              style={{ width: '100%', fontSize: '1.15rem', padding: '0.8rem 1.25rem' }}
               onClick={() => onNavigate && onNavigate('scorehub')}
             >
               Open ScoreHub →
@@ -364,7 +361,6 @@ export const Dashboard = ({ onNavigate }) => {
             </div>
             <button 
               className="btn btn-primary" 
-              style={{ width: '100%', fontSize: '1.15rem', padding: '0.8rem 1.25rem' }}
               onClick={() => onNavigate && onNavigate('player-insights', user.id)}
             >
               View My Insights →
@@ -375,18 +371,18 @@ export const Dashboard = ({ onNavigate }) => {
 
       {/* Danger Zone: Permanent Account Deletion */}
       <div style={{ marginTop: '2.5rem', borderTop: '1px solid rgba(255, 77, 77, 0.2)', paddingTop: '1.5rem' }}>
-        <div style={{ background: 'rgba(255, 68, 68, 0.05)', border: '1px solid rgba(255, 68, 68, 0.25)', borderRadius: '12px', padding: '1.6rem' }}>
-          <h4 style={{ color: '#ff4d4d', margin: '0 0 0.75rem 0', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.45rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        <div className="danger-zone-box" style={{ background: 'rgba(255, 68, 68, 0.05)', border: '1px solid rgba(255, 68, 68, 0.25)', borderRadius: '12px' }}>
+          <h4 className="danger-zone-title" style={{ color: '#ff4d4d', margin: '0 0 0.75rem 0', display: 'flex', alignItems: 'center', gap: '0.6rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             ⚠️ Danger Zone — Permanent Account Deletion
           </h4>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', lineHeight: '1.6', margin: '0 0 1.25rem 0' }}>
+          <p className="danger-zone-desc" style={{ color: 'var(--text-secondary)', margin: '0 0 1.25rem 0' }}>
             <strong>Note:</strong> To simply leave your session on this computer, use <strong>Sign Out</strong> in the top menu. <br />
             Clicking <strong>Permanently Delete Account</strong> below will completely erase your player profile, team memberships, sports data, and chat history from the tournament database forever.
           </p>
           <button 
-            className="btn btn-danger"
+            className="btn btn-danger danger-zone-btn"
             onClick={() => setShowDeleteModal(true)}
-            style={{ width: 'auto', fontSize: '1.15rem', padding: '0.8rem 1.6rem' }}
+            style={{ width: 'auto' }}
           >
             🗑️ Permanently Delete My Account
           </button>
