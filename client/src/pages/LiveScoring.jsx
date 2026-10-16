@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { getAuthHeaders } from '../utils/authFetch';
 import { Scorecard } from './Scorecard';
 import { OverDots } from '../features/scoring/components/OverDots';
@@ -810,6 +811,7 @@ function GenericAdminPanel({ match, liveState, onEvent, undoing, onUndo }) {
 // ─────────────────────────────────────────────
 export function LiveScoring({ onNavigate }) {
   const { user, token } = useAuth();
+  const { socket } = useSocket();
   const isAdmin = user?.role === 'admin';
 
   const [matches, setMatches] = useState([]);
@@ -824,7 +826,6 @@ export function LiveScoring({ onNavigate }) {
   const [sportFilter, setSportFilter] = useState('All');
   const [undoing, setUndoing] = useState(false);
   const [toast, setToast] = useState('');
-  const socketRef = useRef(null);
   const selectedMatchRef = useRef(selectedMatch?.id);
 
 
@@ -869,12 +870,12 @@ export function LiveScoring({ onNavigate }) {
 
   useEffect(() => {
     loadMatches();
+  }, [loadMatches]);
 
-    // Socket.io real-time listener
-    const socket = io(SOCKET_URL);
-    socketRef.current = socket;
+  useEffect(() => {
+    if (!socket) return;
 
-    socket.on('match:live_update', (payload) => {
+    const onLiveUpdate = (payload) => {
       if (payload?.matchId === selectedMatchRef.current) {
         setLiveDetail(prev => prev ? { ...prev, liveState: payload.liveState } : prev);
       }
@@ -883,32 +884,40 @@ export function LiveScoring({ onNavigate }) {
         if (m.id !== payload?.matchId) return m;
         return { ...m, liveState: payload.liveState, status: payload.status || m.status, team_a_score: payload.scoreA, team_b_score: payload.scoreB };
       }));
-    });
+    };
 
-    socket.on('match:status', ({ match_id, status }) => {
+    const onStatus = ({ match_id, status }) => {
       setMatches(prev => prev.map(m => m.id === match_id ? { ...m, status } : m));
-    });
+    };
 
-    socket.on('match:deleted', ({ match_id }) => {
+    const onDeleted = ({ match_id }) => {
       setMatches(prev => prev.filter(m => m.id !== match_id));
       if (selectedMatchRef.current === match_id) {
         setSelectedMatch(null);
         setLiveDetail(null);
       }
-    });
+    };
 
-    return () => socket.disconnect();
-  }, [loadMatches]);
+    socket.on('match:live_update', onLiveUpdate);
+    socket.on('match:status', onStatus);
+    socket.on('match:deleted', onDeleted);
+
+    return () => {
+      socket.off('match:live_update', onLiveUpdate);
+      socket.off('match:status', onStatus);
+      socket.off('match:deleted', onDeleted);
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (selectedMatch?.id) {
       loadDetail(selectedMatch.id);
-      socketRef.current?.emit('join:match', selectedMatch.id);
+      socket?.emit('join:match', selectedMatch.id);
     }
     return () => {
-      if (selectedMatch?.id) socketRef.current?.emit('leave:match', selectedMatch.id);
+      if (selectedMatch?.id) socket?.emit('leave:match', selectedMatch.id);
     };
-  }, [selectedMatch?.id, loadDetail]);
+  }, [selectedMatch?.id, loadDetail, socket]);
 
   // Admin: record event
   const handleEvent = async ({ eventType, payload }) => {

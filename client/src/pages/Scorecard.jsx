@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSocket } from '../context/SocketContext';
 
 // ──────────────────────────────────────────────────────────────
 // Small helpers
@@ -316,6 +317,7 @@ function MatchPlayerLeaderboard({ matchId }) {
 // Main Scorecard export
 // ──────────────────────────────────────────────────────────────
 export function Scorecard({ matchId, onNavigate }) {
+  const { socket } = useSocket();
   const [tab, setTab] = useState('scorecard');
   const [scorecard, setScorecard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -343,14 +345,16 @@ export function Scorecard({ matchId, onNavigate }) {
 
   useEffect(() => {
     fetchScorecard();
-    let socket;
-    try {
-      socket = io(SOCKET_URL);
-      socket.on('match:live_state', ({ matchId: mid }) => { if (mid === matchId) fetchScorecard(); });
-      socket.on('match:live_update', ({ matchId: mid }) => { if (mid === matchId) fetchScorecard(); });
-    } catch (_) {}
-    return () => { if (socket) socket.disconnect(); };
-  }, [matchId, fetchScorecard]);
+    if (!socket) return;
+    const onLiveState = ({ matchId: mid }) => { if (mid === matchId) fetchScorecard(); };
+    const onLiveUpdate = ({ matchId: mid }) => { if (mid === matchId) fetchScorecard(); };
+    socket.on('match:live_state', onLiveState);
+    socket.on('match:live_update', onLiveUpdate);
+    return () => {
+      socket.off('match:live_state', onLiveState);
+      socket.off('match:live_update', onLiveUpdate);
+    };
+  }, [matchId, fetchScorecard, socket]);
 
   const tabStyle = (t) => ({
     padding: '0.55rem 1.2rem', borderRadius: 100,
