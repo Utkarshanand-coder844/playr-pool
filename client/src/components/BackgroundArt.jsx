@@ -18,20 +18,18 @@ const EMBERS = [
  *   <BackgroundArt showLogo={true} />          adds logo watermark
  */
 export default function BackgroundArt({ photo, showLogo = true }) {
-  const activePhoto = photo || photoArt;
-
   return (
     <div
       className="pp-bg"
       aria-hidden="true"
-      style={{ '--pp-photo': `url(${activePhoto})` }}
+      style={photo ? { '--pp-photo': `url(${photo})` } : undefined}
     >
-      <div className="pp-bg-photo" />
+      {photo && <div className="pp-bg-photo" />}
       <div className="pp-bg-glow a" />
       <div className="pp-bg-glow b" />
       {showLogo && (
         <div className="pp-bg-logo">
-          <img src={activePhoto} alt="" width="800" height="800" />
+          <img src={photoArt} alt="" width="800" height="800" />
         </div>
       )}
       <ul className="pp-bg-embers">

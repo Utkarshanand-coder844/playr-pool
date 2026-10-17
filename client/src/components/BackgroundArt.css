@@ -1,9 +1,9 @@
-/* Animated background art for Playr-Pool: sports artwork, glow, embers and watermark.
-   Everything sits behind the page content and never blocks clicks. */
+/* Animated background art for Playr-Pool: sports artwork watermark, stadium glow, embers.
+   Everything sits behind the page content and never blocks clicks or text readability. */
 :root {
   --pp-glow: 255, 179, 56;          /* yellowish-light orange, as r, g, b */
-  --pp-logo-opacity: 0.28;          /* strength of floating logo watermark */
-  --pp-photo-opacity: 0.42;         /* strength of background photo */
+  --pp-logo-opacity: 0.28;          /* strength of floating sports emblem watermark */
+  --pp-photo-opacity: 0.18;         /* strength of optional full-bleed photo */
 }
 
 /* Keep the app above the art */
@@ -18,19 +18,21 @@
   contain: strict;
 }
 
-/* Sports artwork photo: spans across full screen with subtle Ken Burns drift */
+/* Optional full photo: soft duotone faded at edges so it never obscures text */
 .pp-bg-photo {
   position: absolute;
-  inset: -6%;
-  background: var(--pp-photo) center center / cover no-repeat;
+  inset: -4%;
+  background: var(--pp-photo) center / cover no-repeat;
   opacity: var(--pp-photo-opacity);
-  filter: saturate(1.22) brightness(0.92) contrast(1.08);
-  animation: pp-bg-kenburns 36s ease-in-out infinite alternate;
+  filter: grayscale(1) sepia(1) saturate(3.2) hue-rotate(-14deg) brightness(0.75) contrast(1.1);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 78%);
+  mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 78%);
+  animation: pp-bg-kenburns 42s ease-in-out infinite alternate;
   will-change: transform;
 }
 @keyframes pp-bg-kenburns {
-  from { transform: scale(1.03) translate3d(0, 0, 0); }
-  to { transform: scale(1.15) translate3d(-2%, -1.5%, 0); }
+  from { transform: scale(1.02) translate3d(0, 0, 0); }
+  to { transform: scale(1.14) translate3d(-2%, -1.5%, 0); }
 }
 
 /* Slow drifting stadium lights */
@@ -47,7 +49,7 @@
 @keyframes pp-bg-drift-a { to { transform: translate3d(14vmax, 10vmax, 0); } }
 @keyframes pp-bg-drift-b { to { transform: translate3d(-16vmax, -8vmax, 0); } }
 
-/* Logo watermark: floats on the side */
+/* Sports emblem watermark: anchored on the right edge, fading out towards the center (like Picture 1) */
 .pp-bg-logo {
   position: absolute;
   right: -5vmin;
@@ -56,8 +58,8 @@
   aspect-ratio: 1;
   transform: translateY(-50%);
   opacity: var(--pp-logo-opacity);
-  -webkit-mask-image: linear-gradient(to left, #000 50%, transparent 100%);
-  mask-image: linear-gradient(to left, #000 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 40%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 40%, rgba(0, 0, 0, 0) 100%);
 }
 .pp-bg-logo img {
   width: 100%;
@@ -92,21 +94,24 @@
   100% { opacity: 0; transform: translate3d(var(--dx), -105vh, 0); }
 }
 
-/* Gentle center vignette so content in the middle remains 100% readable */
+/* Subtle corner vignette so content in the center remains pristine and 100% readable */
 .pp-bg-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 50%, rgba(9, 9, 11, 0.45) 20%, rgba(9, 9, 11, 0.75) 100%);
+  background: radial-gradient(ellipse at 50% 45%, transparent 60%, rgba(0, 0, 0, 0.4) 100%);
+  pointer-events: none;
 }
 
 /* Mobile & tablet adjustments */
 @media (max-width: 900px) {
-  .pp-bg-photo {
-    background-size: cover;
-    opacity: calc(var(--pp-photo-opacity) * 0.85);
-  }
   .pp-bg-logo {
-    display: none;
+    right: 50%;
+    top: 55%;
+    width: min(100vw, 540px);
+    transform: translate(50%, -50%);
+    opacity: 0.12;
+    -webkit-mask-image: radial-gradient(circle, #000 30%, transparent 80%);
+    mask-image: radial-gradient(circle, #000 30%, transparent 80%);
   }
   .pp-bg-photo { animation: none; }
   .pp-bg-embers li:nth-child(n+7) { display: none; }

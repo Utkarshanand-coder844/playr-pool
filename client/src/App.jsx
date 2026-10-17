@@ -239,7 +239,7 @@ function MainLayout() {
 
   return (
     <div className="app-container">
-      <BackgroundArt photo="/bg-sports-art.jpg" />
+      <BackgroundArt />
       <Navbar currentView={currentView} onViewChange={handleNavigate} />
       <ScoreToast />
       <NetworkStatusIndicator />
