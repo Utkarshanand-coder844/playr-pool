@@ -13,17 +13,19 @@ const EMBERS = [
 
 /**
  * Animated, theme-matched background.
- *   <BackgroundArt />                          logo watermark + glow + embers
- *   <BackgroundArt photo="/stadium.jpg" />     adds your own photo (shown as an orange duotone)
- *   <BackgroundArt showLogo={false} />         glow + embers only
+ *   <BackgroundArt />                          sports artwork photo + glow + embers
+ *   <BackgroundArt photo="/stadium.jpg" />     custom photo
+ *   <BackgroundArt showLogo={true} />          adds logo watermark
  */
-export default function BackgroundArt({ photo, showLogo = true }) {
+export default function BackgroundArt({ photo = '/bg-sports-art.jpg', showLogo }) {
+  const shouldShowLogo = showLogo !== undefined ? showLogo : !photo;
+
   return (
     <div className="pp-bg" aria-hidden="true" style={photo ? { '--pp-photo': `url(${photo})` } : undefined}>
       {photo && <div className="pp-bg-photo" />}
       <div className="pp-bg-glow a" />
       <div className="pp-bg-glow b" />
-      {showLogo && (
+      {shouldShowLogo && (
         <div className="pp-bg-logo"><img src={logo || '/logo.jpg'} alt="" width="800" height="800" /></div>
       )}
       <ul className="pp-bg-embers">

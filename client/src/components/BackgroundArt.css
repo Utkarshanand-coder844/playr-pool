@@ -3,7 +3,7 @@
 :root {
   --pp-glow: 255, 179, 56;          /* yellowish-light orange, as r, g, b */
   --pp-logo-opacity: 0.12;          /* raise to 0.16 for a stronger logo, 0 to hide it */
-  --pp-photo-opacity: 0.18;         /* strength of the optional photo */
+  --pp-photo-opacity: 0.22;         /* strength of the photo */
 }
 
 /* Keep the app above the art */
@@ -18,15 +18,15 @@
   contain: strict;
 }
 
-/* Optional photo: turned into a yellowish-orange duotone so it matches the theme, faded at the edges */
+/* Sports artwork photo: centered with soft Ken Burns and subtle edge fade */
 .pp-bg-photo {
   position: absolute;
   inset: -4%;
-  background: var(--pp-photo) center / cover no-repeat;
+  background: var(--pp-photo) center center / min(85vmin, 760px) no-repeat;
   opacity: var(--pp-photo-opacity);
-  filter: grayscale(1) sepia(1) saturate(3.2) hue-rotate(-14deg) brightness(0.75) contrast(1.1);
-  -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 78%);
-  mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 78%);
+  filter: saturate(1.15) brightness(0.9) contrast(1.05);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 50%, #000 48%, transparent 86%);
+  mask-image: radial-gradient(ellipse at 50% 50%, #000 48%, transparent 86%);
   animation: pp-bg-kenburns 42s ease-in-out infinite alternate;
   will-change: transform;
 }
