@@ -15,6 +15,7 @@ import { Navbar } from './components/Navbar';
 import { ProtectedRoute, AdminRoute, SuperAdminRoute } from './components/ProtectedRoute';
 import { ScoreToast } from './components/ScoreToast';
 import { CampusClashLoader } from './components/CampusClashLoader';
+import BackgroundArt from './components/BackgroundArt';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NetworkStatusIndicator } from './components/NetworkStatusIndicator';
 
@@ -238,6 +239,7 @@ function MainLayout() {
 
   return (
     <div className="app-container">
+      <BackgroundArt />
       <Navbar currentView={currentView} onViewChange={handleNavigate} />
       <ScoreToast />
       <NetworkStatusIndicator />
