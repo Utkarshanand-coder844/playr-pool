@@ -2,12 +2,16 @@
    Everything sits behind the page content and never blocks clicks or text readability. */
 :root {
   --pp-glow: 255, 179, 56;          /* yellowish-light orange, as r, g, b */
-  --pp-logo-opacity: 0.52;          /* strength of floating sports emblem watermark */
+  --pp-logo-opacity: 0.32;          /* strength of floating sports emblem watermark */
   --pp-photo-opacity: 0.18;         /* strength of optional full-bleed photo */
 }
 
-/* Keep the app above the art */
-#root { position: relative; z-index: 1; }
+/* Keep the app above the art and isolate blending */
+#root {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
 
 .pp-bg {
   position: fixed;
@@ -54,13 +58,13 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(108vmin, 1160px);
+  width: min(104vmin, 1120px);
   aspect-ratio: 1;
-  transform: translate(-16%, -50%);
+  transform: translate(-10%, -50%);
   opacity: var(--pp-logo-opacity);
   mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(ellipse 52% 50% at 50% 50%, rgba(0, 0, 0, 1) 38%, rgba(0, 0, 0, 0) 80%);
-  mask-image: radial-gradient(ellipse 52% 50% at 50% 50%, rgba(0, 0, 0, 1) 38%, rgba(0, 0, 0, 0) 80%);
+  -webkit-mask-image: radial-gradient(ellipse 52% 50% at 54% 50%, rgba(0, 0, 0, 1) 32%, rgba(0, 0, 0, 0) 78%);
+  mask-image: radial-gradient(ellipse 52% 50% at 54% 50%, rgba(0, 0, 0, 1) 32%, rgba(0, 0, 0, 0) 78%);
 }
 .pp-bg-logo img {
   width: 100%;

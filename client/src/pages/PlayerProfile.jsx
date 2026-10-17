@@ -106,9 +106,9 @@ export const PlayerProfile = ({ playerId, onNavigate }) => {
             <div className="detail-label">Academic Year</div>
             <div className="detail-value">{player.year}</div>
           </div>
-          <div className="detail-item">
+          <div className="detail-item detail-item-email">
             <div className="detail-label">Email</div>
-            <div className="detail-value">{player.email || '—'}</div>
+            <div className="detail-value detail-value-email" title={player.email}>{player.email || '—'}</div>
           </div>
           <div className="detail-item">
             <div className="detail-label">Phone</div>

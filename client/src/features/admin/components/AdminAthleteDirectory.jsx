@@ -51,7 +51,15 @@ export const AdminAthleteDirectory = ({
       {/* Filter Controls Bar */}
       <div
         className="auth-card"
-        style={{ maxWidth: '100%', marginBottom: '1rem', padding: '1rem 1.25rem' }}
+        style={{
+          maxWidth: '100%',
+          marginBottom: '1rem',
+          padding: '1rem 1.25rem',
+          background: 'rgba(18, 17, 21, 0.96)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)'
+        }}
       >
         <div
           style={{
@@ -150,11 +158,13 @@ export const AdminAthleteDirectory = ({
       {/* Players Table */}
       <div
         style={{
-          background: 'var(--bg-card)',
+          background: 'rgba(18, 17, 21, 0.96)',
+          backdropFilter: 'blur(16px)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-lg)',
           overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch'
+          WebkitOverflowScrolling: 'touch',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)'
         }}
       >
         <table
@@ -246,7 +256,10 @@ export const AdminAthleteDirectory = ({
                 return (
                   <tr
                     key={p.id}
-                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                    style={{
+                      borderBottom: '1px solid var(--border-subtle)',
+                      background: 'rgba(255, 255, 255, 0.015)'
+                    }}
                   >
                     <td style={{ padding: '0.85rem 1rem' }}>
                       <div style={{ fontWeight: 700, color: '#fff' }}>

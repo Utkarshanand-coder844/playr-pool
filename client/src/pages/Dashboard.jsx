@@ -150,9 +150,9 @@ export const Dashboard = ({ onNavigate }) => {
             <div className="detail-label">Department / Branch</div>
             <div className="detail-value">{user.department}</div>
           </div>
-          <div className="detail-item">
+          <div className="detail-item detail-item-email">
             <div className="detail-label">Email Contact</div>
-            <div className="detail-value">{user.email}</div>
+            <div className="detail-value detail-value-email" title={user.email}>{user.email}</div>
           </div>
           <div className="detail-item">
             <div className="detail-label">Phone</div>
