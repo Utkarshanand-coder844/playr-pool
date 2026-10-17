@@ -1,5 +1,4 @@
 import React from 'react';
-import photoArt from './playr-pool-logo.webp';
 import './BackgroundArt.css';
 
 // left %, size, duration, delay, sideways drift
@@ -29,7 +28,15 @@ export default function BackgroundArt({ photo, showLogo = true }) {
       <div className="pp-bg-glow b" />
       {showLogo && (
         <div className="pp-bg-logo">
-          <img src={photoArt} alt="" width="800" height="800" loading="lazy" decoding="async" />
+          <img
+            src="/playr-pool-logo.webp"
+            alt=""
+            width="800"
+            height="800"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+          />
         </div>
       )}
       <ul className="pp-bg-embers">
