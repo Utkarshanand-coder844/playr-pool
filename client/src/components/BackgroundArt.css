@@ -111,13 +111,7 @@
 /* Mobile & tablet adjustments */
 @media (max-width: 900px) {
   .pp-bg-logo {
-    right: 50%;
-    top: 55%;
-    width: min(100vw, 540px);
-    transform: translate(50%, -50%);
-    opacity: 0.12;
-    -webkit-mask-image: radial-gradient(circle, #000 30%, transparent 80%);
-    mask-image: radial-gradient(circle, #000 30%, transparent 80%);
+    display: none;
   }
   .pp-bg-photo { animation: none; }
   .pp-bg-embers li:nth-child(n+7) { display: none; }

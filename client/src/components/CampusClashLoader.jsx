@@ -47,6 +47,8 @@ export const CampusClashLoader = ({ isExiting = false, onDismiss }) => {
         <img
           src="/intro-emblem.jpg"
           alt="Playr-Pool"
+          width="512"
+          height="512"
           decoding="async"
         />
         <div

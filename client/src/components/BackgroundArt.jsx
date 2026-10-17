@@ -29,7 +29,7 @@ export default function BackgroundArt({ photo, showLogo = true }) {
       <div className="pp-bg-glow b" />
       {showLogo && (
         <div className="pp-bg-logo">
-          <img src={photoArt} alt="" width="800" height="800" />
+          <img src={photoArt} alt="" width="800" height="800" loading="lazy" decoding="async" />
         </div>
       )}
       <ul className="pp-bg-embers">

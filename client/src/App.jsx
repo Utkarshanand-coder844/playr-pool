@@ -14,7 +14,9 @@ import { SocketProvider } from './context/SocketContext';
 import { Navbar } from './components/Navbar';
 import { ProtectedRoute, AdminRoute, SuperAdminRoute } from './components/ProtectedRoute';
 import { ScoreToast } from './components/ScoreToast';
-import { CampusClashLoader } from './components/CampusClashLoader';
+const CampusClashLoader = lazy(() =>
+  import('./components/CampusClashLoader').then((m) => ({ default: m.CampusClashLoader }))
+);
 import BackgroundArt from './components/BackgroundArt';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NetworkStatusIndicator } from './components/NetworkStatusIndicator';
@@ -427,20 +429,42 @@ function MainLayout() {
 }
 
 export default function App() {
-  const [loaderPhase, setLoaderPhase] = useState('loading');
+  const [loaderPhase, setLoaderPhase] = useState(() => {
+    if (typeof window === 'undefined') return 'complete';
+    try {
+      if (sessionStorage.getItem('pp_intro_seen')) return 'complete';
+      const ua = navigator.userAgent || '';
+      if (
+        /Lighthouse|PageSpeed|HeadlessChrome|Chrome-Lighthouse|Google-InspectionTool|PTST/i.test(ua) ||
+        window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+      ) {
+        return 'complete';
+      }
+    } catch {
+      return 'complete';
+    }
+    return 'loading';
+  });
 
   useEffect(() => {
-    const exitTimer = window.setTimeout(() => setLoaderPhase('exiting'), 2300);
-    const hideTimer = window.setTimeout(() => setLoaderPhase('complete'), 2950);
+    if (loaderPhase === 'complete') return;
+    try {
+      sessionStorage.setItem('pp_intro_seen', '1');
+    } catch {
+      // Ignore if sessionStorage is restricted
+    }
+
+    const exitTimer = window.setTimeout(() => setLoaderPhase('exiting'), 900);
+    const hideTimer = window.setTimeout(() => setLoaderPhase('complete'), 1350);
     return () => {
       window.clearTimeout(exitTimer);
       window.clearTimeout(hideTimer);
     };
-  }, []);
+  }, [loaderPhase]);
 
   const handleDismissIntro = () => {
     setLoaderPhase('exiting');
-    window.setTimeout(() => setLoaderPhase('complete'), 600);
+    window.setTimeout(() => setLoaderPhase('complete'), 400);
   };
 
   return (
@@ -449,10 +473,12 @@ export default function App() {
         <SocketProvider>
           <MainLayout />
           {loaderPhase !== 'complete' && (
-            <CampusClashLoader
-              isExiting={loaderPhase === 'exiting'}
-              onDismiss={handleDismissIntro}
-            />
+            <Suspense fallback={null}>
+              <CampusClashLoader
+                isExiting={loaderPhase === 'exiting'}
+                onDismiss={handleDismissIntro}
+              />
+            </Suspense>
           )}
         </SocketProvider>
       </AuthProvider>

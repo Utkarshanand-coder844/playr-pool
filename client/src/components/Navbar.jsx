@@ -158,7 +158,7 @@ export const Navbar = ({ currentView, onViewChange }) => {
                 aria-expanded={isAboutOpen}
                 aria-label="Open information about Playr-Pool"
               >
-                <img src="/logo.jpg" alt="Playr-Pool Logo" />
+                <img src="/logo.jpg" alt="Playr-Pool Logo" width="36" height="36" loading="lazy" decoding="async" />
               </button>
               <span className="brand-name">
                 Playr<em>-Pool</em>
@@ -516,7 +516,7 @@ export const Navbar = ({ currentView, onViewChange }) => {
           <aside className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-drawer-header">
               <div className="brand-logo" onClick={() => handleNav(isAuthenticated ? 'dashboard' : 'schedule')}>
-                <img src="/logo.jpg" alt="Playr-Pool" className="mobile-drawer-logo-img" />
+                <img src="/logo.jpg" alt="Playr-Pool" className="mobile-drawer-logo-img" width="40" height="40" loading="lazy" decoding="async" />
                 <span className="brand-name">Playr<em>-Pool</em></span>
               </div>
               <button
@@ -868,7 +868,7 @@ export const Navbar = ({ currentView, onViewChange }) => {
           >
             <div className="about-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <img src="/logo.jpg" alt="Playr-Pool Logo" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
+                <img src="/logo.jpg" alt="Playr-Pool Logo" width="48" height="48" loading="lazy" decoding="async" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
                 <div>
                   <p className="about-eyebrow">// ABOUT PLAYR-POOL</p>
                   <h2 id="playrpool-about-title">Connect, Play, <em>Conquer</em></h2>

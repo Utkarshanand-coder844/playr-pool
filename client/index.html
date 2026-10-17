@@ -48,10 +48,18 @@
     }
     </script>
 
-    <!-- Google Fonts: Griffin Design System Typography -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- DNS prefetch for backend -->
+    <link rel="dns-prefetch" href="https://campusclash.onrender.com" />
+
+    <!-- Google Fonts: Griffin Design System Typography (non-blocking for 90+ PageSpeed) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" />
+    </noscript>
+
     <link rel="icon" type="image/jpeg" href="/logo.jpg" />
     <link rel="apple-touch-icon" href="/logo.jpg" />
   </head>

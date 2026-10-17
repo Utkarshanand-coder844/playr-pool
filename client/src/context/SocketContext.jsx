@@ -39,29 +39,35 @@ export const SocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const s = io(SOCKET_URL, {
-      ...(token ? { auth: { token } } : {}),
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-    });
+    // Defer socket connection so it doesn't compete with first paint / LCP
+    const delay = window.setTimeout(() => {
+      const s = io(SOCKET_URL, {
+        ...(token ? { auth: { token } } : {}),
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+      });
 
-    s.on('connect', () => {
-      setIsConnected(true);
-      if (isAuthenticated) {
-        s.emit('join:user');
-      }
-    });
+      s.on('connect', () => {
+        setIsConnected(true);
+        if (isAuthenticated) {
+          s.emit('join:user');
+        }
+      });
 
-    s.on('disconnect', () => setIsConnected(false));
-    s.on('connect_error', (err) => {
-      console.warn('[Socket] Connection error:', err.message);
-      setIsConnected(false);
-    });
+      s.on('disconnect', () => setIsConnected(false));
+      s.on('connect_error', (err) => {
+        console.warn('[Socket] Connection error:', err.message);
+        setIsConnected(false);
+      });
 
-    setSocket(s);
+      setSocket(s);
+    }, 2000);
 
     return () => {
-      s.disconnect();
+      window.clearTimeout(delay);
+      if (socket) {
+        socket.disconnect();
+      }
       setSocket(null);
       setIsConnected(false);
     };
