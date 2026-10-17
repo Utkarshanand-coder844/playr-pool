@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Playr-Pool — Live Scores, Team Rosters & Tournament Brackets | Connect, Play, Conquer</title>
+
+    <!-- Critical Resource Hints (First in Head for maximum PageSpeed) -->
+    <link rel="preload" as="image" href="/playr-pool-logo.webp" type="image/webp" fetchpriority="high" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" />
+    </noscript>
+
+    <!-- Module script in head for parallel download with HTML parsing -->
+    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- App Metadata & SEO -->
     <meta name="description" content="Playr-Pool is a real-time sports tournament platform where players create teams, compete in live matches, and track scores instantly. Manage rosters, view leaderboards, follow brackets, and chat — all in one place. Built for campus and outdoor sports." />
     <meta name="keywords" content="Playr-Pool, Playr Pool, sports tournament, live scoring, college sports, tournament platform, match schedule, sports leaderboard, team roster, football, cricket, basketball" />
     <meta name="author" content="Playr-Pool Team" />
@@ -12,6 +26,8 @@
     <meta name="theme-color" content="#09090b" />
 
     <link rel="canonical" href="https://playr-pool-two.vercel.app/" />
+    <link rel="icon" type="image/jpeg" href="/logo.jpg" />
+    <link rel="apple-touch-icon" href="/logo.jpg" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -47,24 +63,9 @@
       }
     }
     </script>
-
-    <!-- Preload LCP hero background image for instant discovery -->
-    <link rel="preload" as="image" href="/playr-pool-logo.webp" type="image/webp" fetchpriority="high" />
-
-    <!-- Google Fonts: Griffin Design System Typography (non-blocking for 90+ PageSpeed) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" media="print" onload="this.media='all'" />
-    <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" />
-    </noscript>
-
-    <link rel="icon" type="image/jpeg" href="/logo.jpg" />
-    <link rel="apple-touch-icon" href="/logo.jpg" />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
     <script>
       // Safety net: show a visible error if React crashes and #root empties
       window.addEventListener('error', function(e) {
