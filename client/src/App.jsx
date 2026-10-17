@@ -428,8 +428,8 @@ export default function App() {
   const [loaderPhase, setLoaderPhase] = useState('loading');
 
   useEffect(() => {
-    const exitTimer = window.setTimeout(() => setLoaderPhase('exiting'), 3000);
-    const hideTimer = window.setTimeout(() => setLoaderPhase('complete'), 3600);
+    const exitTimer = window.setTimeout(() => setLoaderPhase('exiting'), 2300);
+    const hideTimer = window.setTimeout(() => setLoaderPhase('complete'), 2950);
     return () => {
       window.clearTimeout(exitTimer);
       window.clearTimeout(hideTimer);
