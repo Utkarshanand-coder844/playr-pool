@@ -1,9 +1,9 @@
-/* Animated background art for Playr-Pool: logo watermark, glow, embers and an optional photo.
+/* Animated background art for Playr-Pool: sports artwork, glow, embers and watermark.
    Everything sits behind the page content and never blocks clicks. */
 :root {
   --pp-glow: 255, 179, 56;          /* yellowish-light orange, as r, g, b */
-  --pp-logo-opacity: 0.12;          /* raise to 0.16 for a stronger logo, 0 to hide it */
-  --pp-photo-opacity: 0.22;         /* strength of the photo */
+  --pp-logo-opacity: 0.28;          /* strength of floating logo watermark */
+  --pp-photo-opacity: 0.42;         /* strength of background photo */
 }
 
 /* Keep the app above the art */
@@ -18,30 +18,28 @@
   contain: strict;
 }
 
-/* Sports artwork photo: centered with soft Ken Burns and subtle edge fade */
+/* Sports artwork photo: spans across full screen with subtle Ken Burns drift */
 .pp-bg-photo {
   position: absolute;
-  inset: -4%;
-  background: var(--pp-photo) center center / min(85vmin, 760px) no-repeat;
+  inset: -6%;
+  background: var(--pp-photo) center center / cover no-repeat;
   opacity: var(--pp-photo-opacity);
-  filter: saturate(1.15) brightness(0.9) contrast(1.05);
-  -webkit-mask-image: radial-gradient(ellipse at 50% 50%, #000 48%, transparent 86%);
-  mask-image: radial-gradient(ellipse at 50% 50%, #000 48%, transparent 86%);
-  animation: pp-bg-kenburns 42s ease-in-out infinite alternate;
+  filter: saturate(1.22) brightness(0.92) contrast(1.08);
+  animation: pp-bg-kenburns 36s ease-in-out infinite alternate;
   will-change: transform;
 }
 @keyframes pp-bg-kenburns {
-  from { transform: scale(1.02) translate3d(0, 0, 0); }
-  to { transform: scale(1.14) translate3d(-2%, -1.5%, 0); }
+  from { transform: scale(1.03) translate3d(0, 0, 0); }
+  to { transform: scale(1.15) translate3d(-2%, -1.5%, 0); }
 }
 
-/* Slow drifting light */
+/* Slow drifting stadium lights */
 .pp-bg-glow {
   position: absolute;
   width: 70vmax;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--pp-glow), 0.2) 0%, rgba(var(--pp-glow), 0.06) 40%, transparent 68%);
+  background: radial-gradient(circle, rgba(var(--pp-glow), 0.22) 0%, rgba(var(--pp-glow), 0.08) 42%, transparent 70%);
   will-change: transform;
 }
 .pp-bg-glow.a { left: -25vmax; top: -30vmax; animation: pp-bg-drift-a 26s ease-in-out infinite alternate; }
@@ -49,17 +47,17 @@
 @keyframes pp-bg-drift-a { to { transform: translate3d(14vmax, 10vmax, 0); } }
 @keyframes pp-bg-drift-b { to { transform: translate3d(-16vmax, -8vmax, 0); } }
 
-/* Logo watermark: fades into the background on its left edge */
+/* Logo watermark: floats on the side */
 .pp-bg-logo {
   position: absolute;
-  right: -9vmin;
+  right: -5vmin;
   top: 50%;
-  width: min(72vmin, 780px);
+  width: min(76vmin, 820px);
   aspect-ratio: 1;
   transform: translateY(-50%);
   opacity: var(--pp-logo-opacity);
-  -webkit-mask-image: linear-gradient(to left, #000 45%, transparent 100%);
-  mask-image: linear-gradient(to left, #000 45%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, #000 50%, transparent 100%);
+  mask-image: linear-gradient(to left, #000 50%, transparent 100%);
 }
 .pp-bg-logo img {
   width: 100%;
@@ -74,7 +72,7 @@
   to { transform: translate3d(0, 2.5%, 0) rotate(1.5deg); }
 }
 
-/* Sparse embers */
+/* Sparse embers rising from the bottom */
 .pp-bg-embers { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
 .pp-bg-embers li {
   position: absolute;
@@ -94,23 +92,21 @@
   100% { opacity: 0; transform: translate3d(var(--dx), -105vh, 0); }
 }
 
-/* Darkens the corners so the content in the middle stays easy to read */
+/* Gentle center vignette so content in the middle remains 100% readable */
 .pp-bg-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0, 0, 0, 0.55) 100%);
+  background: radial-gradient(ellipse at 50% 50%, rgba(9, 9, 11, 0.45) 20%, rgba(9, 9, 11, 0.75) 100%);
 }
 
-/* Phones and tablets: logo sits centred and quieter behind the content */
+/* Mobile & tablet adjustments */
 @media (max-width: 900px) {
+  .pp-bg-photo {
+    background-size: cover;
+    opacity: calc(var(--pp-photo-opacity) * 0.85);
+  }
   .pp-bg-logo {
-    right: 50%;
-    top: 58%;
-    width: min(118vw, 640px);
-    transform: translate(50%, -50%);
-    opacity: calc(var(--pp-logo-opacity) * 0.7);
-    -webkit-mask-image: none;
-    mask-image: none;
+    display: none;
   }
   .pp-bg-photo { animation: none; }
   .pp-bg-embers li:nth-child(n+7) { display: none; }

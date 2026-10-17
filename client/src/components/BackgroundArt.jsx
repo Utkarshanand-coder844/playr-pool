@@ -1,5 +1,5 @@
 import React from 'react';
-import logo from './playr-pool-logo.webp';
+import photoArt from './playr-pool-logo.webp';
 import './BackgroundArt.css';
 
 // left %, size, duration, delay, sideways drift
@@ -14,19 +14,25 @@ const EMBERS = [
 /**
  * Animated, theme-matched background.
  *   <BackgroundArt />                          sports artwork photo + glow + embers
- *   <BackgroundArt photo="/stadium.jpg" />     custom photo
+ *   <BackgroundArt photo="/custom.jpg" />      custom photo
  *   <BackgroundArt showLogo={true} />          adds logo watermark
  */
-export default function BackgroundArt({ photo = '/bg-sports-art.jpg', showLogo }) {
-  const shouldShowLogo = showLogo !== undefined ? showLogo : !photo;
+export default function BackgroundArt({ photo, showLogo = true }) {
+  const activePhoto = photo || photoArt;
 
   return (
-    <div className="pp-bg" aria-hidden="true" style={photo ? { '--pp-photo': `url(${photo})` } : undefined}>
-      {photo && <div className="pp-bg-photo" />}
+    <div
+      className="pp-bg"
+      aria-hidden="true"
+      style={{ '--pp-photo': `url(${activePhoto})` }}
+    >
+      <div className="pp-bg-photo" />
       <div className="pp-bg-glow a" />
       <div className="pp-bg-glow b" />
-      {shouldShowLogo && (
-        <div className="pp-bg-logo"><img src={logo || '/logo.jpg'} alt="" width="800" height="800" /></div>
+      {showLogo && (
+        <div className="pp-bg-logo">
+          <img src={activePhoto} alt="" width="800" height="800" />
+        </div>
       )}
       <ul className="pp-bg-embers">
         {EMBERS.map(([x, s, d, t, dx], i) => (
