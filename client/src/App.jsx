@@ -22,7 +22,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { NetworkStatusIndicator } from './components/NetworkStatusIndicator';
 
 // Code-split pages via React.lazy for high-performance chunking
-const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
+import { Login } from './pages/Login';
 const ForgotPassword = lazy(() =>
   import('./pages/ForgotPassword').then((m) => ({ default: m.ForgotPassword }))
 );
