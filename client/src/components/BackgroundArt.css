@@ -2,7 +2,7 @@
    Everything sits behind the page content and never blocks clicks or text readability. */
 :root {
   --pp-glow: 255, 179, 56;          /* yellowish-light orange, as r, g, b */
-  --pp-logo-opacity: 0.28;          /* strength of floating sports emblem watermark */
+  --pp-logo-opacity: 0.32;          /* strength of floating sports emblem watermark */
   --pp-photo-opacity: 0.18;         /* strength of optional full-bleed photo */
 }
 
@@ -49,17 +49,17 @@
 @keyframes pp-bg-drift-a { to { transform: translate3d(14vmax, 10vmax, 0); } }
 @keyframes pp-bg-drift-b { to { transform: translate3d(-16vmax, -8vmax, 0); } }
 
-/* Sports emblem watermark: anchored on the right edge, fading out towards the center (like Picture 1) */
+/* Sports emblem watermark: larger, positioned right alongside the central cards */
 .pp-bg-logo {
   position: absolute;
-  right: -5vmin;
+  left: 50%;
   top: 50%;
-  width: min(76vmin, 820px);
+  width: min(108vmin, 1160px);
   aspect-ratio: 1;
-  transform: translateY(-50%);
+  transform: translate(-16%, -50%);
   opacity: var(--pp-logo-opacity);
-  -webkit-mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 40%, rgba(0, 0, 0, 0) 100%);
-  mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 40%, rgba(0, 0, 0, 0) 100%);
+  -webkit-mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 48%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 48%, rgba(0, 0, 0, 0) 100%);
 }
 .pp-bg-logo img {
   width: 100%;
